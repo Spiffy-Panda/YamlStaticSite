@@ -5,6 +5,9 @@ site:
   description: Agent-first structured docs, human-first static site. This site documents the toolchain that builds it.
   repo: https://github.com/Spiffy-Panda/YamlStaticSite
 
+theme:
+  css: [assets/theme-bamboo.css]     # the house palette; overrides tokens, never the base stylesheet
+
 collections:
   - root: examples/*                  # each matching folder is a collection named after the folder
 

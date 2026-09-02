@@ -15,6 +15,15 @@ properties:
       description: {type: string}
       repo: {type: string, description: Public repository URL (shown in the footer).}
     additionalProperties: false
+  theme:
+    type: object
+    description: Site-wide presentation. A theme package is adopted by listing its stylesheet here, not by replacing the base one.
+    properties:
+      css:
+        type: array
+        items: {type: string}
+        description: Stylesheets under the site's assets/, linked after the base stylesheet on every page. Use them to override custom properties.
+    additionalProperties: false
   paths:
     type: object
     properties:

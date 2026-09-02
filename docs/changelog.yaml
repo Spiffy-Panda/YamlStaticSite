@@ -13,6 +13,10 @@ releases:
     summary: Docs that prove themselves, data-driven rules, item-level references, collections with hooks, and worksheets.
     changes:
       - type: added
+        text: "`theme.css` in site.yaml: stylesheets linked after the base one on every page, so a theme package overrides tokens without replacing the stylesheet."
+      - type: added
+        text: "theme-playground prefab and a colour worksheet; four palette presets in docs/palettes.yaml with light and dark token sets."
+      - type: added
         text: "Evidence claims (`evidence:` lists and x-evidence fields), `yss check`, git recency warnings, freshness badges, an Evidence page and an evidence provider."
       - type: added
         text: "x-vocab and x-limit annotations resolved from site.yaml / collection.yaml; default vocabularies and limits in config; `draft` removed."

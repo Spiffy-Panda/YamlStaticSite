@@ -459,7 +459,8 @@ class Renderer:
             head = page.get("head") or {}
             collection = self.current_collection
             theme = (collection.data.get("theme") or {}) if collection and not collection.is_root else {}
-            css_links = [self.collection_url(p) for p in theme.get("css") or []] + [self.collection_url(p) for p in head.get("css") or []]
+            site_css = [self.url(p) for p in (self.cfg.data.get("theme") or {}).get("css") or []]
+            css_links = site_css + [self.collection_url(p) for p in theme.get("css") or []] + [self.collection_url(p) for p in head.get("css") or []]
             doc_ids = [resolve_doc_id(d, cid, self.docs) or d for d in page.get("docs") or []]
             freshness = [self.docs[d].get("_evidence", {}).get("status", "ok") for d in doc_ids if d in self.docs]
             sub_nav = [n for n in self.nav if n["collection"] == cid] if cid else []

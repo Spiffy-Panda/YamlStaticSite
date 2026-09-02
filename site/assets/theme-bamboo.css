@@ -1,0 +1,44 @@
+/* Bamboo house theme - the palette this site wears.
+   Copied from the sibling yss-theme-bamboo/ folder and linked from site.yaml (theme.css), so it
+   loads after the base stylesheet and overrides only custom properties. It is NOT one of the
+   palettes the yss package ships: install yss elsewhere and you get the presets in
+   docs/palettes.yaml, not this. Change it here and in the theme package together.
+
+   Light: celadon (the m5 mutation).  Dark: green paper (the m2 mutation).
+   Every pair clears WCAG AA in both modes; the figures are in palettes.yaml.
+
+   Hue note: the light accent is teal and the dark accent is yellow-green, so a mode switch changes
+   the site's character, not just its brightness. To keep one hue across both, swap the two lines
+   marked TEAL VARIANT in the dark block. */
+
+:root {
+  --bg: #eaf0ea;
+  --bg-2: #f7fbf6;
+  --fg: #16201c;
+  --fg-2: #47554e;
+  --line: #c8d6c9;
+  --accent: #1f6b52;
+  --accent-2: #d6ebdf;
+  --ok: #1f6b52;
+  --warn: #8a5f10;
+  --bad: #a63c40;
+  --muted: #77857c;
+  --code: #dfe9e0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #151915;
+    --bg-2: #1e231e;
+    --fg: #e8ebe2;
+    --fg-2: #b0b6aa;
+    --line: #313a31;
+    --accent: #9ad07a;    /* TEAL VARIANT: #6fd0a5 */
+    --accent-2: #26331f;  /* TEAL VARIANT: #17322a */
+    --ok: #9ad07a;        /* TEAL VARIANT: #6fd0a5 */
+    --warn: #d6a648;
+    --bad: #e8867c;
+    --muted: #7b8175;
+    --code: #232a23;
+  }
+}

@@ -241,6 +241,24 @@ class WorksheetTests(TempSiteCase):
         self.assertIn('class="ws-config"', html)
         self.assertIn("RULES", (rep.out_dir / "assets" / "prefabs.js").read_text(encoding="utf-8"))
 
+    def test_site_theme_css_is_linked_after_the_base_stylesheet(self):
+        """site.yaml theme.css rides on top of yss.css; it must not replace it."""
+        rep = build(self.cfg, "public", run_dynamic=False)
+        html = (rep.out_dir / "index.html").read_text(encoding="utf-8")
+        base, theme = html.index("assets/yss.css"), html.index("assets/theme-bamboo.css")
+        self.assertLess(base, theme, "theme stylesheet must be linked after the base one")
+        self.assertTrue((rep.out_dir / "assets" / "yss.css").exists())
+        css = (rep.out_dir / "assets" / "theme-bamboo.css").read_text(encoding="utf-8")
+        self.assertIn("--accent", css)
+        self.assertNotIn(".site-header", css)  # tokens only, no layout
+
+    def test_playground_binds_only_the_shipped_presets(self):
+        rep = build(self.cfg, "public", run_dynamic=False)
+        html = (rep.out_dir / "themes" / "index.html").read_text(encoding="utf-8")
+        for preset in ("ink-blue", "high-contrast", "lavender-warm", "trans-pride"):
+            self.assertIn(f'data-pal="{preset}"', html)
+        self.assertIn("lab-contrast", html)
+
 
 if __name__ == "__main__":
     unittest.main()
