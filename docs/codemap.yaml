@@ -29,8 +29,10 @@ roots:
     purpose: Site-local schema additions or overrides (empty in the pilot).
   - path: tests/
     purpose: unittest suite; also collected by the `testruns` dynamic source.
+  - path: yss/skills/
+    purpose: Canonical agent skills, shipped with the package; `yss init` / `yss skills --install` copy them into a repo.
   - path: .claude/skills/
-    purpose: Skill files that teach agents to use the toolchain.
+    purpose: This repo's installed copies of the skills (kept identical to yss/skills/ by a test).
   - path: dist/
     purpose: Build output, one folder per target. Gitignored.
 
@@ -133,6 +135,15 @@ modules:
     depends_on: [config, visibility]
     exports:
       - {name: setup, kind: function, signature: "(cfg, repo=None, dry_run=False, secrets=True, pages=True, run_workflow=False) -> [messages]"}
+  - id: skillpack
+    path: yss/skillpack.py
+    purpose: "Canonical agent skills live in yss/skills/; `yss skills` installs or checks the copies in a repo's .claude/skills/."
+    language: python
+    status: active
+    exports:
+      - {name: install, kind: function, signature: "(root, force=False) -> [(name, status)]"}
+      - {name: check, kind: function, signature: "(root) -> [(name, status)]"}
+    tests: [tests/test_yss.py]
   - id: scaffold
     path: yss/scaffold.py
     purpose: Skeleton generation from schemas for `yss new` and `yss init`.
@@ -192,6 +203,11 @@ entrypoints:
     command: python -m yss pages-setup [--dry-run] [--run]
     module: ghpages
     description: One-time GitHub setup via gh - secrets from .yss/local.yaml, Pages source = Actions.
+  - id: e-skills
+    name: Skills
+    command: python -m yss skills [--install] [--force]
+    module: skillpack
+    description: Check or install the agent skill suite into .claude/skills/.
   - id: e-new
     name: Scaffold
     command: python -m yss new doc <kind> <id> | new page <id> [--doc <id>] | new prefab <name>

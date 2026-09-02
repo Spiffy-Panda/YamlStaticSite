@@ -14,6 +14,7 @@ from .dynamic import write_all
 from .ghpages import GhError, setup as pages_setup
 from .loader import LoadError, SchemaRegistry, dump_yaml
 from .scaffold import ScaffoldError, init_site, new_doc, new_page, new_prefab
+from .skillpack import check as skills_check, install as skills_install
 from .visibility import filter_for_target, is_visible, scan_tree
 
 
@@ -250,6 +251,31 @@ def cmd_pages_setup(args) -> int:
     return 0
 
 
+def cmd_skills(args) -> int:
+    root = Path(args.root).resolve() if args.root else Path.cwd()
+    try:
+        root = Config.load(root).root
+    except ConfigError:
+        pass  # a repo without site.yaml yet is fine
+    results = skills_install(root, force=args.force) if args.install else skills_check(root)
+    for name, status in results:
+        print(f"  {name:14s} {status}")
+    if not results:
+        print("no skills packaged")
+        return 1
+    if args.install:
+        kept = [n for n, s in results if s == "kept"]
+        if kept:
+            print(f"kept local copies that differ (use --force to overwrite): {', '.join(kept)}")
+        return 0
+    bad = [n for n, s in results if s != "ok"]
+    if bad:
+        print(f"{len(bad)} skill(s) missing or out of date; run `python -m yss skills --install --force`")
+        return 1
+    print(f"{len(results)} skills installed and current in {(root / '.claude' / 'skills').as_posix()}")
+    return 0
+
+
 # --- parser -----------------------------------------------------------------
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="yss", description="YAML static site: agent-first docs, human-first site.")
@@ -322,6 +348,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-pages", action="store_true")
     p.add_argument("--run", action="store_true", help="trigger the pages workflow afterwards")
     p.set_defaults(func=cmd_pages_setup)
+
+    p = sub.add_parser("skills", help="check or install the agent skill suite into .claude/skills/ of a repo")
+    p.add_argument("--install", action="store_true", help="copy the packaged skills into the repo")
+    p.add_argument("--force", action="store_true", help="overwrite local copies that differ")
+    p.set_defaults(func=cmd_skills)
 
     p = sub.add_parser("init", help="create site.yaml and the standard directories in a repo")
     p.add_argument("--name")

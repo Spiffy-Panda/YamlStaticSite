@@ -23,4 +23,4 @@ yss = "yss.cli:main"
 include = ["yss*"]
 
 [tool.setuptools.package-data]
-yss = ["schemas/*.yaml", "prefabs/*.yaml", "templates/*.html", "assets/*"]
+yss = ["schemas/*.yaml", "prefabs/*.yaml", "templates/*.html", "assets/*", "skills/*/SKILL.md"]

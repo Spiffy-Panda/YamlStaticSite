@@ -145,10 +145,15 @@ milestones:
         title: yss-publish skill covering redaction, targets, serve and GitHub Pages
         status: done
         owner: agent
+      - id: m4-packaging
+        title: Ship the skills inside the package; `yss init` and `yss skills --install` copy them into a repo
+        status: done
+        owner: agent
+        verify: python -m yss skills
 
   - id: m5-publish
     title: Publish the public target
-    status: active
+    status: done
     priority: 3
     depends_on: [m3-pilot, m4-skills]
     summary: Create the git repository, enable GitHub Pages from the workflow, and set the redaction secrets.
@@ -161,13 +166,13 @@ milestones:
         verify: git remote -v
       - id: m5-secrets
         title: Set YSS_FORBIDDEN_STRINGS and YSS_FLAG_STRINGS repository secrets
-        status: planned
+        status: done
         owner: panda
         verify: python -m yss pages-setup --dry-run
         notes: "`python -m yss pages-setup` does this and the Pages source in one go; it is a human-triggered step."
       - id: m5-pages
         title: Enable Pages with the GitHub Actions source
-        status: planned
+        status: done
         owner: panda
         verify: gh api repos/Spiffy-Panda/YamlStaticSite/pages --jq .build_type
 

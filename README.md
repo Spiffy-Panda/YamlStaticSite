@@ -17,12 +17,24 @@ python -m yss build                    # dist/public and dist/private
 python -m yss serve                    # http://127.0.0.1:8800/  (private)  http://127.0.0.1:8801/YamlStaticSite/  (public preview)
 ```
 
-Use it in another repository:
+## Install and use in another repository
 
 ```bash
-pip install -e path/to/YamlStaticSite  # or vendor the yss/ folder
-yss init --name MyProject              # site.yaml, docs/plan.yaml, site/pages/index.yaml, .yss/local.example.yaml
+pip install git+https://github.com/Spiffy-Panda/YamlStaticSite   # or: pip install -e path/to/checkout
+cd my-repo
+yss init --name MyProject     # site.yaml, docs/plan.yaml, site/pages/index.yaml, CLAUDE.md, .claude/skills/yss*, .yss/local.example.yaml
+yss serve
 ```
+
+`yss init` also installs the agent skill suite into `.claude/skills/`; after upgrading yss run
+`yss skills --check` (and `yss skills --install --force` to refresh). Without pip, vendor the `yss/`
+folder and use `python -m yss` instead of `yss`.
+
+**Telling an agent to set it up** - paste into the agent's prompt:
+
+> Install yss with `pip install git+https://github.com/Spiffy-Panda/YamlStaticSite`, run `yss init --name <project>`
+> in the repo root, then load the `yss` skill from `.claude/skills/yss/SKILL.md` and follow it. Project knowledge
+> goes in `docs/*.yaml`, not markdown.
 
 ## Layout
 
@@ -52,6 +64,7 @@ dist/<target>/       output (gitignored)
 | `python -m yss query <doc>.<path> [--where k=v] [--sort f] [--fields a,b]` | Read data the way pages do |
 | `python -m yss schema <name> [--yaml]` | Print a schema |
 | `python -m yss new doc\|page\|prefab ...` | Scaffold from schema |
+| `python -m yss skills [--install] [--force]` | Check or install the agent skills into `.claude/skills/` |
 | `python -m yss pages-setup [--dry-run] [--run]` | Via gh: redaction secrets from `.yss/local.yaml`, Pages source = GitHub Actions |
 | `python -m unittest discover -s tests -v` | Tests |
 

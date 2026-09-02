@@ -8,13 +8,16 @@ from typing import Any
 
 from .config import Config
 from .loader import SchemaRegistry, dump_yaml
+from .skillpack import install as install_skills
 
 
 class ScaffoldError(Exception):
     pass
 
 
-def _placeholder(schema: dict, key: str) -> Any:
+def _placeholder(schema: dict, key: str, defs: dict | None = None) -> Any:
+    defs = defs or {}
+    schema = _deref(schema, defs)
     if "const" in schema:
         return schema["const"]
     if "default" in schema:
@@ -27,10 +30,10 @@ def _placeholder(schema: dict, key: str) -> Any:
     if stype == "array":
         item_schema = schema.get("items") or {}
         if "allOf" in item_schema or item_schema.get("type") == "object":
-            return [skeleton(item_schema, required_only=True)]
+            return [skeleton(item_schema, required_only=True, defs=defs)]
         return []
     if stype == "object":
-        return skeleton(schema, required_only=True)
+        return skeleton(schema, required_only=True, defs=defs)
     if stype == "integer":
         return 1
     if stype == "number":
@@ -70,7 +73,7 @@ def skeleton(schema: dict, required_only: bool = False, defs: dict | None = None
             continue
         if key in ("private_notes", "x-"):
             continue
-        out[key] = _placeholder(_deref(sub, defs), key)
+        out[key] = _placeholder(sub, key, defs)
     return out
 
 
@@ -211,6 +214,18 @@ def init_site(root: Path, name: str, force: bool = False) -> list[Path]:
     reg = SchemaRegistry(cfg.schema_dirs())
     written.append(new_doc(cfg, reg, "plan", "plan", "Plan", force))
     written.append(new_page(cfg, reg, "index", name, None, force))
+    for skill, status in install_skills(root, force=force):
+        if status in ("installed", "updated"):
+            written.append(root / ".claude" / "skills" / skill / "SKILL.md")
+    claude_md = root / "CLAUDE.md"
+    if not claude_md.exists():
+        claude_md.write_text(
+            f"# {name}\n\nProject knowledge lives in `docs/*.yaml` (schema-validated structured docs), never in new "
+            "markdown files. Load the `yss` skill first; then `yss-doc`, `yss-page`, `yss-prefab` or `yss-publish`.\n\n"
+            "```bash\nyss validate\nyss build --target all --no-dynamic\nyss serve\n```\n",
+            encoding="utf-8",
+        )
+        written.append(claude_md)
     return written
 
 

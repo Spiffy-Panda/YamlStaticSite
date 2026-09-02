@@ -275,6 +275,29 @@ class ServerTests(TempSiteCase):
             server.server_close()
 
 
+class SkillTests(unittest.TestCase):
+    def test_repo_skill_copies_match_package(self):
+        from yss.skillpack import check, list_skills
+
+        self.assertGreaterEqual(len(list_skills()), 5)
+        bad = [(n, s) for n, s in check(REPO) if s != "ok"]
+        self.assertEqual(bad, [], "run: python -m yss skills --install --force")
+
+    def test_install_into_fresh_repo(self):
+        from yss.skillpack import check, install
+
+        tmp = Path(tempfile.mkdtemp(prefix="yss-skills-"))
+        try:
+            statuses = {s for _, s in install(tmp)}
+            self.assertEqual(statuses, {"installed"})
+            self.assertTrue(all(s == "ok" for _, s in check(tmp)))
+            (tmp / ".claude" / "skills" / "yss" / "SKILL.md").write_text("edited", encoding="utf-8")
+            self.assertIn(("yss", "kept"), install(tmp))
+            self.assertIn(("yss", "updated"), install(tmp, force=True))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
 class CliTests(TempSiteCase):
     def test_query_and_ls_and_schema(self):
         from yss.cli import main
@@ -284,11 +307,16 @@ class CliTests(TempSiteCase):
         self.assertEqual(main(["--root", str(self.root), "ls", "prefabs"]), 0)
         self.assertEqual(main(["--root", str(self.root), "schema", "doc.plan"]), 0)
         self.assertEqual(main(["--root", str(self.root), "schema", "nope"]), 1)
+        self.assertEqual(main(["--root", str(self.root), "skills"]), 1)  # temp copy has no skills yet
+        self.assertEqual(main(["--root", str(self.root), "skills", "--install"]), 0)
+        self.assertEqual(main(["--root", str(self.root), "skills"]), 0)
 
     def test_new_doc_validates(self):
         from yss.cli import main
 
         self.assertEqual(main(["--root", str(self.root), "new", "doc", "decisions", "more-decisions"]), 0)
+        for kind in ("plan", "design", "codemap", "glossary", "changelog", "generic"):
+            self.assertEqual(main(["--root", str(self.root), "new", "doc", kind, f"new-{kind}"]), 0)
         self.assertEqual(main(["--root", str(self.root), "new", "page", "more", "--doc", "plan"]), 0)
         self.assertEqual(main(["--root", str(self.root), "new", "prefab", "shiny"]), 0)
         loaded = load_all(self.cfg)

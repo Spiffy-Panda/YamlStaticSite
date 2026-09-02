@@ -32,3 +32,5 @@ releases:
         text: MIT license.
       - type: added
         text: "`pages-setup` command - gh CLI wrapper for redaction secrets and the Pages source."
+      - type: added
+        text: "Skills ship in the package; `yss skills` and `yss init` install them into .claude/skills/. `yss init` also writes a starter CLAUDE.md."

@@ -132,7 +132,7 @@ components:
     name: Agent skills
     kind: process
     responsibility: Teach agents the mental model and the commands; one skill per authoring task plus publishing.
-    code: [.claude/skills/]
+    code: [yss/skills/, yss/skillpack.py, .claude/skills/]
     status: active
 
 interfaces:
