@@ -2,11 +2,11 @@ $schema: https://json-schema.org/draft/2020-12/schema
 $id: yss:doc.worksheet
 title: Worksheet (decision instrument)
 description: |
-  A list of calls only the human can make. Each question offers options with a recommended default
-  and the consequence of each choice; the rendered page gates on required answers and builds a
-  plain-text instruction an agent can be handed, with the rules trailer appended. Nothing is
-  persisted: the instruction is the product, the resulting doc edit is the record.
-  Agents write worksheets when they need a verdict; they never answer them.
+  A list of calls only the human can make. Each question offers options with a recommended default,
+  the consequence of each choice and optional pros/cons foldouts; the rendered page gates on required
+  answers and builds a plain-text instruction an agent can be handed, with the rules trailer
+  appended. Nothing is persisted: the instruction is the product, the resulting doc edit is the
+  record. Agents write worksheets when they need a verdict; they never answer them.
 type: object
 required: [kind, title, questions]
 additionalProperties: false
@@ -29,6 +29,12 @@ properties:
         required: {type: boolean, default: true}
         placeholder: {type: string}
         applies_to: {type: string, x-limit: line, description: "Where the verdict gets recorded, e.g. plan.open_questions q-x answer."}
+        blocks:
+          type: array
+          items: {$ref: "#/$defs/slug"}
+          x-ref: item
+          description: "Plan items waiting on this answer, as doc/item (e.g. plan/m6-godot). Rendered as links and listed under Blocked work."
+        compare: {type: string, x-limit: markdown, description: Extra comparison notes shown in the compare-all foldout.}
         options:
           type: array
           items:
@@ -40,6 +46,8 @@ properties:
               why: {type: string, x-limit: summary, description: What this choice lets you say or costs you.}
               recommended: {type: boolean, default: false}
               prompt: {type: string, x-limit: summary, description: Sentence placed in the instruction when chosen (defaults to text).}
+              pros: {type: array, items: {type: string, x-limit: line}, description: Shown in a foldout under the option and in the compare table.}
+              cons: {type: array, items: {type: string, x-limit: line}}
             additionalProperties: false
       unevaluatedProperties: false
   prompt:

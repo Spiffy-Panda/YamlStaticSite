@@ -30,10 +30,13 @@ def temp_site() -> Path:
     for name in ("site.yaml", "README.md"):
         if (REPO / name).exists():
             shutil.copy(REPO / name, tmp / name)
-    for sub in ("docs", "site", "schemas"):
+    for sub in ("docs", "site", "schemas", "examples"):
         if (REPO / sub).is_dir():
             shutil.copytree(REPO / sub, tmp / sub)
-    (tmp / "tests").mkdir()
+    # the pilot docs cite yss/, tests/ and dist/ as evidence; mirror them so strict builds stay clean
+    shutil.copytree(REPO / "tests", tmp / "tests", ignore=shutil.ignore_patterns("__pycache__"))
+    shutil.copytree(REPO / "yss", tmp / "yss", ignore=shutil.ignore_patterns("__pycache__"))
+    (tmp / "dist").mkdir()
     return tmp
 
 

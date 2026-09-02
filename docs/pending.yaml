@@ -1,0 +1,229 @@
+# Worksheet - schema: doc.worksheet. Pending decisions and blockers waiting on Panda after the 2026-09-02 verdicts.
+# Agents: add a question here whenever work stalls on a human call; never answer one.
+kind: worksheet
+id: pending
+title: Pending decisions and blockers
+summary: Everything currently waiting on Panda - schema-change approvals, hosting choices, the Musings renderer, the release cut and the site review - with pros and cons per option.
+status: active
+updated: 2026-09-02
+owners: [agent]
+related: [plan, decisions, verdicts]
+intro: |
+  Each question below is either a decision an agent cannot make or a blocker only you can clear.
+  The **Blocked work** box lists the plan items waiting on each answer. Recommended defaults are
+  pre-selected; open **pros and cons** under an option, or **Compare all options** under a question,
+  before changing one. Press **Build the instruction** and hand the text to an agent.
+warn: |
+  🐼❗ P.1 approves a schema change, which the last worksheet forbade agents from doing on their
+  own. Leave it on "defer" if you want the site schema frozen for now.
+
+questions:
+  - id: p-flow-overrides
+    call: P.1
+    lead: May agents add flow overrides to the site schema (build.strict, evidence per collection)?
+    help: You asked for config or CLI overrides so agents can adjust the flow. That needs new keys in the site schema and collection schema, which the verdict rules classed as flag-only.
+    applies_to: "plan m7-flow-overrides status; decisions (new entry)"
+    blocks: [plan/m7-flow-overrides]
+    options:
+      - value: approve
+        text: Approve the schema change
+        recommended: true
+        why: Strictness and evidence settings become data in site.yaml and collection.yaml, overridable with CLI flags.
+        prompt: "Approve adding build.strict, evidence.strict and per-collection evidence settings to the site and collection schemas, with matching CLI flags; implement m7-flow-overrides."
+        pros: [Agents adjust the flow without editing the workflow file, Per-musing evidence policy becomes possible, One place to read the current policy]
+        cons: [Two more schema keys to document, A repo can silently turn strictness off in config]
+      - value: defer
+        text: Defer; keep the workflow flag as the only switch
+        why: The site schema stays frozen; strictness is changed by editing the workflow.
+        prompt: "Defer m7-flow-overrides; the --strict workflow flag remains the only switch."
+        pros: [No schema churn, Policy lives in one audited file]
+        cons: [Agents cannot adjust the flow themselves, Per-musing policy impossible]
+
+  - id: p-worksheet-visibility
+    call: P.2
+    lead: Should worksheets stay on the public site?
+    help: The Verdicts and Pending pages show internal deliberations. The outcome is already public through the decision log and the plan.
+    applies_to: "site/pages/verdicts.yaml and pending.yaml visibility"
+    options:
+      - value: private
+        text: Private target only
+        recommended: true
+        why: You answer them on the private port; the public site shows outcomes, not the deliberation.
+        prompt: "Mark the worksheet pages visibility private; keep decisions and the plan public."
+        pros: [Options and cons stay internal, Public nav shrinks by two entries]
+        cons: [Cannot answer from a phone via the public URL, Reviewers cannot see what is pending]
+      - value: public
+        text: Keep them public
+        why: Anyone can see what is pending and why; nothing in them is secret today.
+        prompt: "Keep worksheet pages public."
+        pros: [Answerable from anywhere, Transparent process]
+        cons: [Every future worksheet must be written for a public reader]
+
+  - id: p-headers
+    call: P.3
+    lead: How do Godot and threaded wasm exports run on GitHub Pages without isolation headers?
+    help: The private server sends COOP/COEP; Pages cannot. Risk r-headers is open and both prototype tasks wait on this.
+    applies_to: "plan r-headers status and mitigation; plan m6-godot, m6-coi"
+    blocks: [plan/m6-godot, plan/m6-coi]
+    compare: Threadless exports work everywhere but lose multithreading; the service-worker shim keeps threads but adds a reload on first visit and a script that must be kept up to date.
+    options:
+      - value: no-threads
+        text: Export without threads
+        recommended: true
+        why: Works on Pages as-is; no shim to maintain.
+        prompt: "Export Godot and wasm prototypes without threads; drop m6-coi and mark r-headers mitigated."
+        pros: [No extra code, Works on any static host, One export per prototype]
+        cons: [No multithreaded physics or audio, Larger single-thread frame times]
+      - value: coi-shim
+        text: Ship the coi-serviceworker shim beside each export
+        why: Threads keep working on Pages; costs a first-load reload and a vendored script.
+        prompt: "Ship coi-serviceworker with each export (m6-coi) and keep threaded builds; r-headers stays open until it is verified on Pages."
+        pros: [Full performance on Pages, Same export for private and public]
+        cons: [First visit reloads once, Vendored script to update, Breaks if a CSP forbids service workers]
+
+  - id: p-playable-public
+    call: P.4
+    lead: Can playables be published to the public site by default?
+    help: Mounts are private-only unless a collection says otherwise; the demo collection's playable is waiting on this call.
+    applies_to: "demo-musing/plan d1-public; yss-publish skill mounts default"
+    blocks: [demo-musing/plan/d1-public]
+    options:
+      - value: private-default
+        text: Private by default, opt in per mount
+        recommended: true
+        why: A mount goes public only when its collection.yaml lists the public target.
+        prompt: "Keep mounts private by default; make the demo playable public by adding public to its mount targets as the worked example."
+        pros: [Nothing leaks by accident, Each musing decides]
+        cons: [One more line per public playable]
+      - value: public-default
+        text: Public by default
+        why: Every mount ships to Pages unless marked private.
+        prompt: "Change the mount default to both targets and mark private ones explicitly."
+        pros: [Less config for the common case]
+        cons: [Half-finished builds can reach the public site, Contradicts the privacy-by-marking principle]
+
+  - id: p-renderer
+    call: P.5
+    lead: Which markdown renderer does the Musings migration use?
+    help: Musings has its own renderer with a documented subset; yss ships markdown-it-py and can plug a renderer in per site or per collection.
+    applies_to: "plan m12-renderer title; plan r-two-renderers"
+    blocks: [plan/m12-renderer]
+    options:
+      - value: plug
+        text: Plug the Musings renderer in through hooks.py markdown()
+        recommended: true
+        why: The documented subset renders identically in old and new pages during the migration.
+        prompt: "Use the existing Musings renderer via markdown.renderer or hooks.py markdown(); retire it only after the migration."
+        pros: [Zero rendering drift during migration, Subset rules keep applying]
+        cons: [Two renderers in the codebase until retirement, Inline references must be supported by the plug-in]
+      - value: commonmark
+        text: Switch to CommonMark plus a lint rule for the subset
+        why: One renderer everywhere; the subset becomes a validation rule instead of a renderer.
+        prompt: "Retire the Musings renderer; enforce the documented subset with a yss lint rule; accept small rendering differences."
+        pros: [One renderer to maintain, Standard syntax]
+        cons: [Rendering differences to review page by page, Lint rule to write]
+
+  - id: p-release
+    call: P.6
+    lead: Cut yss 0.2.0 now, or after the first musing migrates?
+    help: The changelog lists 0.2.0 as unreleased. A release means a git tag and flipping the status.
+    applies_to: "changelog 0.2.0 status and date; git tag"
+    options:
+      - value: now
+        text: Release now
+        recommended: true
+        why: Other repos pin a known version; the migration lands in 0.3.0.
+        prompt: "Mark 0.2.0 released with today's date and tag v0.2.0."
+        pros: [Stable pin for pip installs, Clean changelog boundary]
+        cons: [Collections API may still shift during the first migration]
+      - value: after-migration
+        text: Release after the first musing migrates
+        why: The first real collection may change the contract; the release then reflects it.
+        prompt: "Keep 0.2.0 unreleased until the space cargo cannon migration lands."
+        pros: [Contract proven before it is versioned]
+        cons: [No stable pin meanwhile, Changelog keeps growing under one version]
+
+  - id: p-hardening
+    call: P.7
+    lead: Which hardening items should agents pick up next?
+    kind: check
+    required: false
+    help: Milestone m7 holds four optional items; tick the ones worth doing before the Musings migration.
+    applies_to: "plan m7 task priorities"
+    options:
+      - value: search
+        text: Client-side search over docs.json
+        why: Useful once there are many collections.
+        pros: [Find anything across musings]
+        cons: [More JavaScript on every page]
+      - value: watchdog
+        text: watchdog-based file watching
+        why: Faster rebuilds on large repos.
+        pros: [Instant rebuilds]
+        cons: ["A fifth dependency, even if optional"]
+      - value: kinds
+        text: Promote generic shapes into real doc kinds
+        why: Only worth it once a shape repeats.
+        pros: [Stricter validation]
+        cons: [More schemas to maintain]
+      - value: run-commands
+        text: CI job that runs command evidence
+        why: "Task verify commands get executed, not just recorded."
+        pros: [Verify strings become real checks]
+        cons: [Slower CI, Commands must be safe unattended]
+
+  - id: p-evidence-noise
+    call: P.8
+    lead: How should git recency warnings be handled after a large refactor?
+    help: Risk r-evidence-noise is open - every doc that cites changed code warns until its updated date is bumped.
+    applies_to: "plan r-evidence-noise status"
+    options:
+      - value: accept
+        text: Accept as-is; bump updated when re-verified
+        recommended: true
+        why: The warning is the point; bumping the date is the act of re-verifying.
+        prompt: "Mark r-evidence-noise accepted; the process is to re-verify and bump updated."
+        pros: [No tooling, Honest signal]
+        cons: [Noisy right after big refactors]
+      - value: tool
+        text: Add a yss command that re-stamps updated after a human confirms
+        why: One command clears many warnings, with a confirmation step.
+        prompt: "Plan a `yss reverify <doc>` command that bumps updated after confirmation; keep r-evidence-noise open until it ships."
+        pros: [Fast recovery after refactors]
+        cons: [Easy to rubber-stamp, More CLI surface]
+
+  - id: p-site-review
+    call: P.9
+    lead: Site review - what framing gaps did you find?
+    kind: text
+    required: false
+    placeholder: pages or sections that need more explanation, or "no gaps"
+    help: Task m3-review is the last open item of the pilot milestone and only you can do it.
+    applies_to: "plan m3-review status; new page intros or open_questions"
+    blocks: [plan/m3-review]
+
+prompt:
+  task: Apply the pending decisions below to the yss docs and configuration
+  background: |
+    Repository YamlStaticSite. Docs are YAML under docs/ validated by `python -m yss validate` and
+    `python -m yss check`. Plan in docs/plan.yaml, decisions in docs/decisions.yaml, defaults in
+    site.yaml, per-collection config in <collection>/collection.yaml. Load the `yss` skill first.
+  steps:
+    - For each decision, update the named plan item, risk or decision entry; add a decision entry where a verdict changes a rule.
+    - P.1 approved means implement m7-flow-overrides (schema, config, CLI flags, tests, skills); otherwise only record the deferral.
+    - P.2 changes page visibility only; P.4 changes the demo collection mount targets and the yss-publish skill text.
+    - Archive the pending worksheet (status archived, applied note in intro) and start a new one for anything still open.
+    - Run validate, check, build --target all --no-dynamic and the tests; commit with the verdict block in the message body.
+  do_not_touch:
+    - .yss/local.yaml and anything under dist/.
+    - Accepted decisions - supersede, never edit.
+  flag_only:
+    - Schema changes beyond what P.1 approves.
+    - Anything that would need changes in the Musings repository itself.
+  rules:
+    - Project knowledge goes in docs/*.yaml, never in new markdown files.
+    - Validate and check after every edit; fix every reported file and path.
+    - Mark anything not for the public site as visibility private or private_notes.
+    - No absolute paths in anything that reaches dist/.
+decided_by: true
+extra: true

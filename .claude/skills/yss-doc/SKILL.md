@@ -67,7 +67,7 @@ doc; `-v` lists passing claims; a stale claim means fix the doc or the code, the
 - **decisions**: `entries[] {id, date, title, status (record_status: proposed|accepted|rejected|superseded), context, decision, consequences[], alternatives[], supersedes, superseded_by}`. Append only; supersede instead of editing.
 - **glossary**: `terms[] {id, term, definition (one paragraph), aliases[], see_also[]}`.
 - **changelog**: `releases[] {version, date, status, summary, changes[] {type, text, refs[]}}`, newest first. This is the record of shipped work.
-- **worksheet**: `intro`, `warn`, `questions[] {id, call, lead, help, kind radio|check|text, required, options[] {value, text, why, recommended, prompt}, applies_to}`, `prompt {task, background, steps[], do_not_touch[], flag_only[], rules[]}`. Agents write them; only humans answer them (on the rendered page, which builds a paste-ready instruction with a VERDICTS block).
+- **worksheet**: `intro`, `warn`, `questions[] {id, call, lead, help, kind radio|check|text, required, options[] {value, text, why, recommended, prompt, pros[], cons[]}, applies_to, blocks[] (doc/item ids waiting on the answer), compare}`, `prompt {task, background, steps[], do_not_touch[], flag_only[], rules[]}`. Agents write them; only humans answer them (on the rendered page, which builds a paste-ready instruction with a VERDICTS block).
 - **generic**: `shape` and `data` (any object/array). Escape hatch; promote to a real kind when it repeats.
 
 ## Vocabularies and limits are data

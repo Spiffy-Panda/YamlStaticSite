@@ -9,7 +9,7 @@ status: active
 updated: 2026-09-02
 owners: [panda, agent]
 tags: [toolchain, docs, static-site]
-related: [design, codemap, decisions, verdicts]
+related: [design, codemap, decisions, verdicts, pending]
 agent_notes: |
   Statuses come from `work_status` (planned | active | blocked | done | dropped). Every task carries
   `verify` (a command or observation) and, where a path or command can prove it, an `evidence:` claim
@@ -44,7 +44,7 @@ milestones:
         verify: Notes captured as open_questions or new page intros.
       - id: m3-verdicts
         title: Fill the verdicts worksheet and hand the instruction to an agent
-        status: planned
+        status: done
         owner: panda
         verify: python -m yss query plan.open_questions --where status=answered
 

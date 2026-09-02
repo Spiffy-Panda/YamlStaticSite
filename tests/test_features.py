@@ -240,6 +240,11 @@ class WorksheetTests(TempSiteCase):
         self.assertIn("Build the instruction", html)
         self.assertIn('class="ws-config"', html)
         self.assertIn("RULES", (rep.out_dir / "assets" / "prefabs.js").read_text(encoding="utf-8"))
+        pending = (rep.out_dir / "pending" / "index.html").read_text(encoding="utf-8")
+        self.assertIn('class="ws-procon"', pending)      # pros/cons foldout per option
+        self.assertIn('class="ws-compare"', pending)     # compare-all foldout per question
+        self.assertIn('href="/YamlStaticSite/plan/#m6-godot"', pending)  # blocks link resolved
+        self.assertIn("Blocked work waiting on this worksheet", pending)
 
     def test_site_theme_css_is_linked_after_the_base_stylesheet(self):
         """site.yaml theme.css rides on top of yss.css; it must not replace it."""

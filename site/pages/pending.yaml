@@ -1,0 +1,36 @@
+# Page - schema: page. Presents docs/pending.yaml as a worksheet.
+id: pending
+route: /pending/
+title: Pending
+summary: Decisions and blockers waiting on Panda, as a worksheet with pros and cons per option. Answer, build the instruction, hand it to an agent.
+nav: {label: Pending, order: 46}
+docs: [pending, plan]
+sections:
+  - id: worksheet
+    type: prefab
+    prefab: worksheet
+    args:
+      title: {from: pending.title}
+      intro: {from: pending.intro}
+      warn: {from: pending.warn}
+      questions: {from: pending.questions}
+      prompt: {from: pending.prompt}
+      decided_by: true
+      extra: true
+
+  - id: waiting
+    type: prefab
+    heading: Plan tasks owned by panda
+    intro: Every open task in [[plan]] whose owner is you, whether or not a question above covers it.
+    prefab: table
+    args:
+      rows:
+        from: plan.milestones
+        map: {milestone: id}
+      columns: [{key: milestone, label: Milestone}, {key: status, label: Status}, {key: title, label: Title}]
+
+  - id: previous
+    type: markdown
+    heading: Previous worksheets
+    markdown: |
+      - [[verdicts]] - applied 2026-09-02; kept as the record.

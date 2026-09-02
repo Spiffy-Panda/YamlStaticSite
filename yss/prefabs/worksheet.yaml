@@ -1,8 +1,8 @@
 name: worksheet
-description: "Decision instrument: questions with a recommended default and a consequence per option, a required-answer gate, and a Build button that produces a plain-text agent instruction (rules trailer appended). No persistence, no network. Bind from a `worksheet` doc: questions, prompt, intro, warn."
+description: "Decision instrument: questions with a recommended default, a consequence per option, pros/cons foldouts and a compare-all table, a required-answer gate, and a Build button that produces a plain-text agent instruction (rules trailer appended). No persistence, no network. Bind from a `worksheet` doc: questions, prompt, intro, warn."
 category: layout
 params:
-  questions: {type: list, required: true, item: {id: required, call: label, lead: the question, help: markdown, kind: "radio|check|text", required: bool, options: "list of {value, text, why, recommended, prompt}", applies_to: where the verdict is recorded}}
+  questions: {type: list, required: true, item: {id: required, call: label, lead: the question, help: markdown, kind: "radio|check|text", required: bool, options: "list of {value, text, why, recommended, prompt, pros[], cons[]}", applies_to: where the verdict is recorded, blocks: "doc/item ids waiting on the answer", compare: markdown}}
   prompt: {type: object, description: "{task, background, steps[], do_not_touch[], flag_only[], rules[]}"}
   intro: {type: markdown, description: In plain words box.}
   warn: {type: markdown, description: Must-read warning box.}
@@ -11,26 +11,61 @@ params:
   title: {type: string, description: Used in the instruction header.}
 template: |
   {% set wsid = (title or 'worksheet') | slug %}
+  {% macro reflink(b) %}{% set d = b.rpartition('/')[0] %}{% set i = b.rpartition('/')[2] %}{% set h = ref_url(d ~ '#' ~ i) if d else ref_url('#' ~ i) %}{% if h %}<a href="{{ h }}">{{ b }}</a>{% else %}<code>{{ b }}</code>{% endif %}{% endmacro %}
   <div class="worksheet" id="ws-{{ wsid }}" data-worksheet="{{ wsid }}">
     {% if intro %}<div class="ws-plain"><h4>In plain words</h4>{{ intro | md }}</div>{% endif %}
     {% if warn %}<div class="ws-warn">{{ warn | md }}</div>{% endif %}
+    {% set blocked = questions | selectattr('blocks') | list %}
+    {% if blocked %}
+    <details class="ws-blocked" open>
+      <summary>Blocked work waiting on this worksheet ({{ blocked | map(attribute='blocks') | map('length') | sum }} items)</summary>
+      <ul>
+      {% for q in blocked %}<li><a href="#{{ q.id }}">{% if q.call %}{{ q.call }} {% endif %}{{ q.lead }}</a> blocks {% for b in q.blocks %}{{ reflink(b) }}{% if not loop.last %}, {% endif %}{% endfor %}</li>{% endfor %}
+      </ul>
+    </details>
+    {% endif %}
     <form class="ws-form" onsubmit="return false">
     {% for q in questions %}
       {% set qkind = q.kind or 'radio' %}
       {% set req = q.required if q.required is defined else true %}
+      {% set has_procon = (q.options or []) | selectattr('pros') | list or (q.options or []) | selectattr('cons') | list %}
       <fieldset class="ws-q" id="{{ q.id }}" data-q="{{ q.id }}" data-kind="{{ qkind }}" data-required="{{ '1' if req else '0' }}" data-call="{{ q.call or '' }}" data-lead="{{ q.lead }}" data-applies="{{ q.applies_to or '' }}">
         <legend><span class="ws-n">{{ loop.index }}</span>{% if q.call %}<span class="ws-call">{{ q.call }}</span>{% endif %} {{ q.lead }}{% if not req %} <span class="ws-optional">optional</span>{% endif %}</legend>
         {% if q.help %}<div class="ws-help">{{ q.help | md }}</div>{% endif %}
+        {% if q.blocks %}<div class="ws-blocks">Blocks: {% for b in q.blocks %}{{ reflink(b) }}{% if not loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
         {% if qkind == 'text' %}
           <textarea class="ws-text" name="{{ wsid }}-{{ q.id }}" rows="3" placeholder="{{ q.placeholder or '' }}"></textarea>
         {% else %}
           {% for o in q.options or [] %}
-          <label class="ws-opt">
-            <input type="{{ 'checkbox' if qkind == 'check' else 'radio' }}" name="{{ wsid }}-{{ q.id }}" value="{{ o.value }}" data-prompt="{{ o.prompt or o.text }}" {% if o.recommended and qkind == 'radio' %}checked{% endif %}>
-            <span class="ws-opt-text">{{ o.text | md_inline }}{% if o.recommended %} <span class="ws-rec">recommended</span>{% endif %}</span>
-            {% if o.why %}<span class="ws-why">{{ o.why | md_inline }}</span>{% endif %}
-          </label>
+          <div class="ws-opt-wrap">
+            <label class="ws-opt">
+              <input type="{{ 'checkbox' if qkind == 'check' else 'radio' }}" name="{{ wsid }}-{{ q.id }}" value="{{ o.value }}" data-prompt="{{ o.prompt or o.text }}" {% if o.recommended and qkind == 'radio' %}checked{% endif %}>
+              <span class="ws-opt-text">{{ o.text | md_inline }}{% if o.recommended %} <span class="ws-rec">recommended</span>{% endif %}</span>
+              {% if o.why %}<span class="ws-why">{{ o.why | md_inline }}</span>{% endif %}
+            </label>
+            {% if o.pros or o.cons %}
+            <details class="ws-procon"><summary>pros and cons</summary>
+              <div class="ws-procon-cols">
+                <ul class="ws-pros">{% for p in o.pros or [] %}<li>{{ p | md_inline }}</li>{% endfor %}</ul>
+                <ul class="ws-cons">{% for c in o.cons or [] %}<li>{{ c | md_inline }}</li>{% endfor %}</ul>
+              </div>
+            </details>
+            {% endif %}
+          </div>
           {% endfor %}
+          {% if has_procon or q.compare %}
+          <details class="ws-compare"><summary>Compare all options</summary>
+            {% if has_procon %}
+            <table class="table ws-compare-table">
+              <thead><tr><th>option</th><th>pros</th><th>cons</th></tr></thead>
+              <tbody>
+              {% for o in q.options %}<tr><td>{{ o.text | md_inline }}{% if o.recommended %} <span class="ws-rec">recommended</span>{% endif %}</td><td><ul>{% for p in o.pros or [] %}<li>{{ p | md_inline }}</li>{% endfor %}</ul></td><td><ul>{% for c in o.cons or [] %}<li>{{ c | md_inline }}</li>{% endfor %}</ul></td></tr>{% endfor %}
+              </tbody>
+            </table>
+            {% endif %}
+            {% if q.compare %}<div class="prose">{{ q.compare | md }}</div>{% endif %}
+          </details>
+          {% endif %}
         {% endif %}
         {% if q.applies_to %}<div class="ws-applies">Recorded in: <code>{{ q.applies_to }}</code></div>{% endif %}
       </fieldset>
@@ -66,18 +101,32 @@ css: |
   .ws-plain h4 { margin: 0 0 .2rem; font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ok); }
   .ws-plain p:last-child, .ws-warn p:last-child, .ws-help p:last-child { margin-bottom: 0; }
   .ws-warn { background: color-mix(in srgb, var(--bad) 10%, var(--bg-2)); border: 1px solid color-mix(in srgb, var(--bad) 40%, var(--line)); padding: .6rem 1rem; border-radius: var(--radius); margin-bottom: 1rem; }
+  .ws-blocked { background: color-mix(in srgb, var(--warn) 10%, var(--bg-2)); border: 1px solid color-mix(in srgb, var(--warn) 40%, var(--line)); padding: .5rem 1rem; border-radius: var(--radius); margin-bottom: 1rem; }
+  .ws-blocked summary { cursor: pointer; font-weight: 600; }
+  .ws-blocked ul { margin: .4rem 0 0; }
   .ws-q { border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-2); padding: .6rem 1rem .8rem; margin: 0 0 .9rem; }
   .ws-q legend { font-weight: 600; padding: 0 .4rem; display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
   .ws-n { display: inline-flex; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: var(--accent); color: #fff; align-items: center; justify-content: center; font-size: .8rem; }
   .ws-call { font-family: ui-monospace, monospace; font-size: .8rem; color: var(--muted); }
   .ws-optional { font-weight: 400; font-size: .75rem; color: var(--muted); }
   .ws-help { color: var(--fg-2); font-size: .92rem; margin: .2rem 0 .5rem; }
-  .ws-opt { display: grid; grid-template-columns: auto 1fr; gap: .1rem .6rem; align-items: start; border: 1px solid var(--line); border-radius: 6px; padding: .45rem .7rem; margin: .35rem 0; cursor: pointer; }
+  .ws-blocks { font-size: .85rem; color: var(--warn); margin: 0 0 .5rem; }
+  .ws-opt-wrap { margin: .35rem 0; }
+  .ws-opt { display: grid; grid-template-columns: auto 1fr; gap: .1rem .6rem; align-items: start; border: 1px solid var(--line); border-radius: 6px; padding: .45rem .7rem; cursor: pointer; }
   .ws-opt:hover { border-color: var(--accent); }
   .ws-opt input { margin-top: .3rem; }
   .ws-opt-text { font-weight: 500; }
   .ws-why { grid-column: 2; font-size: .85rem; color: var(--fg-2); }
   .ws-rec { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ok); border: 1px solid var(--ok); border-radius: 999px; padding: 0 .45rem; margin-left: .3rem; vertical-align: middle; }
+  .ws-procon { margin: .15rem 0 0 1.9rem; font-size: .85rem; }
+  .ws-procon summary, .ws-compare summary { cursor: pointer; color: var(--accent); }
+  .ws-procon-cols { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem 1rem; }
+  .ws-procon-cols ul, .ws-compare-table ul { margin: .3rem 0; padding-left: 1.1rem; }
+  .ws-pros li::marker { content: "+ "; color: var(--ok); }
+  .ws-cons li::marker { content: "\2212 "; color: var(--bad); }
+  .ws-compare { margin: .5rem 0 .2rem; font-size: .88rem; }
+  .ws-compare-table { margin-top: .4rem; }
+  .ws-compare-table td { vertical-align: top; }
   .ws-applies { font-size: .8rem; color: var(--muted); margin-top: .4rem; }
   .ws-text { width: 100%; font: inherit; padding: .4rem .5rem; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); }
   .ws-actions { display: flex; gap: .8rem; align-items: center; margin: .5rem 0 1rem; }
@@ -88,6 +137,7 @@ css: |
   .ws-out h3 { margin: .4rem 0 .2rem; }
   .ws-out-help { color: var(--fg-2); font-size: .9rem; margin: 0 0 .4rem; }
   .ws-output { width: 100%; font-family: ui-monospace, Consolas, monospace; font-size: .85rem; padding: .6rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--code); color: var(--fg); }
+  @media (max-width: 640px) { .ws-procon-cols { grid-template-columns: 1fr; } }
 js: |
   (function () {
     function text(v) { return (v || "").trim(); }
@@ -164,6 +214,6 @@ examples:
           call: C.1
           lead: Which colour?
           options:
-            - {value: blue, text: Blue, recommended: true, why: Matches the theme., prompt: "Use blue for the accent."}
-            - {value: red, text: Red, why: Louder.}
+            - {value: blue, text: Blue, recommended: true, why: Matches the theme., prompt: "Use blue for the accent.", pros: [Consistent with the palette], cons: [Less contrast on dark mode]}
+            - {value: red, text: Red, why: Louder., pros: [Stands out], cons: [Clashes with error badges]}
       prompt: {task: "Apply the colour verdict", steps: ["Edit site.yaml"], rules: ["Validate after editing."]}
