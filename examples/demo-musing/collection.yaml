@@ -1,0 +1,26 @@
+# Collection configuration - schema: collection (python -m yss schema collection --yaml)
+# One folder = one isolated doc set. Docs here get ids demo-musing/<file>, pages live under /demo-musing/.
+title: Demo musing
+summary: A small collection that exercises the contract - local docs and pages, a per-collection vocabulary, a mounted playable, a hook provider and a generated doc.
+emblem: "🧪"
+order: 1
+status: active
+tags: [example]
+theme:
+  accent: "#7a3e9d"
+  css: [assets/theme.css]
+vocabularies:
+  risk_status: [open, watching, resolved]      # this musing tracks risks its own way
+limits:
+  summary: 400
+dynamic:
+  sources:
+    notes:
+      provider: hooks:notes                    # defined in hooks.py providers
+      targets: [public, private]
+      description: Files in the play folder, listed at build time.
+mounts:
+  - path: play                                 # copied to /demo-musing/play/ in the private build only
+    at: play/
+    targets: [private]
+agent_notes: Anything unique to this musing goes in hooks.py; shared behaviour goes upstream into yss.

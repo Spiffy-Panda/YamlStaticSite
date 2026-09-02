@@ -15,6 +15,7 @@ template: |
     <div class="card-head">
       <h3 class="card-title">{% if href %}<a href="{{ href }}">{{ title }}</a>{% else %}{{ title }}{% endif %}</h3>
       {% if badge %}{{ prefab('badge', text=badge) }}{% endif %}
+      {% if _evidence and _evidence.status in ['stale', 'warn'] %}{{ prefab('badge', text=_evidence.status) }}{% endif %}
     </div>
     {% if subtitle %}<div class="card-subtitle">{{ subtitle }}</div>{% endif %}
     {% if body %}<div class="card-body prose">{{ body | md }}</div>{% endif %}

@@ -3,6 +3,7 @@ $id: yss:doc.decisions
 title: Decision log
 description: |
   Architecture decision records. Append new entries; never rewrite an accepted one, supersede it.
+  Status comes from the `record_status` vocabulary (proposed, accepted, rejected, superseded).
 type: object
 required: [kind, title, entries]
 additionalProperties: false
@@ -17,12 +18,12 @@ properties:
       properties:
         id: {$ref: "#/$defs/slug"}
         date: {type: string, format: date}
-        title: {type: string}
-        status: {type: string, enum: [proposed, accepted, rejected, superseded, deprecated]}
-        context: {type: string, description: Markdown. The forces at play.}
-        decision: {type: string, description: Markdown. What was decided.}
-        consequences: {type: array, items: {type: string}}
-        alternatives: {type: array, items: {type: string}}
-        supersedes: {$ref: "#/$defs/slug"}
-        superseded_by: {$ref: "#/$defs/slug"}
+        title: {type: string, x-limit: title}
+        status: {type: string, x-vocab: record_status}
+        context: {type: string, x-limit: markdown, description: Markdown. The forces at play.}
+        decision: {type: string, x-limit: markdown, description: Markdown. What was decided.}
+        consequences: {type: array, items: {type: string, x-limit: line}}
+        alternatives: {type: array, items: {type: string, x-limit: line}}
+        supersedes: {$ref: "#/$defs/slug", x-ref: item}
+        superseded_by: {$ref: "#/$defs/slug", x-ref: item}
       unevaluatedProperties: false

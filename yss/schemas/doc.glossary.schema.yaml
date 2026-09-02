@@ -15,8 +15,8 @@ properties:
       required: [term, definition]
       properties:
         id: {$ref: "#/$defs/slug"}
-        term: {type: string}
-        definition: {type: string, description: Markdown.}
+        term: {type: string, x-limit: title}
+        definition: {type: string, x-limit: summary, description: Markdown, one paragraph.}
         aliases: {type: array, items: {type: string}}
-        see_also: {type: array, items: {type: string}}
+        see_also: {type: array, items: {type: string}, description: Other terms (by term text or id).}
       unevaluatedProperties: false

@@ -14,6 +14,7 @@ template: |
         <span class="task-glyph">{{ glyph.get(m.status, '•') }}</span>
         <span class="task-title">{{ m.title }}</span>
         {{ prefab('badge', text=m.status) }}
+        {% if m._evidence and m._evidence.status != 'ok' %}{{ prefab('badge', text=m._evidence.status) }}{% endif %}
         {% if m.priority %}<span class="task-prio">P{{ m.priority }}</span>{% endif %}
         {% if m.target_date %}<span class="task-date">{{ m.target_date }}</span>{% endif %}
         <span class="task-count">{{ (m.tasks or []) | selectattr('status', 'equalto', 'done') | list | length }}/{{ (m.tasks or []) | length }}</span>
@@ -27,6 +28,7 @@ template: |
         <li class="task tone-{{ t.status | slug }}" id="{{ t.id }}">
           <span class="task-glyph">{{ glyph.get(t.status, '•') }}</span>
           <span class="task-title">{{ t.title | md_inline }}</span>
+          {% if t._evidence and t._evidence.status != 'ok' %}{{ prefab('badge', text=t._evidence.status) }}{% endif %}
           {% if t.owner %}<span class="task-owner">@{{ t.owner }}</span>{% endif %}
           {% if t.estimate %}<span class="task-est">{{ t.estimate }}</span>{% endif %}
           {% if t.depends_on %}<span class="task-deps">after {{ t.depends_on | join(', ') }}</span>{% endif %}

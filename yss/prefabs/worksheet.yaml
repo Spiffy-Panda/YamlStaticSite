@@ -1,0 +1,169 @@
+name: worksheet
+description: "Decision instrument: questions with a recommended default and a consequence per option, a required-answer gate, and a Build button that produces a plain-text agent instruction (rules trailer appended). No persistence, no network. Bind from a `worksheet` doc: questions, prompt, intro, warn."
+category: layout
+params:
+  questions: {type: list, required: true, item: {id: required, call: label, lead: the question, help: markdown, kind: "radio|check|text", required: bool, options: "list of {value, text, why, recommended, prompt}", applies_to: where the verdict is recorded}}
+  prompt: {type: object, description: "{task, background, steps[], do_not_touch[], flag_only[], rules[]}"}
+  intro: {type: markdown, description: In plain words box.}
+  warn: {type: markdown, description: Must-read warning box.}
+  decided_by: {type: boolean, default: true}
+  extra: {type: boolean, default: true}
+  title: {type: string, description: Used in the instruction header.}
+template: |
+  {% set wsid = (title or 'worksheet') | slug %}
+  <div class="worksheet" id="ws-{{ wsid }}" data-worksheet="{{ wsid }}">
+    {% if intro %}<div class="ws-plain"><h4>In plain words</h4>{{ intro | md }}</div>{% endif %}
+    {% if warn %}<div class="ws-warn">{{ warn | md }}</div>{% endif %}
+    <form class="ws-form" onsubmit="return false">
+    {% for q in questions %}
+      {% set qkind = q.kind or 'radio' %}
+      {% set req = q.required if q.required is defined else true %}
+      <fieldset class="ws-q" id="{{ q.id }}" data-q="{{ q.id }}" data-kind="{{ qkind }}" data-required="{{ '1' if req else '0' }}" data-call="{{ q.call or '' }}" data-lead="{{ q.lead }}" data-applies="{{ q.applies_to or '' }}">
+        <legend><span class="ws-n">{{ loop.index }}</span>{% if q.call %}<span class="ws-call">{{ q.call }}</span>{% endif %} {{ q.lead }}{% if not req %} <span class="ws-optional">optional</span>{% endif %}</legend>
+        {% if q.help %}<div class="ws-help">{{ q.help | md }}</div>{% endif %}
+        {% if qkind == 'text' %}
+          <textarea class="ws-text" name="{{ wsid }}-{{ q.id }}" rows="3" placeholder="{{ q.placeholder or '' }}"></textarea>
+        {% else %}
+          {% for o in q.options or [] %}
+          <label class="ws-opt">
+            <input type="{{ 'checkbox' if qkind == 'check' else 'radio' }}" name="{{ wsid }}-{{ q.id }}" value="{{ o.value }}" data-prompt="{{ o.prompt or o.text }}" {% if o.recommended and qkind == 'radio' %}checked{% endif %}>
+            <span class="ws-opt-text">{{ o.text | md_inline }}{% if o.recommended %} <span class="ws-rec">recommended</span>{% endif %}</span>
+            {% if o.why %}<span class="ws-why">{{ o.why | md_inline }}</span>{% endif %}
+          </label>
+          {% endfor %}
+        {% endif %}
+        {% if q.applies_to %}<div class="ws-applies">Recorded in: <code>{{ q.applies_to }}</code></div>{% endif %}
+      </fieldset>
+    {% endfor %}
+    {% if extra %}
+      <fieldset class="ws-q" data-q="extra" data-kind="text" data-required="0" data-lead="Anything else the agent should know?">
+        <legend><span class="ws-n">+</span> Anything else the agent should know? <span class="ws-optional">optional</span></legend>
+        <textarea class="ws-text" name="{{ wsid }}-extra" rows="3"></textarea>
+      </fieldset>
+    {% endif %}
+    {% if decided_by %}
+      <fieldset class="ws-q" data-q="decided_by" data-kind="text" data-required="1" data-lead="Who is recording this decision, and when?">
+        <legend><span class="ws-n">✎</span> Who is recording this decision, and when?</legend>
+        <input class="ws-text" type="text" name="{{ wsid }}-decided_by" placeholder="handle, YYYY-MM-DD">
+      </fieldset>
+    {% endif %}
+    <div class="ws-actions">
+      <button type="button" class="ws-go">Build the instruction</button>
+      <span class="ws-status" aria-live="polite"></span>
+    </div>
+    </form>
+    <div class="ws-out" hidden>
+      <h3>Hand this to an agent</h3>
+      <p class="ws-out-help">Paste into a fresh session. The verdict block at the end is what the agent applies to the docs.</p>
+      <textarea class="ws-output" readonly rows="18"></textarea>
+      <button type="button" class="ws-copy">Copy to clipboard</button>
+    </div>
+    <script type="application/json" class="ws-config">{{ {'title': title or '', 'prompt': prompt or {}} | tojson }}</script>
+  </div>
+css: |
+  .worksheet { max-width: 900px; }
+  .ws-plain { background: color-mix(in srgb, var(--ok) 10%, var(--bg-2)); border-left: 5px solid var(--ok); padding: .6rem 1rem; border-radius: 0 var(--radius) var(--radius) 0; margin-bottom: 1rem; }
+  .ws-plain h4 { margin: 0 0 .2rem; font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ok); }
+  .ws-plain p:last-child, .ws-warn p:last-child, .ws-help p:last-child { margin-bottom: 0; }
+  .ws-warn { background: color-mix(in srgb, var(--bad) 10%, var(--bg-2)); border: 1px solid color-mix(in srgb, var(--bad) 40%, var(--line)); padding: .6rem 1rem; border-radius: var(--radius); margin-bottom: 1rem; }
+  .ws-q { border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-2); padding: .6rem 1rem .8rem; margin: 0 0 .9rem; }
+  .ws-q legend { font-weight: 600; padding: 0 .4rem; display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+  .ws-n { display: inline-flex; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: var(--accent); color: #fff; align-items: center; justify-content: center; font-size: .8rem; }
+  .ws-call { font-family: ui-monospace, monospace; font-size: .8rem; color: var(--muted); }
+  .ws-optional { font-weight: 400; font-size: .75rem; color: var(--muted); }
+  .ws-help { color: var(--fg-2); font-size: .92rem; margin: .2rem 0 .5rem; }
+  .ws-opt { display: grid; grid-template-columns: auto 1fr; gap: .1rem .6rem; align-items: start; border: 1px solid var(--line); border-radius: 6px; padding: .45rem .7rem; margin: .35rem 0; cursor: pointer; }
+  .ws-opt:hover { border-color: var(--accent); }
+  .ws-opt input { margin-top: .3rem; }
+  .ws-opt-text { font-weight: 500; }
+  .ws-why { grid-column: 2; font-size: .85rem; color: var(--fg-2); }
+  .ws-rec { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ok); border: 1px solid var(--ok); border-radius: 999px; padding: 0 .45rem; margin-left: .3rem; vertical-align: middle; }
+  .ws-applies { font-size: .8rem; color: var(--muted); margin-top: .4rem; }
+  .ws-text { width: 100%; font: inherit; padding: .4rem .5rem; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); }
+  .ws-actions { display: flex; gap: .8rem; align-items: center; margin: .5rem 0 1rem; }
+  .ws-go, .ws-copy { font: inherit; border-radius: 999px; padding: .45rem 1.1rem; cursor: pointer; border: 1px solid var(--accent); }
+  .ws-go { background: var(--accent); color: #fff; }
+  .ws-copy { background: transparent; color: var(--accent); margin-top: .4rem; }
+  .ws-status { color: var(--bad); font-size: .9rem; }
+  .ws-out h3 { margin: .4rem 0 .2rem; }
+  .ws-out-help { color: var(--fg-2); font-size: .9rem; margin: 0 0 .4rem; }
+  .ws-output { width: 100%; font-family: ui-monospace, Consolas, monospace; font-size: .85rem; padding: .6rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--code); color: var(--fg); }
+js: |
+  (function () {
+    function text(v) { return (v || "").trim(); }
+    function collect(ws) {
+      var answers = [], missing = [];
+      ws.querySelectorAll(".ws-q").forEach(function (q) {
+        var kind = q.dataset.kind, name = q.dataset.q, entry = { id: name, lead: q.dataset.lead, call: q.dataset.call || "", applies: q.dataset.applies || "", kind: kind };
+        if (kind === "text") {
+          var field = q.querySelector(".ws-text");
+          entry.value = text(field && field.value);
+          if (!entry.value && q.dataset.required === "1") missing.push(entry.lead);
+        } else {
+          var picked = Array.prototype.slice.call(q.querySelectorAll("input:checked"));
+          entry.values = picked.map(function (i) { return i.value; });
+          entry.prompts = picked.map(function (i) { return i.dataset.prompt || i.value; });
+          if (!picked.length && q.dataset.required === "1") missing.push(entry.lead);
+        }
+        answers.push(entry);
+      });
+      return { answers: answers, missing: missing };
+    }
+    function section(title, lines) {
+      if (!lines || !lines.length) return "";
+      return "\n" + title + "\n" + lines.map(function (l) { return "- " + l; }).join("\n") + "\n";
+    }
+    function build(ws) {
+      var cfg = JSON.parse(ws.querySelector(".ws-config").textContent || "{}");
+      var p = cfg.prompt || {};
+      var r = collect(ws), out = [];
+      out.push("TASK - " + (p.task || ("apply the verdicts from the worksheet " + (cfg.title || ""))).trim());
+      if (p.background) out.push("\nBACKGROUND YOU NEED\n" + p.background.trim());
+      var n = 0, verdictLines = [], extra = "", decided = "";
+      r.answers.forEach(function (a) {
+        if (a.id === "extra") { extra = a.value; return; }
+        if (a.id === "decided_by") { decided = a.value; return; }
+        n += 1;
+        var head = "\nDECISION " + n + (a.call ? " - " + a.call : "") + ": " + a.lead;
+        var body = a.kind === "text" ? (a.value || "(no answer)") : (a.prompts.length ? a.prompts.join("; ") : "(not answered)");
+        out.push(head + "\n" + body + (a.applies ? "\nRecord in: " + a.applies : ""));
+        verdictLines.push(a.id + ": " + (a.kind === "text" ? JSON.stringify(a.value || "") : (a.values.length === 1 ? a.values[0] : JSON.stringify(a.values))));
+      });
+      if (p.steps && p.steps.length) out.push("\nWHAT TO ACTUALLY DO\n" + p.steps.map(function (s, i) { return (i + 1) + ". " + s; }).join("\n"));
+      out.push(section("DO NOT TOUCH", p.do_not_touch));
+      out.push(section("FLAG ONLY, DO NOT FIX", p.flag_only));
+      out.push("\nADDITIONAL CONTEXT FROM ME\n" + (extra || "(none)") + (decided ? "\nDecided by: " + decided : ""));
+      out.push("\nVERDICTS (yaml, apply these to the docs)\n" + verdictLines.join("\n"));
+      out.push(section("RULES FOR THE AGENT DOING THIS WORK", p.rules));
+      return { text: out.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n", missing: r.missing };
+    }
+    document.querySelectorAll(".worksheet").forEach(function (ws) {
+      var go = ws.querySelector(".ws-go"), status = ws.querySelector(".ws-status"), outBox = ws.querySelector(".ws-out"), output = ws.querySelector(".ws-output"), copy = ws.querySelector(".ws-copy");
+      go.addEventListener("click", function () {
+        var built = build(ws);
+        if (built.missing.length) { status.textContent = "Still to answer: " + built.missing.join(" · "); outBox.hidden = true; return; }
+        status.textContent = "";
+        output.value = built.text;
+        outBox.hidden = false;
+        output.rows = Math.min(40, built.text.split("\n").length + 2);
+        outBox.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      copy.addEventListener("click", function () {
+        var done = function () { copy.textContent = "Copied"; setTimeout(function () { copy.textContent = "Copy to clipboard"; }, 1600); };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(output.value).then(done, function () { output.select(); document.execCommand("copy"); done(); });
+        else { output.select(); document.execCommand("copy"); done(); }
+      });
+    });
+  })();
+examples:
+  - args:
+      title: Example
+      intro: "Pick one; the agent does the rest."
+      questions:
+        - id: q-color
+          call: C.1
+          lead: Which colour?
+          options:
+            - {value: blue, text: Blue, recommended: true, why: Matches the theme., prompt: "Use blue for the accent."}
+            - {value: red, text: Red, why: Louder.}
+      prompt: {task: "Apply the colour verdict", steps: ["Edit site.yaml"], rules: ["Validate after editing."]}

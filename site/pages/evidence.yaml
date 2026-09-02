@@ -1,0 +1,44 @@
+# Page - schema: page. Evidence: what the docs claim about the repo, and whether it still holds.
+id: evidence
+route: /evidence/
+title: Evidence
+summary: Every claim the docs make about paths, symbols and commands, checked at build time. Stale means the doc is wrong about the code.
+nav: {label: Evidence, order: 52}
+sections:
+  - id: how
+    type: markdown
+    markdown: |
+      Claims come from `evidence:` lists on docs and items, and from schema fields annotated as
+      evidence (code map paths, design component code, tests). `python -m yss check` runs them from
+      the command line; the build runs the fast ones and stamps a **stale** or **warn** badge on the
+      affected doc and item. Git recency compares a doc's `updated` date with the last commit that
+      touched its cited paths.
+
+  - id: failures
+    type: prefab
+    heading: Failing and warning claims
+    intro: Empty is the goal. Fix the doc or the code, then bump the doc's `updated` date.
+    prefab: evidence-list
+    args:
+      claims: {from: $evidence}
+      show_ok: false
+      empty: No stale or warning claims in this build.
+
+  - id: all
+    type: prefab
+    heading: All claims
+    prefab: evidence-list
+    args:
+      claims: {from: $evidence}
+      show_ok: true
+
+  - id: commands
+    type: dynamic
+    heading: Command evidence (private)
+    intro: Runs command claims (task verify commands and explicit command evidence) on request. Private build only.
+    visibility: private
+    source: evidence
+    view: table
+    path: claims
+    columns: [{key: doc, label: Doc}, {key: item, label: Item}, {key: kind, label: Kind}, {key: target, label: Target}, {key: status, label: Status}, {key: detail, label: Detail}]
+    empty: Only collected for the private build.

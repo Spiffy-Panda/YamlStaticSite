@@ -36,8 +36,9 @@ entries:
     context: Docs, prefabs and pages have different lifecycles and authors; docs are per-kind.
     decision: |
       One envelope schema (kind, id, title, summary, visibility, status, owners, updated, tags,
-      links, related, private_notes, agent_notes) is folded into every `doc.<kind>` schema at load
-      time. Prefabs and pages have their own schemas. Sites can add `schemas/doc.<kind>.schema.yaml`.
+      links, related, evidence, private_notes, agent_notes) is folded into every `doc.<kind>` schema
+      at load time. Prefabs, pages, collections and the site have their own schemas. Sites can add
+      `schemas/doc.<kind>.schema.yaml`.
     consequences:
       - "Kind schemas can be strict (`additionalProperties: false`) without repeating the envelope."
       - "`x-` prefixed keys are always allowed for experiments."
@@ -50,11 +51,11 @@ entries:
     decision: |
       A prefab file declares `params` (type, required, default), a `template`, optional `css`/`js`
       and `examples`. Templates call other prefabs with `prefab()`. Built-ins ship in the package;
-      a site overrides by name in `site/prefabs/`.
+      a site or collection overrides by name.
     consequences:
       - Missing required params and wrong types fail the build with the prefab and param named.
       - Examples are rendered on the reference page, so a broken prefab is visible.
-      - Templates in YAML need discipline; logic belongs in bindings (see principle p-no-logic-in-templates).
+      - Templates in YAML need discipline; logic belongs in bindings.
 
   - id: adr-004
     date: 2026-09-01
@@ -69,7 +70,7 @@ entries:
     consequences:
       - Forbidden strings never live in the repository; CI uses secrets.
       - Console output masks matched strings.
-      - Private-only nav entries simply do not exist in the public build.
+      - Private-only nav entries and private collections simply do not exist in the public build.
 
   - id: adr-005
     date: 2026-09-01
@@ -89,10 +90,10 @@ entries:
     status: accepted
     context: Test results, git state and prototype data change without a doc edit and may be repo-local.
     decision: |
-      A dynamic source is a provider function, a shell command or a file, collected at build time
-      (and on request by the private server) into `dynamic/<name>.json` shaped as
-      `{source, collected_at, ok, data | error}`. Sections choose a view (table, kv, list, cards,
-      json, custom script). Sources list the targets they are allowed in.
+      A dynamic source is a provider function (including `hooks:<name>`), a shell command or a file,
+      collected at build time (and on request by the private server) into `dynamic/<name>.json`
+      shaped as `{source, collected_at, ok, data | error}`. Sections choose a view. Sources list the
+      targets they are allowed in.
     consequences:
       - Public builds can omit a source; the section shows its `empty` text instead of failing.
       - Providers must avoid absolute paths or the scan fails the public build.
@@ -102,7 +103,7 @@ entries:
     title: Pretty routes, .nojekyll and exported data next to the HTML
     status: accepted
     context: GitHub Pages runs Jekyll by default and hides underscore paths; agents want the data the page shows.
-    decision: Every page is `<route>/index.html`; the build writes `.nojekyll`, `data/docs/*.json`, `data/docs.json`, `schemas/*.json` and `build.json`.
+    decision: Every page is `<route>/index.html`; the build writes `.nojekyll`, `data/docs/*.json`, `data/docs.json`, `data/evidence.json`, `schemas/*.json` and `build.json`.
     consequences:
       - A page footer links to the JSON behind it.
       - The output is a complete, self-describing snapshot for other tools.
@@ -116,3 +117,82 @@ entries:
     consequences:
       - No websockets or live reload; refresh the browser after a rebuild message.
       - watchdog support is a planned enhancement (m7-watchdog), not a requirement.
+
+  - id: adr-009
+    date: 2026-09-02
+    title: Evidence, not status, says whether a doc is current
+    status: accepted
+    context: |
+      The Musings review found that nothing in yss verified a doc's claims: cited paths were never
+      checked, and the envelope's `draft` status recreated the "awaiting verification" state that
+      rotted the markdown it replaced. Structured docs only beat markdown if they can be proven
+      stale.
+    decision: |
+      Any doc or item may carry `evidence` (paths, globs, symbols, commands), and schema fields that
+      hold paths or commands are annotated `x-evidence` so they are checked without extra authoring.
+      `yss check` evaluates them, git recency warns when cited code changed after `updated`, the
+      build stamps freshness on docs and items, and the Evidence page lists failures. The envelope
+      status is lifecycle only (active, stable, deprecated, archived); `draft` is gone.
+    consequences:
+      - Stale claims fail `yss check` and, with `--strict`, the build.
+      - Authors write one more line per cited fact; annotations cover the common fields for free.
+      - Re-verifying a doc means bumping `updated`, which clears the git recency warning.
+    alternatives:
+      - Manual review checklists (what the markdown had; it rotted).
+      - Only git recency (cheap but cannot tell a moved file from a rewritten one).
+
+  - id: adr-010
+    date: 2026-09-02
+    title: Host multi-musing repositories through collections, migrated one musing at a time
+    status: accepted
+    context: |
+      The Musings repository has nine musings, each with isolated docs and prototypes, a landing
+      page with per-musing themes, local-only playable mounts, and its own site generator. yss
+      assumed one docs folder and one flat id namespace, and two generators cannot own site/.
+    decision: |
+      `collections[].root` globs in site.yaml discover folders; each is a collection with its own
+      docs, pages, prefabs, schemas, assets, `collection.yaml` (title, emblem, theme, order,
+      vocabularies, limits, dynamic sources, mounts) and an optional `hooks.py` for anything unique
+      to that musing. Ids are prefixed by the folder, routes by `/<folder>/`, and local ids win
+      inside a collection. Adoption is full but phased: migrated musings render through yss,
+      un-migrated ones are linked until moved, and build_site.py is retired last.
+    consequences:
+      - One site.yaml and one id namespace shaped like the folders, instead of nine configs.
+      - The redaction pipeline covers every musing from day one of the migration.
+      - Per-musing features that are generic (themes, mounts, emblems, vocabularies) live upstream; bespoke ones live in that musing's hooks.py.
+    alternatives:
+      - yss as a library only (keeps build_site.py, loses pages, prefabs and the leak scan).
+      - One yss config per musing (nine configs, nine namespaces, no shared landing page).
+
+  - id: adr-011
+    date: 2026-09-02
+    title: Rules are schema annotations resolved from data, not code
+    status: accepted
+    context: |
+      Eight status vocabularies and no length caps made the schemas both too loose and too rigid;
+      and every musing has its own working vocabulary. Hard-coding either in schemas or Python
+      would make yss opinionated where the user wants to be.
+    decision: |
+      Schemas carry `x-vocab: <name>` and `x-limit: <name>`; the loader fills in `enum` and
+      `maxLength` from `vocabularies` and `limits` in site.yaml, overridden per collection in
+      collection.yaml. `x-ref` marks id fields for the reference checker and `x-evidence` marks
+      path and command fields for the evidence checker. Defaults ship in yss/config.py.
+    consequences:
+      - Vocabulary changes are config edits; the schema never changes.
+      - Every limit and vocabulary is visible with `yss ls kinds`.
+      - Scaffolds and validation use the resolved schema, so placeholders are always valid.
+
+  - id: adr-012
+    date: 2026-09-02
+    title: The plan holds open work only; archives are never loaded
+    status: accepted
+    context: Done milestones left in the plan made agents conflate shipped work with current work, exactly as old plan revisions in markdown did.
+    decision: |
+      Files and folders whose name starts with `_` are skipped by the loader. Milestones that are
+      done and committed move to `docs/_archive/<name>.yaml` in the same commit; the changelog is
+      the record of what shipped. Questions only the human can answer go to a worksheet doc, whose
+      rendered page builds the instruction an agent applies.
+    consequences:
+      - "`yss query plan.milestones` returns only live work."
+      - Archives are plain YAML for humans and are not validated.
+      - Worksheets are written by agents and answered by humans; the verdict block closes the loop.

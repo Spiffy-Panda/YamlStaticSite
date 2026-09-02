@@ -4,6 +4,7 @@ title: Site configuration (site.yaml)
 description: |
   Root configuration. Every key is optional; defaults live in yss/config.py. Targets are named
   builds; `public` is redacted and served under base_url, `private` keeps everything.
+  Vocabularies and limits are data that schema annotations (x-vocab, x-limit) resolve against.
 type: object
 additionalProperties: false
 properties:
@@ -25,6 +26,24 @@ properties:
       schemas: {type: string}
       out: {type: string}
     additionalProperties: false
+  collections:
+    type: array
+    description: "Folder globs holding isolated doc sets, e.g. [{root: musings/*}]. Each match becomes a collection named after its folder."
+    items:
+      oneOf:
+        - {type: string}
+        - type: object
+          required: [root]
+          properties:
+            root: {type: string, description: Folder or glob relative to the site root.}
+            docs: {type: string, default: docs}
+            pages: {type: string, default: pages}
+            prefabs: {type: string, default: prefabs}
+            schemas: {type: string, default: schemas}
+            assets: {type: string, default: assets}
+            config: {type: string, default: collection.yaml}
+            hooks: {type: string, default: hooks.py}
+          additionalProperties: false
   targets:
     type: object
     additionalProperties:
@@ -33,6 +52,36 @@ properties:
         base_url: {type: string, description: "URL prefix, e.g. /RepoName/ for GitHub project pages."}
         redact: {type: boolean, description: Fail the build if forbidden strings appear in the output.}
         description: {type: string}
+      additionalProperties: false
+  vocabularies:
+    type: object
+    additionalProperties: {type: array, items: {type: string}}
+    description: "Status vocabularies by name (lifecycle, work_status, record_status, risk_status, question_status, release_status, or your own)."
+  limits:
+    type: object
+    additionalProperties: {type: integer}
+    description: "Max lengths by name: title, summary, line, markdown (characters). 0 disables a limit."
+  evidence:
+    type: object
+    properties:
+      git_recency: {type: boolean, description: Warn when cited code changed after a doc's `updated` date.}
+      run_commands: {type: boolean, description: Run command evidence during `yss check` by default.}
+    additionalProperties: false
+  markdown:
+    type: object
+    properties:
+      renderer: {type: [string, "null"], description: "module:function(text) -> html to replace markdown-it-py site-wide."}
+    additionalProperties: false
+  hooks: {type: [string, "null"], description: Site-level hooks.py path (same contract as a collection's).}
+  mounts:
+    type: array
+    items:
+      type: object
+      required: [path, at]
+      properties:
+        path: {type: string}
+        at: {type: string}
+        targets: {type: array, items: {type: string}}
       additionalProperties: false
   dynamic:
     type: object

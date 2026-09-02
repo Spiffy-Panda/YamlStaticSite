@@ -1,6 +1,6 @@
 ---
 name: yss-publish
-description: Build, preview, redact and publish a yss site - targets (public/private), the forbidden-string scan, dynamic data sources and providers, the two-port dev server, prototype hosting headers, and the GitHub Pages workflow. Use when asked to build/serve/deploy the site, add runtime data (tests, git, metrics), host a Godot/wasm prototype, or check for leaks before publishing.
+description: Build, preview, redact and publish a yss site - targets (public/private), the forbidden-string scan, evidence checks in CI, collections (folder-per-musing) with collection.yaml and hooks.py, mounts for playables, dynamic data sources and providers, pluggable markdown, the two-port dev server and the GitHub Pages workflow. Use when asked to build/serve/deploy the site, add a collection or musing, write a hook, host a Godot/wasm prototype, add runtime data (tests, git, metrics), or check for leaks before publishing.
 ---
 
 # Building, serving, publishing
@@ -14,36 +14,85 @@ description: Build, preview, redact and publish a yss site - targets (public/pri
 python -m yss build                       # both targets, with dynamic sources
 python -m yss build --target public       # one target
 python -m yss build --no-dynamic          # skip runtime collection (fast)
-python -m yss build --strict              # flagged strings fail too
+python -m yss build --strict              # flagged strings and stale evidence fail too
+python -m yss check --run-commands        # evidence including command claims (slow); exit 1 on stale
 ```
 
-Exit 1 with a list of `file: at path: message` on validation errors, or the page/section/prefab on
-render errors. A redacting target that contains a **forbidden string deletes its output** and fails.
+Exit 1 with `file: at path: message` lines on validation errors (schema, vocabulary, limits, dangling
+references), or the page/section/prefab on render errors. A redacting target that contains a
+**forbidden string deletes its output** and fails. Every build stamps freshness from the fast
+evidence checks (paths, globs, symbols, git recency) and writes `data/evidence.json`.
 
 ## Redaction
 
-- Mark data: `visibility: private` on docs, pages, sections or any list item; `private_notes` on anything. Filtered before rendering.
+- Mark data: `visibility: private` on collections (collection.yaml), docs, pages, sections or any list item; `private_notes` on anything. Filtered before rendering.
 - Forbidden and flagged strings live in gitignored `.yss/local.yaml` (`forbidden_strings`, `flag_strings`), or in CI as `YSS_FORBIDDEN_STRINGS` / `YSS_FLAG_STRINGS` (semicolon separated). Matching is case-insensitive substring; console output masks matches.
 - The absolute checkout path is always forbidden in redacting targets (`redaction.forbid_root_path`).
-- `python -m yss scan` checks the **source tree** (docs, site, README...) before a commit; the build checks the **output**.
+- `python -m yss scan` checks the **source tree** before a commit; the build checks the **output**.
 - Never put the forbidden strings themselves in a committed file.
+
+## Collections (folder-per-musing)
+
+```yaml
+# site.yaml
+collections:
+  - root: musings/*            # every matching folder is a collection named after the folder
+```
+
+Inside a collection folder: `docs/`, `pages/`, `prefabs/`, `schemas/`, `assets/`, optional
+`collection.yaml` and `hooks.py`. Doc ids become `<folder>/<id>`, pages live under `/<folder>/`,
+the nav shows one link per collection, and pages get a collection bar with emblem, theme and sub-nav.
+Anything the YAML cannot express goes in that folder's `hooks.py` - never in yss.
+
+```yaml
+# <folder>/collection.yaml  (schema: python -m yss schema collection --yaml)
+title: Demo musing
+summary: One paragraph.
+emblem: "🧪"                     # or assets/emblem.svg
+order: 1
+visibility: public              # private -> the whole collection is absent from public builds
+theme: {accent: "#7a3e9d", css: [assets/theme.css]}
+vocabularies: {risk_status: [open, watching, resolved]}   # this collection's own words
+limits: {summary: 400}
+dynamic: {sources: {notes: {provider: hooks:notes, targets: [public, private]}}}
+mounts: [{path: play, at: play/, targets: [private]}]      # copied to /<folder>/play/ in the private build
+```
+
+```python
+# <folder>/hooks.py - every function optional; runs in-process with the repo root on sys.path
+def configure(collection, cfg): ...            # adjust collection.yaml data; return the dict
+def load_docs(collection, cfg): return [...]   # extra docs generated from data (dicts with kind/title/...)
+def load_pages(collection, cfg): return [...]  # extra pages
+def markdown(text): return html                # this collection's own markdown renderer
+def before_render(cfg, target, collection): ...   # e.g. build a playable from source
+def after_build(cfg, target, out_dir, collection): ...   # e.g. copy generated artefacts into out_dir/<id>/
+providers = {"notes": lambda cfg, spec: {...}}  # dynamic sources: provider: hooks:notes
+```
+
+Site-wide equivalents: `site.yaml` `hooks: hooks.py`, `mounts:`, and `markdown: {renderer: module:function}`
+to replace markdown-it-py everywhere (use it when the host repo already has a documented markdown subset).
+
+Adopting yss in a repo that has its own site generator: migrate one collection at a time; link the
+un-migrated parts from a markdown section until they move; retire the old generator last.
+`examples/demo-musing/` in the yss repo is a complete working collection to copy from.
 
 ## Dynamic sources (runtime JSON)
 
-Declared in `site.yaml`:
+Declared in `site.yaml` (or a collection.yaml, namespaced `<collection>.<name>` but referenced by the short name from that collection's pages):
 
 ```yaml
 dynamic:
   sources:
     testruns:  {provider: yss.providers.testruns:collect, tests_dir: tests, targets: [private], ttl: 60}
+    evidence:  {provider: yss.providers.evidence:collect, run_commands: true, targets: [private], on_build: false}
     metrics:   {command: "python tools/metrics.py", targets: [public, private], on_build: true, timeout: 60}
     coverage:  {file: reports/coverage.json}
 ```
 
 - Collected at build into `dist/<target>/dynamic/<name>.json` as `{source, collected_at, ok, data}` or `{..., ok: false, error}`.
 - `targets` limits where a source exists; a page section pointing at a missing source shows its `empty` text (no failure).
-- A provider is `collect(cfg, spec) -> JSON-able` in any importable module. Return relative paths only.
-- Built-ins: `yss.providers.buildinfo`, `yss.providers.testruns` (unittest in a subprocess), `yss.providers.gitlog` (private-only by default: author names).
+- A provider is `collect(cfg, spec) -> JSON-able` in any importable module, or `hooks:<name>`. Return relative paths only.
+- Built-ins: `yss.providers.buildinfo`, `yss.providers.testruns` (unittest in a subprocess), `yss.providers.gitlog` (private-only by default: author names), `yss.providers.evidence`.
 - Refresh without a full build: `python -m yss dynamic [name] --target private`.
 - Sections render them with `type: dynamic` and `view: table|kv|list|cards|json|custom` (see `yss-page`).
 
@@ -54,16 +103,16 @@ python -m yss serve                       # private http://127.0.0.1:8800/ , pub
 python -m yss serve --no-watch --no-build # just serve what is in dist/
 ```
 
-- Rebuilds both targets when `site.yaml`, `docs/`, `site/`, `schemas/` (and `serve.watch` extras) change; a failed build writes an error page.
+- Rebuilds both targets when `site.yaml`, `docs/`, `site/`, `schemas/`, collection folders (and `serve.watch` extras) change; a failed build writes an error page.
 - Private port serves a stale dynamic source immediately and re-collects it in the background (stale-while-revalidate; `ttl` per source). `?refresh=1` (the refresh button) waits for a fresh collection. A missing file is collected synchronously.
 - Both ports send `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` (`serve.coop_coep`), which threaded wasm and Godot 4 web exports need. GitHub Pages cannot; export Godot without threads or add a coi-serviceworker shim beside the export.
-- Prototypes: copy the export into `site/assets/prototypes/<name>/` and add an `embed` section.
+- Prototypes: put the export in a collection and mount it (`mounts`), or copy it into `site/assets/prototypes/<name>/` and add an `embed` section.
 
 ## GitHub Pages
 
-`.github/workflows/pages.yml` validates, tests, builds `public` with the secrets as env vars and
-deploys `dist/public`. Keep `targets.public.base_url` equal to `/<repo name>/` (or `/` for a
-user/organisation site) and `site.repo` equal to the repository URL.
+`.github/workflows/pages.yml` validates, checks evidence, tests, builds `public` with the secrets as
+env vars and deploys `dist/public`. Keep `targets.public.base_url` equal to `/<repo name>/` (or `/`
+for a user/organisation site) and `site.repo` equal to the repository URL.
 
 One-time setup with the gh CLI (needs `gh auth login` with `repo` and `workflow` scopes):
 
@@ -77,13 +126,13 @@ python -m yss pages-setup --run && gh run watch                            # als
 `pages-setup` stores `YSS_FORBIDDEN_STRINGS` / `YSS_FLAG_STRINGS` as repository secrets (semicolon
 joined from `.yss/local.yaml`) and calls the Pages API with `build_type=workflow`. Secrets and Pages
 are account settings: run it only when the human has asked for publishing. Re-run it whenever
-`.yss/local.yaml` changes. Manual equivalent: Settings → Pages → Source: GitHub Actions; Settings →
-Secrets → Actions → the two names above.
+`.yss/local.yaml` changes.
 
 ## Pre-publish checklist
 
 1. `python -m yss validate`
-2. `python -m unittest discover -s tests`
-3. `python -m yss scan`
-4. `python -m yss build --target public` (must succeed; reads `.yss/local.yaml`)
-5. Open the public preview port and click through the nav; private-only pages must be absent.
+2. `python -m yss check` (and `--run-commands` when task verify commands matter)
+3. `python -m unittest discover -s tests`
+4. `python -m yss scan`
+5. `python -m yss build --target public` (must succeed; reads `.yss/local.yaml`)
+6. Open the public preview port and click through the nav; private-only pages and collections must be absent.

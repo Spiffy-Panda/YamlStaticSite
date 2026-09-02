@@ -1,5 +1,5 @@
 # Code map - schema: doc.codemap (python -m yss schema doc.codemap --yaml)
-# Agents: when you add or move a module, update `modules` here. Paths are repo-relative.
+# Agents: when you add or move a module, update `modules` here. Paths are evidence; `yss check` fails if they vanish.
 kind: codemap
 id: codemap
 title: YamlStaticSite code map
@@ -12,7 +12,7 @@ roots:
   - path: yss/
     purpose: The toolchain package. Installable (`pip install -e .`) or run in place with `python -m yss`.
   - path: yss/schemas/
-    purpose: Built-in JSON Schemas written as YAML - doc envelope and kinds, prefab, page, site.
+    purpose: Built-in JSON Schemas written as YAML - doc envelope and kinds, prefab, page, collection, site.
   - path: yss/prefabs/
     purpose: Built-in UI prefabs (Jinja2 template + params + CSS in one YAML file each).
   - path: yss/templates/
@@ -20,17 +20,21 @@ roots:
   - path: yss/assets/
     purpose: Base stylesheet and client runtime copied into every build.
   - path: yss/providers/
-    purpose: Built-in dynamic data providers.
+    purpose: Built-in dynamic data providers (buildinfo, testruns, gitlog, evidence).
+  - path: yss/skills/
+    purpose: Canonical agent skills, shipped with the package; `yss init` / `yss skills --install` copy them into a repo.
   - path: docs/
     purpose: This repo's structured docs (the agent-first source of truth).
+  - path: docs/_archive/
+    purpose: Done-and-committed plan milestones. Underscore prefix means yss never loads it.
   - path: site/
     purpose: This repo's pages, site-local prefabs, layouts and static assets (including prototypes).
+  - path: examples/demo-musing/
+    purpose: A demo collection - collection.yaml, hooks.py, docs/, pages/, assets/, play/ - exercising the folder-per-musing contract.
   - path: schemas/
     purpose: Site-local schema additions or overrides (empty in the pilot).
   - path: tests/
     purpose: unittest suite; also collected by the `testruns` dynamic source.
-  - path: yss/skills/
-    purpose: Canonical agent skills, shipped with the package; `yss init` / `yss skills --install` copy them into a repo.
   - path: .claude/skills/
     purpose: This repo's installed copies of the skills (kept identical to yss/skills/ by a test).
   - path: dist/
@@ -39,25 +43,52 @@ roots:
 modules:
   - id: config
     path: yss/config.py
-    purpose: site.yaml over defaults; targets, base URLs, dynamic sources, redaction lists.
+    purpose: site.yaml over defaults; collections discovered from root globs; targets, base URLs, vocabularies, limits, mounts, dynamic sources, redaction lists.
     language: python
     status: active
     exports:
       - {name: Config, kind: class, signature: "Config.load(root=None)", description: Finds site.yaml upwards from cwd.}
-      - {name: Config.redaction_lists, kind: function, signature: "(target) -> (forbidden, flags)", description: Combines .yss/local.yaml and env vars; adds the checkout path for redacting targets.}
-      - {name: DEFAULTS, kind: constant}
+      - {name: Collection, kind: class, signature: "Collection(id, root, docs_dir, pages_dir, ...)", description: "id '' is the site root; vocab(cfg) and limits(cfg) merge overrides."}
+      - {name: Config.collections, kind: function, signature: "() -> [Collection]"}
+      - {name: Config.redaction_lists, kind: function, signature: "(target) -> (forbidden, flags)"}
+      - {name: DEFAULTS, kind: constant, description: Includes the default vocabularies and limits.}
+    tests: [tests/test_yss.py]
+  - id: hooks
+    path: yss/hooks.py
+    purpose: "Load a hooks.py by path and call optional functions safely; provider lookup for `provider: hooks:<name>`."
+    language: python
+    status: active
+    exports:
+      - {name: load_hooks, kind: function, signature: "(path, root=None) -> module | None"}
+      - {name: call, kind: function, signature: "(hooks, name, *args, default=None)"}
+      - {name: provider, kind: function, signature: "(hooks, name) -> callable | None"}
     tests: [tests/test_yss.py]
   - id: loader
     path: yss/loader.py
-    purpose: YAML loading (dates stay strings), SchemaRegistry, load_docs / load_pages / load_prefabs.
+    purpose: YAML loading (dates stay strings, `_` paths skipped), SchemaRegistry with x-vocab / x-limit resolution and annotation discovery, doc/page/prefab/collection loading, id indexes and reference checks.
     language: python
     status: active
-    depends_on: [config]
+    depends_on: [config, hooks]
     exports:
-      - {name: SchemaRegistry, kind: class, signature: "SchemaRegistry(dirs).validate(instance, name, where) -> [errors]", description: Folds the doc envelope into each doc.<kind> schema.}
-      - {name: load_docs, kind: function, signature: "(cfg, reg) -> (docs_by_id, errors)"}
-      - {name: load_pages, kind: function, signature: "(cfg, reg) -> (pages, errors)"}
-      - {name: load_prefabs, kind: function, signature: "(cfg, reg) -> (prefabs_by_name, errors)", description: Site prefabs override built-ins by name.}
+      - {name: SchemaRegistry, kind: class, signature: "SchemaRegistry(dirs).validate(instance, name, where, vocab, limits) -> [errors]"}
+      - {name: SchemaRegistry.resolved, kind: function, signature: "(name, vocab, limits) -> schema", description: Cached deep copy with enums and maxLength filled in.}
+      - {name: SchemaRegistry.annotations, kind: function, signature: "(name) -> {ref: {field: type}, evidence: {field: type}}"}
+      - {name: load_docs, kind: function, signature: "(cfg, reg) -> (docs_by_id, errors)", description: Ids prefixed by collection; hook load_docs merged.}
+      - {name: load_pages, kind: function, signature: "(cfg, reg) -> (pages, errors)", description: Routes prefixed by collection.}
+      - {name: load_prefabs, kind: function, signature: "(cfg, reg) -> (prefabs_by_name, errors)"}
+      - {name: check_refs, kind: function, signature: "(docs, reg, pages) -> [errors]", description: x-ref fields and inline references.}
+      - {name: resolve_doc_id, kind: function, signature: "(ref, collection_id, docs) -> id | None", description: "Collection-local first, then exact; `/doc` forces root."}
+    tests: [tests/test_yss.py]
+  - id: evidence
+    path: yss/evidence.py
+    purpose: Collect and evaluate evidence claims; git recency; inject `_evidence` freshness; format reports.
+    language: python
+    status: active
+    depends_on: [config, loader]
+    exports:
+      - {name: check, kind: function, signature: "(cfg, docs, reg, run_commands=None, git_recency=None) -> EvidenceReport"}
+      - {name: inject, kind: function, signature: "(docs, report) -> None"}
+      - {name: Claim, kind: class}
     tests: [tests/test_yss.py]
   - id: visibility
     path: yss/visibility.py
@@ -65,61 +96,63 @@ modules:
     language: python
     status: active
     exports:
-      - {name: filter_for_target, kind: function, signature: "(data, target) -> data", description: Deep copy without private objects / private_notes for public.}
-      - {name: scan_tree, kind: function, signature: "(root, forbidden, flags) -> (hits, flag_hits)", description: Case-insensitive substring scan of text files.}
+      - {name: filter_for_target, kind: function, signature: "(data, target) -> data"}
+      - {name: scan_tree, kind: function, signature: "(root, forbidden, flags) -> (hits, flag_hits)"}
     tests: [tests/test_yss.py]
   - id: binding
     path: yss/binding.py
-    purpose: Resolve binding specs against docs; where/sort/limit/map/fields/group_by.
+    purpose: Resolve binding specs against docs; where/sort/limit/map/fields/group_by; collection-local ids; virtual roots.
     language: python
     status: active
     exports:
       - {name: resolve_binding, kind: function, signature: "(spec, ctx, render=None) -> value"}
-      - {name: is_binding, kind: function, signature: "(value) -> bool", description: A dict with a string `from` key.}
+      - {name: is_binding, kind: function, signature: "(value) -> bool"}
     tests: [tests/test_yss.py]
   - id: render
     path: yss/render.py
-    purpose: Renderer - Jinja env, prefab(), section handlers, render_page; markdown helpers.
+    purpose: Renderer - Jinja env, prefab(), section handlers, inline reference expansion, pluggable markdown, collection context, render_page.
     language: python
     status: active
-    depends_on: [binding, config, visibility]
+    depends_on: [binding, config, visibility, hooks, loader]
     exports:
-      - {name: Renderer, kind: class, signature: "Renderer(cfg, target, docs, pages, prefabs, all_doc_ids, build_info)"}
-      - {name: Renderer.prefab, kind: function, signature: "(name, *dicts, **kwargs) -> Markup", description: "Applies defaults, checks required params and types."}
+      - {name: Renderer, kind: class, signature: "Renderer(cfg, target, docs, pages, prefabs, all_doc_ids, build_info, evidence)"}
+      - {name: Renderer.prefab, kind: function, signature: "(name, *dicts, **kwargs) -> Markup"}
+      - {name: Renderer.expand_refs, kind: function, signature: "(text) -> text", description: "Inline references to markdown links."}
       - {name: route_to_path, kind: function, signature: "(out_dir, route) -> Path"}
     tests: [tests/test_yss.py]
   - id: build
     path: yss/build.py
-    purpose: load_all (validate + cross checks) and build (filter, render, export, assets, dynamic, manifest, scan).
+    purpose: load_all (validate, collection configs, refs, cross checks) and build (filter, evidence, hooks, render, export, assets, mounts, dynamic, manifest, scan).
     language: python
     status: active
-    depends_on: [loader, visibility, render, dynamic]
+    depends_on: [loader, visibility, render, dynamic, evidence, hooks]
     exports:
       - {name: load_all, kind: function, signature: "(cfg) -> Loaded"}
-      - {name: build, kind: function, signature: "(cfg, target, out_dir=None, strict=False, run_dynamic=True, loaded=None) -> BuildReport", description: Raises BuildError; deletes output on forbidden strings.}
+      - {name: build, kind: function, signature: "(cfg, target, out_dir=None, strict=False, run_dynamic=True, loaded=None, check_evidence=True) -> BuildReport"}
     tests: [tests/test_yss.py]
   - id: dynamic
     path: yss/dynamic.py
-    purpose: Collect dynamic sources (provider / command / file) into the JSON envelope.
+    purpose: Collect dynamic sources (provider, hooks provider, command, file) into the JSON envelope.
     language: python
     status: active
-    depends_on: [config]
+    depends_on: [config, hooks]
     exports:
       - {name: collect_envelope, kind: function, signature: "(cfg, name, spec) -> dict"}
       - {name: write_all, kind: function, signature: "(cfg, target, out_dir, names=None, only_on_build=False) -> {name: envelope}"}
   - id: providers
     path: yss/providers/
-    purpose: buildinfo (counts), testruns (unittest in a subprocess), gitlog (recent commits).
+    purpose: buildinfo (counts), testruns (unittest in a subprocess), gitlog (recent commits), evidence (claims incl. commands).
     language: python
     status: active
-    depends_on: [dynamic]
+    depends_on: [dynamic, evidence]
     exports:
       - {name: buildinfo.collect, kind: function}
       - {name: testruns.collect, kind: function, description: "Also runnable: python -m yss.providers.testruns tests"}
       - {name: gitlog.collect, kind: function}
+      - {name: evidence.collect, kind: function}
   - id: server
     path: yss/server.py
-    purpose: SiteHandler (prefix stripping, live dynamic, COOP/COEP), make_server, rebuild, serve with watch loop.
+    purpose: SiteHandler (prefix stripping, background dynamic refresh, COOP/COEP), make_server, rebuild, serve with watch loop.
     language: python
     status: active
     depends_on: [build, dynamic]
@@ -127,14 +160,17 @@ modules:
       - {name: serve, kind: function, signature: "(cfg, watch=True, host=None, private_port=None, public_port=None, targets=('private','public'))"}
       - {name: make_server, kind: function, signature: "(cfg, target, host, port, live) -> ThreadingHTTPServer"}
     tests: [tests/test_yss.py]
-  - id: ghpages
-    path: yss/ghpages.py
-    purpose: "`pages-setup` - gh CLI wrapper that stores redaction secrets and sets the Pages source to GitHub Actions."
+  - id: scaffold
+    path: yss/scaffold.py
+    purpose: Skeleton generation from resolved schemas for `yss new` and `yss init` (which also installs skills and a starter CLAUDE.md).
     language: python
     status: active
-    depends_on: [config, visibility]
+    depends_on: [loader, skillpack]
     exports:
-      - {name: setup, kind: function, signature: "(cfg, repo=None, dry_run=False, secrets=True, pages=True, run_workflow=False) -> [messages]"}
+      - {name: new_doc, kind: function}
+      - {name: new_page, kind: function}
+      - {name: new_prefab, kind: function}
+      - {name: init_site, kind: function}
   - id: skillpack
     path: yss/skillpack.py
     purpose: "Canonical agent skills live in yss/skills/; `yss skills` installs or checks the copies in a repo's .claude/skills/."
@@ -144,33 +180,30 @@ modules:
       - {name: install, kind: function, signature: "(root, force=False) -> [(name, status)]"}
       - {name: check, kind: function, signature: "(root) -> [(name, status)]"}
     tests: [tests/test_yss.py]
-  - id: scaffold
-    path: yss/scaffold.py
-    purpose: Skeleton generation from schemas for `yss new` and `yss init`.
+  - id: ghpages
+    path: yss/ghpages.py
+    purpose: "`pages-setup` - gh CLI wrapper that stores redaction secrets and sets the Pages source to GitHub Actions."
     language: python
     status: active
-    depends_on: [loader]
+    depends_on: [config, visibility]
     exports:
-      - {name: new_doc, kind: function}
-      - {name: new_page, kind: function}
-      - {name: new_prefab, kind: function}
-      - {name: init_site, kind: function}
+      - {name: setup, kind: function, signature: "(cfg, repo=None, dry_run=False, secrets=True, pages=True, run_workflow=False) -> [messages]"}
   - id: cli
     path: yss/cli.py
     purpose: argparse front end for every command.
     language: python
     status: active
-    depends_on: [build, server, scaffold, dynamic]
+    depends_on: [build, server, scaffold, dynamic, evidence, skillpack, ghpages]
     exports:
       - {name: main, kind: function, signature: "(argv=None) -> int"}
   - id: client
     path: yss/assets/yss.js
-    purpose: Dynamic section rendering and nav toggle; exposes window.yss.
+    purpose: Dynamic section rendering and nav toggle; exposes window.yss. The worksheet's script ships with its prefab.
     language: javascript
     status: active
   - id: layout
     path: yss/templates/default.html
-    purpose: Default layout - header/nav, page header, sections, table of contents, footer with build info.
+    purpose: Default layout - header/nav with collection links, collection bar with emblem, theme and sub-nav, page header with freshness badge, sections, table of contents, footer.
     language: jinja
     status: active
 
@@ -179,7 +212,17 @@ entrypoints:
     name: Validate
     command: python -m yss validate
     module: cli
-    description: Schema-check every structured file. Run after every edit.
+    description: Schema-check every structured file, collection config and reference. Run after every edit.
+  - id: e-check
+    name: Check evidence
+    command: python -m yss check [--run-commands] [--strict] [-v]
+    module: cli
+    description: Prove cited paths, symbols and commands; exit 1 on stale claims.
+  - id: e-refs
+    name: References
+    command: python -m yss refs plan#m3-pilot
+    module: cli
+    description: Inbound references to a doc or item.
   - id: e-build
     name: Build
     command: python -m yss build [--target public|private|all] [--no-dynamic] [--strict]
@@ -194,35 +237,42 @@ entrypoints:
     command: python -m yss query plan.milestones --where status=active --fields id,title
     module: cli
     description: Read structured data the way pages do.
+  - id: e-ls
+    name: Inventory
+    command: python -m yss ls [docs|pages|prefabs|kinds|dynamic|collections]
+    module: cli
   - id: e-tests
     name: Tests
     command: python -m unittest discover -s tests -v
     module: cli
-  - id: e-pages
-    name: Pages setup
-    command: python -m yss pages-setup [--dry-run] [--run]
-    module: ghpages
-    description: One-time GitHub setup via gh - secrets from .yss/local.yaml, Pages source = Actions.
+  - id: e-new
+    name: Scaffold
+    command: python -m yss new doc <kind> <id> | new page <id> [--doc <id>] | new prefab <name>
+    module: scaffold
   - id: e-skills
     name: Skills
     command: python -m yss skills [--install] [--force]
     module: skillpack
     description: Check or install the agent skill suite into .claude/skills/.
-  - id: e-new
-    name: Scaffold
-    command: python -m yss new doc <kind> <id> | new page <id> [--doc <id>] | new prefab <name>
-    module: scaffold
+  - id: e-pages
+    name: Pages setup
+    command: python -m yss pages-setup [--dry-run] [--run]
+    module: ghpages
+    description: One-time GitHub setup via gh - secrets from .yss/local.yaml, Pages source = Actions.
 
 conventions:
   - id: cv-ids
-    rule: Ids are lowercase slugs, stable forever, unique within a doc. Pages and prefabs link by id.
-    rationale: Anchors, depends_on and doc_url all rely on ids.
+    rule: Ids are lowercase slugs, stable forever, unique within a doc. Pages, references and evidence all rely on them.
   - id: cv-private
     rule: "Anything not for the public site is either `visibility: private` or under `private_notes`; never rely on the scan alone."
   - id: cv-no-abs-paths
     rule: Nothing that ends up in dist/ may contain an absolute path.
     rationale: The checkout path contains personal information; the public build forbids it automatically.
   - id: cv-verify
-    rule: Every plan task carries a `verify` command or observation.
+    rule: "Every plan task carries `verify`; when a path or command can prove it, add an `evidence:` claim too."
+  - id: cv-archive
+    rule: Done-and-committed milestones move to docs/_archive/; the plan holds open work only; the changelog is the history.
+  - id: cv-local-first
+    rule: "Inside a collection, doc ids resolve to the local doc first; use `/doc` to reach a root doc that shares the name."
   - id: cv-prefab-css
     rule: Prefab CSS is scoped under a class named after the prefab and uses the shared tone variables.

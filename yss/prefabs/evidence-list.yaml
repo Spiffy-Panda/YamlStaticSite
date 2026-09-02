@@ -1,0 +1,40 @@
+name: evidence-list
+description: "Evidence claims grouped by doc with a status badge per claim (ok, stale, warn, skipped). Bind `claims` from `$evidence`; use `where` to show only failures."
+category: data
+params:
+  claims: {type: list, required: true, item: {doc: doc id, item: item id or null, field: path in doc, kind: "path|glob|symbol|command|contains|git", target: what was checked, status: "ok|stale|warn|unknown|skipped", detail: message}}
+  empty: {type: string, default: No evidence claims.}
+  show_ok: {type: boolean, default: false, description: Also list passing claims.}
+template: |
+  {% set shown = claims if show_ok else (claims | rejectattr('status', 'equalto', 'ok') | list) %}
+  {% if shown %}
+  <div class="evidence-list">
+  {% for group in shown | groupby('doc') %}
+    <details class="evidence-doc" open>
+      <summary><a href="{{ doc_url(group.grouper) }}">{{ group.grouper }}</a> <span class="evidence-count">{{ group.list | length }} claim(s)</span>
+        {% for s in ['stale', 'warn', 'skipped'] %}{% set n = group.list | selectattr('status', 'equalto', s) | list | length %}{% if n %}{{ prefab('badge', text=s ~ ' ' ~ n) }}{% endif %}{% endfor %}
+      </summary>
+      <table class="table evidence-table">
+        <thead><tr><th>status</th><th>kind</th><th>target</th><th>where</th><th>detail</th></tr></thead>
+        <tbody>
+        {% for c in group.list %}
+          <tr class="tone-{{ c.status }}"><td class="cell-tone">{{ c.status }}</td><td>{{ c.kind }}</td><td><code>{{ c.target }}</code></td><td>{% if c.item %}<a href="{{ ref_url(c.doc ~ '#' ~ c.item) }}">{{ c.item }}</a> · {% endif %}<code>{{ c.field }}</code></td><td>{{ c.detail or '' }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </details>
+  {% endfor %}
+  </div>
+  {% else %}<p class="empty">{{ empty }}</p>{% endif %}
+css: |
+  .evidence-doc { border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-2); margin: .5rem 0; padding: .3rem .8rem; }
+  .evidence-doc > summary { cursor: pointer; display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; font-weight: 600; }
+  .evidence-count { color: var(--muted); font-size: .8rem; font-weight: 400; }
+  .evidence-table { font-size: .85rem; margin: .4rem 0; }
+  .evidence-table td.cell-tone { color: var(--tone, inherit); font-weight: 600; }
+examples:
+  - args:
+      show_ok: true
+      claims:
+        - {doc: codemap, item: cli, field: modules/0/path, kind: path, target: yss/cli.py, status: ok, detail: ""}
+        - {doc: codemap, item: old, field: modules/1/path, kind: path, target: yss/gone.py, status: stale, detail: "path not found: yss/gone.py"}

@@ -109,3 +109,19 @@ blockquote { border-left: 3px solid var(--accent); margin: 1rem 0; padding: .2re
 .tone-blocked, .tone-failed, .tone-error, .tone-rejected, .tone-high { --tone: var(--bad); }
 .tone-planned, .tone-draft, .tone-medium, .tone-skipped { --tone: var(--warn); }
 .tone-dropped, .tone-deprecated, .tone-superseded, .tone-archived, .tone-low, .tone-deferred { --tone: var(--muted); }
+
+/* evidence / freshness tones */
+.tone-stale { --tone: var(--bad); }
+.tone-warn { --tone: var(--warn); }
+.tone-unknown { --tone: var(--muted); }
+
+/* collections */
+.collection-bar { background: var(--accent-2); border-bottom: 1px solid var(--line); }
+.collection-bar .wrap { display: flex; align-items: center; gap: .75rem; min-height: 2.6rem; flex-wrap: wrap; }
+.collection-emblem { font-size: 1.3rem; line-height: 1; }
+.collection-emblem img { height: 1.6rem; width: auto; vertical-align: middle; }
+.collection-title { font-weight: 700; text-decoration: none; color: var(--fg); }
+.sub-nav { display: flex; gap: .2rem; flex-wrap: wrap; margin-left: auto; }
+.sub-nav a { text-decoration: none; color: var(--fg-2); padding: .25rem .55rem; border-radius: 6px; font-size: .92rem; }
+.sub-nav a.active, .sub-nav a:hover { color: var(--accent); background: var(--bg-2); }
+.site-nav a.nav-collection { border: 1px dashed var(--line); }

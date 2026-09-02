@@ -1,4 +1,4 @@
-# Changelog - schema: doc.changelog. Newest release first.
+# Changelog - schema: doc.changelog. Newest release first. This is the record of shipped work.
 kind: changelog
 id: changelog
 title: Changelog
@@ -7,9 +7,30 @@ status: active
 updated: 2026-09-02
 
 releases:
-  - version: 0.1.0
+  - version: 0.2.0
     date: 2026-09-02
     status: unreleased
+    summary: Docs that prove themselves, data-driven rules, item-level references, collections with hooks, and worksheets.
+    changes:
+      - type: added
+        text: "Evidence claims (`evidence:` lists and x-evidence fields), `yss check`, git recency warnings, freshness badges, an Evidence page and an evidence provider."
+      - type: added
+        text: "x-vocab and x-limit annotations resolved from site.yaml / collection.yaml; default vocabularies and limits in config; `draft` removed."
+      - type: added
+        text: "x-ref validation of depends_on, component, module, supersedes and friends; inline `[[doc#item]]` references rendered as links; `yss refs`."
+      - type: added
+        text: "Collections: collections[].root globs, collection.yaml, hooks.py contract, mounts, themes, per-collection dynamic sources, `$collections` root, collection-index prefab."
+      - type: added
+        text: "Pluggable markdown renderer (site.yaml markdown.renderer or a collection's hooks.py markdown())."
+      - type: added
+        text: "Worksheet doc kind and prefab - questions with recommended defaults that build a paste-ready agent instruction with a verdicts block."
+      - type: changed
+        text: "Loader skips `_`-prefixed files and folders; done milestones moved to docs/_archive/."
+      - type: changed
+        text: "Inside a collection, doc ids resolve to the local doc first; `/doc` forces the root doc."
+  - version: 0.1.0
+    date: 2026-09-02
+    status: released
     summary: First working pilot - the toolchain documents itself.
     changes:
       - type: added

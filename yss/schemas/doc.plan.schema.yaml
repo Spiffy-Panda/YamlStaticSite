@@ -3,7 +3,9 @@ $id: yss:doc.plan
 title: Plan document
 description: |
   Goals, milestones with tasks, risks and open questions. The agent-first replacement for PLAN.md.
-  Status vocabulary: planned, active, blocked, done, dropped. Keep ids stable; pages bind to them.
+  Only current work belongs here: move milestones that are done and committed to a `_archive/`
+  file (not loaded) so agents never conflate old and current plans. Statuses come from the
+  `work_status` vocabulary (risks: `risk_status`, questions: `question_status`).
 type: object
 required: [kind, title, milestones]
 additionalProperties: false
@@ -11,11 +13,11 @@ properties:
   kind: {const: plan}
   goals:
     type: array
-    items: {type: string}
+    items: {type: string, x-limit: line}
     description: What success looks like, one sentence each.
   non_goals:
     type: array
-    items: {type: string}
+    items: {type: string, x-limit: line}
   milestones:
     type: array
     items:
@@ -24,13 +26,13 @@ properties:
       required: [id, title, status]
       properties:
         id: {$ref: "#/$defs/slug"}
-        title: {type: string}
-        summary: {type: string}
-        status: {$ref: "#/$defs/work_status"}
+        title: {type: string, x-limit: title}
+        summary: {type: string, x-limit: summary}
+        status: {type: string, x-vocab: work_status}
         priority: {type: integer, minimum: 1, maximum: 5, description: 1 is highest.}
         target_date: {type: string, format: date}
-        depends_on: {type: array, items: {$ref: "#/$defs/slug"}}
-        done_when: {type: string, description: Observable completion criterion.}
+        depends_on: {type: array, items: {$ref: "#/$defs/slug"}, x-ref: item}
+        done_when: {type: string, x-limit: line, description: Observable completion criterion.}
         tasks:
           type: array
           items: {$ref: "#/$defs/task"}
@@ -43,11 +45,11 @@ properties:
       required: [id, title]
       properties:
         id: {$ref: "#/$defs/slug"}
-        title: {type: string}
+        title: {type: string, x-limit: line}
         likelihood: {type: string, enum: [low, medium, high]}
         impact: {type: string, enum: [low, medium, high]}
-        mitigation: {type: string}
-        status: {type: string, enum: [open, mitigated, accepted, closed], default: open}
+        mitigation: {type: string, x-limit: summary}
+        status: {type: string, x-vocab: risk_status, default: open}
       unevaluatedProperties: false
   open_questions:
     type: array
@@ -57,27 +59,25 @@ properties:
       required: [id, question]
       properties:
         id: {$ref: "#/$defs/slug"}
-        question: {type: string}
-        context: {type: string}
+        question: {type: string, x-limit: summary}
+        context: {type: string, x-limit: summary}
         owner: {type: string}
-        status: {type: string, enum: [open, answered, deferred], default: open}
-        answer: {type: string}
+        options: {type: array, items: {type: string, x-limit: line}, description: Candidate answers, so a verdict can pick one.}
+        status: {type: string, x-vocab: question_status, default: open}
+        answer: {type: string, x-limit: summary}
       unevaluatedProperties: false
 $defs:
-  work_status:
-    type: string
-    enum: [planned, active, blocked, done, dropped]
   task:
     type: object
     allOf: [{$ref: "#/$defs/item_base"}]
     required: [id, title, status]
     properties:
       id: {$ref: "#/$defs/slug"}
-      title: {type: string}
-      status: {$ref: "#/$defs/work_status"}
+      title: {type: string, x-limit: title}
+      status: {type: string, x-vocab: work_status}
       owner: {type: string, description: Handle or role (agent, human, ci).}
       estimate: {type: string, description: Free-form size (S/M/L or hours).}
-      depends_on: {type: array, items: {$ref: "#/$defs/slug"}}
-      done_when: {type: string}
-      verify: {type: string, description: Command or observation that proves the task is done.}
+      depends_on: {type: array, items: {$ref: "#/$defs/slug"}, x-ref: item}
+      done_when: {type: string, x-limit: line}
+      verify: {type: string, x-limit: line, description: "Command or observation that proves the task is done. Use `evidence:` for checks that `yss check` should run."}
     unevaluatedProperties: false

@@ -11,6 +11,7 @@ template: |
       <div class="module-head">
         <code class="module-path">{% if repo_url %}<a href="{{ repo_url }}/blob/main/{{ m.path }}">{{ m.path }}</a>{% else %}{{ m.path }}{% endif %}</code>
         {% if m.status %}{{ prefab('badge', text=m.status) }}{% endif %}
+        {% if m._evidence and m._evidence.status != 'ok' %}{{ prefab('badge', text=m._evidence.status) }}{% endif %}
         {% if m.language %}<span class="module-lang">{{ m.language }}</span>{% endif %}
       </div>
       <div class="module-purpose">{{ m.purpose | md_inline }}</div>

@@ -1,8 +1,14 @@
-"""Site configuration (site.yaml) with defaults, target lookup and redaction lists."""
+"""Site configuration (site.yaml) with defaults, collections, targets and redaction lists.
+
+Vocabularies and limits are data: schemas carry `x-vocab: <name>` / `x-limit: <name>` annotations
+that are resolved from this config, and a collection can override both in its collection.yaml.
+"""
 from __future__ import annotations
 
 import copy
+import glob as globmod
 import os
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -22,10 +28,24 @@ DEFAULTS: dict[str, Any] = {
         "schemas": "schemas",
         "out": "dist",
     },
+    "collections": [],
     "targets": {
         "public": {"base_url": "/", "redact": True, "description": "Public build (GitHub Pages)."},
         "private": {"base_url": "/", "redact": False, "description": "Local-only build with private content."},
     },
+    "vocabularies": {
+        "lifecycle": ["active", "stable", "deprecated", "archived"],
+        "work_status": ["planned", "active", "blocked", "done", "dropped"],
+        "record_status": ["proposed", "accepted", "rejected", "superseded"],
+        "risk_status": ["open", "mitigated", "accepted", "closed"],
+        "question_status": ["open", "answered", "deferred"],
+        "release_status": ["released", "unreleased", "yanked"],
+    },
+    "limits": {"title": 120, "summary": 300, "line": 240, "markdown": 2400},
+    "evidence": {"git_recency": True, "run_commands": False},
+    "markdown": {"renderer": None},
+    "hooks": None,
+    "mounts": [],
     "dynamic": {"sources": {}},
     "serve": {
         "host": "127.0.0.1",
@@ -42,6 +62,17 @@ DEFAULTS: dict[str, Any] = {
         "env_flag": "YSS_FLAG_STRINGS",
         "forbid_root_path": True,
     },
+}
+
+COLLECTION_DEFAULTS: dict[str, Any] = {
+    "root": "",
+    "docs": "docs",
+    "pages": "pages",
+    "prefabs": "prefabs",
+    "schemas": "schemas",
+    "assets": "assets",
+    "config": "collection.yaml",
+    "hooks": "hooks.py",
 }
 
 
@@ -74,12 +105,80 @@ def _split_env(value: str | None) -> list[str]:
     return [p.strip() for p in parts if p.strip()]
 
 
+def _read_yaml(path: Path) -> dict:
+    with open(path, encoding="utf-8") as fh:
+        data = yaml.safe_load(fh) or {}
+    if not isinstance(data, dict):
+        raise ConfigError(f"{path.name}: top level must be a mapping")
+    return data
+
+
+@dataclass
+class Collection:
+    """A folder holding an isolated doc set (a musing, a sub-project). id "" is the site root."""
+
+    id: str
+    root: Path
+    docs_dir: Path
+    pages_dir: Path
+    prefabs_dir: Path | None = None
+    schemas_dir: Path | None = None
+    assets_dir: Path | None = None
+    hooks_path: Path | None = None
+    data: dict = field(default_factory=dict)
+
+    @property
+    def is_root(self) -> bool:
+        return self.id == ""
+
+    @property
+    def title(self) -> str:
+        return self.data.get("title") or (self.id or "site")
+
+    @property
+    def order(self) -> int:
+        return int(self.data.get("order", 100))
+
+    @property
+    def visibility(self) -> str:
+        return self.data.get("visibility", "public")
+
+    @property
+    def route_prefix(self) -> str:
+        return "/" if self.is_root else f"/{self.id}/"
+
+    def doc_id(self, stem: str) -> str:
+        return stem if self.is_root else f"{self.id}/{stem}"
+
+    def vocab(self, cfg: "Config") -> dict:
+        return deep_merge(cfg.vocabularies, self.data.get("vocabularies") or {})
+
+    def limits(self, cfg: "Config") -> dict:
+        return deep_merge(cfg.limits, self.data.get("limits") or {})
+
+    def summary(self) -> dict:
+        """JSON-able description used by the $collections virtual root."""
+        return {
+            "id": self.id,
+            "title": self.title,
+            "summary": self.data.get("summary", ""),
+            "emblem": self.data.get("emblem"),
+            "order": self.order,
+            "route": self.route_prefix,
+            "visibility": self.visibility,
+            "tags": self.data.get("tags") or [],
+            "status": self.data.get("status"),
+            "theme": self.data.get("theme") or {},
+        }
+
+
 class Config:
     def __init__(self, root: Path, data: dict | None, source: Path | None = None):
         self.root = Path(root).resolve()
         self.source = source
         self.raw = data or {}
         self.data = deep_merge(DEFAULTS, self.raw)
+        self._collections: list[Collection] | None = None
 
     @classmethod
     def load(cls, root: str | Path | None = None) -> "Config":
@@ -87,9 +186,7 @@ class Config:
         for name in CONFIG_NAMES:
             candidate = root_path / name
             if candidate.is_file():
-                with open(candidate, encoding="utf-8") as fh:
-                    data = yaml.safe_load(fh) or {}
-                return cls(root_path, data, candidate)
+                return cls(root_path, _read_yaml(candidate), candidate)
         raise ConfigError(f"no site.yaml in {root_path}")
 
     # --- paths -----------------------------------------------------------
@@ -100,16 +197,78 @@ class Config:
         return self.path("out") / target
 
     def schema_dirs(self) -> list[Path]:
-        return [PKG_DIR / "schemas", self.path("schemas")]
+        dirs = [PKG_DIR / "schemas", self.path("schemas")]
+        dirs += [c.schemas_dir for c in self.collections() if c.schemas_dir and not c.is_root]
+        return dirs
 
     def prefab_dirs(self) -> list[Path]:
-        return [PKG_DIR / "prefabs", self.path("prefabs")]
+        dirs = [PKG_DIR / "prefabs", self.path("prefabs")]
+        dirs += [c.prefabs_dir for c in self.collections() if c.prefabs_dir and not c.is_root]
+        return dirs
 
     def watch_paths(self) -> list[Path]:
         paths = [self.source] if self.source else []
         paths += [self.path(k) for k in ("docs", "pages", "prefabs", "layouts", "assets", "schemas")]
+        paths += [c.root for c in self.collections() if not c.is_root]
         paths += [self.root / p for p in self.serve.get("watch") or []]
         return [p for p in paths if p is not None]
+
+    # --- collections -----------------------------------------------------
+    def collections(self) -> list[Collection]:
+        if self._collections is not None:
+            return self._collections
+        found: list[Collection] = [
+            Collection(
+                id="",
+                root=self.root,
+                docs_dir=self.path("docs"),
+                pages_dir=self.path("pages"),
+                prefabs_dir=self.path("prefabs"),
+                schemas_dir=self.path("schemas"),
+                assets_dir=self.path("assets"),
+                hooks_path=(self.root / self.data["hooks"]) if self.data.get("hooks") else None,
+                data={"title": self.site.get("name", "site"), "order": 0},
+            )
+        ]
+        seen: set[str] = set()
+        for spec in self.data.get("collections") or []:
+            spec = deep_merge(COLLECTION_DEFAULTS, spec if isinstance(spec, dict) else {"root": str(spec)})
+            pattern = spec["root"]
+            if not pattern:
+                raise ConfigError("collections[].root is required (a folder or glob, e.g. musings/*)")
+            matches = sorted(globmod.glob(str(self.root / pattern)))
+            for match in matches:
+                folder = Path(match)
+                if not folder.is_dir() or folder.name.startswith(("_", ".")):
+                    continue
+                cid = folder.name
+                if cid in seen:
+                    raise ConfigError(f"collection id '{cid}' matched twice (patterns overlap)")
+                seen.add(cid)
+                config_path = folder / spec["config"]
+                data = _read_yaml(config_path) if config_path.is_file() else {}
+                data.setdefault("title", cid.replace("-", " ").replace("_", " ").title())
+                hooks_path = folder / spec["hooks"]
+                collection = Collection(
+                    id=cid,
+                    root=folder,
+                    docs_dir=folder / spec["docs"],
+                    pages_dir=folder / spec["pages"],
+                    prefabs_dir=folder / spec["prefabs"],
+                    schemas_dir=folder / spec["schemas"],
+                    assets_dir=folder / spec["assets"],
+                    hooks_path=hooks_path if hooks_path.is_file() else None,
+                    data=data,
+                )
+                found.append(collection)
+        self._collections = found
+        return found
+
+    def collection(self, cid: str) -> Collection:
+        for c in self.collections():
+            if c.id == cid:
+                return c
+        raise ConfigError(f"unknown collection '{cid}'")
 
     # --- sections --------------------------------------------------------
     @property
@@ -119,6 +278,22 @@ class Config:
     @property
     def targets(self) -> dict:
         return self.data["targets"]
+
+    @property
+    def vocabularies(self) -> dict:
+        return self.data["vocabularies"]
+
+    @property
+    def limits(self) -> dict:
+        return self.data["limits"]
+
+    @property
+    def evidence(self) -> dict:
+        return self.data["evidence"]
+
+    @property
+    def mounts(self) -> list[dict]:
+        return list(self.data.get("mounts") or [])
 
     def target(self, name: str) -> dict:
         if name not in self.targets:
@@ -135,7 +310,14 @@ class Config:
 
     @property
     def dynamic_sources(self) -> dict:
-        return self.data["dynamic"].get("sources") or {}
+        """Site sources plus collection sources, the latter namespaced as <collection>.<name>."""
+        out = dict(self.data["dynamic"].get("sources") or {})
+        for c in self.collections():
+            if c.is_root:
+                continue
+            for name, spec in ((c.data.get("dynamic") or {}).get("sources") or {}).items():
+                out[f"{c.id}.{name}"] = dict(spec, _collection=c.id)
+        return out
 
     def dynamic_sources_for(self, target: str) -> dict:
         out = {}

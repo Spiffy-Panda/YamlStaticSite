@@ -4,6 +4,7 @@ title: Design document
 description: |
   Architecture and design: overview, principles, components with interfaces, flows, constraints and
   rejected alternatives. The agent-first replacement for DESIGN.md / ARCHITECTURE.md.
+  `components[].code` paths are evidence: `yss check` fails when they vanish.
 type: object
 required: [kind, title, components]
 additionalProperties: false
@@ -11,6 +12,7 @@ properties:
   kind: {const: design}
   overview:
     type: string
+    x-limit: markdown
     description: Markdown. The one-screen explanation a newcomer reads first.
   principles:
     type: array
@@ -20,8 +22,8 @@ properties:
       required: [id, title]
       properties:
         id: {$ref: "#/$defs/slug"}
-        title: {type: string}
-        rationale: {type: string}
+        title: {type: string, x-limit: title}
+        rationale: {type: string, x-limit: summary}
       unevaluatedProperties: false
   components:
     type: array
@@ -31,14 +33,14 @@ properties:
       required: [id, name, responsibility]
       properties:
         id: {$ref: "#/$defs/slug"}
-        name: {type: string}
+        name: {type: string, x-limit: title}
         kind: {type: string, enum: [module, service, schema, data, ui, process, external, library]}
-        responsibility: {type: string, description: One sentence. What it owns.}
+        responsibility: {type: string, x-limit: line, description: One sentence. What it owns.}
         inputs: {type: array, items: {type: string}}
         outputs: {type: array, items: {type: string}}
-        depends_on: {type: array, items: {$ref: "#/$defs/slug"}}
-        code: {type: array, items: {type: string}, description: Paths implementing this component.}
-        status: {type: string, enum: [planned, active, stable, deprecated]}
+        depends_on: {type: array, items: {$ref: "#/$defs/slug"}, x-ref: item}
+        code: {type: array, items: {type: string}, x-evidence: path, description: Paths implementing this component (checked).}
+        status: {type: string, x-vocab: work_status}
       unevaluatedProperties: false
   interfaces:
     type: array
@@ -48,11 +50,11 @@ properties:
       required: [id, name, kind]
       properties:
         id: {$ref: "#/$defs/slug"}
-        name: {type: string}
+        name: {type: string, x-limit: title}
         kind: {type: string, enum: [cli, http, file, python, json, yaml, event]}
         signature: {type: string}
-        description: {type: string}
-        component: {$ref: "#/$defs/slug"}
+        description: {type: string, x-limit: summary}
+        component: {$ref: "#/$defs/slug", x-ref: item}
       unevaluatedProperties: false
   flows:
     type: array
@@ -62,8 +64,8 @@ properties:
       required: [id, title, steps]
       properties:
         id: {$ref: "#/$defs/slug"}
-        title: {type: string}
-        trigger: {type: string}
+        title: {type: string, x-limit: title}
+        trigger: {type: string, x-limit: line}
         steps:
           type: array
           items:
@@ -71,8 +73,8 @@ properties:
             required: [action]
             properties:
               actor: {type: string}
-              action: {type: string}
-              produces: {type: string}
+              action: {type: string, x-limit: line}
+              produces: {type: string, x-limit: line}
             additionalProperties: false
       unevaluatedProperties: false
   constraints:
@@ -83,7 +85,7 @@ properties:
       required: [id, text]
       properties:
         id: {$ref: "#/$defs/slug"}
-        text: {type: string}
+        text: {type: string, x-limit: summary}
         source: {type: string, description: Where the constraint comes from (platform, policy, user).}
       unevaluatedProperties: false
   alternatives:
@@ -94,6 +96,6 @@ properties:
       required: [id, option, rejected_because]
       properties:
         id: {$ref: "#/$defs/slug"}
-        option: {type: string}
-        rejected_because: {type: string}
+        option: {type: string, x-limit: line}
+        rejected_because: {type: string, x-limit: summary}
       unevaluatedProperties: false

@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ page.title }} · {{ site.name }}</title>
+<title>{{ page.title }} · {% if collection %}{{ collection.title }} · {% endif %}{{ site.name }}</title>
 {% if page.summary %}<meta name="description" content="{{ page.summary }}">{% endif %}
 {% for key, value in (head.meta or {}).items() %}<meta name="{{ key }}" content="{{ value }}">{% endfor %}
 <link rel="stylesheet" href="{{ url('assets/yss.css') }}">
 <link rel="stylesheet" href="{{ url('assets/prefabs.css') }}">
 {% for href in css_links %}<link rel="stylesheet" href="{{ href }}">{% endfor %}
 </head>
-<body class="target-{{ target }}">
+<body class="target-{{ target }}{% if collection %} in-collection collection-{{ collection.id }}{% endif %}"{% if theme.accent or theme.background %} style="{% if theme.accent %}--accent:{{ theme.accent }};{% endif %}{% if theme.background %}--bg:{{ theme.background }};{% endif %}"{% endif %}>
 <a class="skip" href="#main">Skip to content</a>
 <header class="site-header">
   <div class="wrap">
@@ -20,18 +20,33 @@
       {% for item in nav %}
       <a href="{{ item.href }}" class="{% if item.route == current_route %}active{% endif %} {% if item.visibility == 'private' %}private{% endif %}">{{ item.label }}</a>
       {% endfor %}
+      {% for c in collections %}
+      <a href="{{ c.href }}" class="nav-collection {% if collection and collection.id == c.id %}active{% endif %} {% if c.visibility == 'private' %}private{% endif %}">{% if c.emblem and c.emblem|length <= 4 %}{{ c.emblem }} {% endif %}{{ c.title }}</a>
+      {% endfor %}
     </nav>
     <span class="target-badge" title="build target">{{ target }}</span>
   </div>
 </header>
+{% if collection %}
+<div class="collection-bar">
+  <div class="wrap">
+    <span class="collection-emblem">{% if collection.emblem and collection.emblem|length > 4 %}<img src="{{ url(collection.id ~ '/' ~ collection.emblem) }}" alt="">{% else %}{{ collection.emblem or '' }}{% endif %}</span>
+    <a class="collection-title" href="{{ url(collection.route) }}">{{ collection.title }}</a>
+    {% if collection.evidence != 'ok' %}<span class="badge tone-{{ collection.evidence }}">{{ collection.evidence }}</span>{% endif %}
+    <nav class="sub-nav">
+      {% for item in sub_nav %}<a href="{{ item.href }}" class="{% if item.route == current_route %}active{% endif %}">{{ item.label }}</a>{% endfor %}
+    </nav>
+  </div>
+</div>
+{% endif %}
 <main id="main" class="wrap layout">
   <article class="content">
     <header class="page-header">
-      <h1>{{ page.title }}</h1>
+      <h1>{{ page.title }}{% if freshness != 'ok' %} <span class="badge tone-{{ freshness }}" title="evidence check">{{ freshness }}</span>{% endif %}</h1>
       {% if page.summary %}<p class="page-summary">{{ page.summary }}</p>{% endif %}
-      {% if page.docs %}
+      {% if page_docs %}
       <p class="page-docs">Data:
-        {% for d in page.docs %}<a class="doc-link" href="{{ url('data/docs/' ~ d ~ '.json') }}">{{ d }}.json</a>{% if not loop.last %} · {% endif %}{% endfor %}
+        {% for d in page_docs %}<a class="doc-link" href="{{ d.json }}">{{ d.id }}.json</a>{% if not loop.last %} · {% endif %}{% endfor %}
       </p>
       {% endif %}
     </header>
@@ -49,6 +64,7 @@
     <span>{{ site.name }}</span>
     {% if site.repo %} · <a href="{{ site.repo }}">repository</a>{% endif %}
     · <a href="{{ url('data/docs.json') }}">docs.json</a>
+    · <a href="{{ url('data/evidence.json') }}">evidence.json</a>
     · <a href="{{ url('build.json') }}">build.json</a>
     · built {{ build.built_at }} ({{ target }}, yss {{ build.version }})
   </div>

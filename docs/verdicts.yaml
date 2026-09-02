@@ -1,0 +1,167 @@
+# Worksheet - schema: doc.worksheet. Agents write these; only the human answers them.
+# The rendered page (site/pages/verdicts.yaml) builds a paste-ready instruction from the answers.
+kind: worksheet
+id: verdicts
+title: Verdicts for the yss pilot
+summary: The calls only Panda can make after the Musings review - adoption path, vocabularies, strictness, archiving and the first migration.
+status: active
+updated: 2026-09-02
+owners: [agent]
+related: [plan, decisions]
+intro: |
+  Everything below is a methodology choice, not an implementation detail. Each question has a
+  recommended default already selected and says what each answer costs. Answer, press **Build the
+  instruction**, and hand the text to an agent in a fresh session; the agent applies the verdict block
+  to the docs and commits.
+warn: |
+  🐼❗ These verdicts change defaults for every repo that adopts yss, not just this one. Anything
+  per-musing (vocabularies, limits, hooks) can still be overridden in that musing's collection.yaml.
+
+questions:
+  - id: v-adoption
+    call: V.1
+    lead: How does yss enter the Musings repository?
+    help: Two site generators cannot both own site/. Decision adr-010 proposes collections migrated one musing at a time.
+    applies_to: "decisions adr-010 status; plan q-musings-collision"
+    options:
+      - value: collections
+        text: Full adoption through collections, one musing at a time
+        recommended: true
+        why: Every feature lands (redaction, pages, prefabs, evidence); migration is incremental; build_site.py retires last.
+        prompt: "Accept adr-010: adopt yss through collections, migrating one musing at a time; retire build_site.py last."
+      - value: library
+        text: yss as a library only
+        why: Smallest change, but pages, prefabs and the leak scan never apply to the musings.
+        prompt: "Reject adr-010; yss is used as a library from build-musing.py only. Record the alternative chosen."
+      - value: per-musing
+        text: One yss config per musing
+        why: Fits the folders, but nine configs, nine namespaces and no shared landing page.
+        prompt: "Reject adr-010 in favour of one site.yaml per musing; note the missing landing page as an accepted cost."
+
+  - id: v-first-musing
+    call: V.2
+    lead: Which musing migrates first?
+    kind: text
+    required: false
+    placeholder: folder name of the musing
+    help: The first migration proves the collection contract; pick one with a prototype and a decision log.
+    applies_to: "plan m12-first title"
+
+  - id: v-risk-vocab
+    call: V.3
+    lead: Default vocabulary for risks
+    help: Vocabularies are data and any collection can override them; this sets the default shipped with yss.
+    applies_to: "site.yaml vocabularies.risk_status; plan q-work-status-for-risks"
+    options:
+      - value: risk_status
+        text: Keep risk_status (open, mitigated, accepted, closed)
+        recommended: true
+        why: Risks are not work items; accepted is not done.
+        prompt: "Keep risk_status as the default risk vocabulary; answer q-work-status-for-risks accordingly."
+      - value: work_status
+        text: Use work_status everywhere
+        why: One vocabulary to learn; mitigated becomes done and accepted becomes dropped.
+        prompt: "Set the default risk vocabulary to work_status and migrate the risks in docs/plan.yaml."
+
+  - id: v-strictness
+    call: V.4
+    lead: What does stale evidence do to the public build in CI?
+    help: "`yss check` runs as its own step today. Strict mode makes `yss build` fail on stale claims."
+    applies_to: "plan q-check-strictness; .github/workflows/pages.yml"
+    options:
+      - value: strict
+        text: Fail the build
+        recommended: true
+        why: A stale doc never reaches the public site; you fix or re-verify before publishing.
+        prompt: "Make the CI public build strict (--strict) so stale evidence fails the deploy."
+      - value: warn
+        text: Warn only
+        why: Deploys keep flowing; staleness shows as badges and in the evidence page.
+        prompt: "Keep stale evidence as warnings in CI; badges and the evidence page surface it."
+
+  - id: v-git-recency
+    call: V.5
+    lead: Keep git recency warnings on by default?
+    help: A doc whose cited code changed after its `updated` date gets a warn badge until someone re-verifies it and bumps the date.
+    applies_to: "site.yaml evidence.git_recency"
+    options:
+      - value: "on"
+        text: "On"
+        recommended: true
+        why: Catches silent drift; costs a date bump per re-verification.
+        prompt: "Keep evidence.git_recency enabled."
+      - value: "off"
+        text: "Off"
+        why: Only explicit claims are checked; quieter, misses rewrites that keep paths.
+        prompt: "Disable evidence.git_recency in site.yaml and note why in decisions."
+
+  - id: v-archive
+    call: V.6
+    lead: When do done milestones leave the plan?
+    help: The plan should only hold open work; archived milestones live in docs/_archive/ which agents never load.
+    applies_to: "plan agent_notes; yss-doc skill"
+    options:
+      - value: on-commit
+        text: As soon as they are done and committed
+        recommended: true
+        why: The plan is always current; the changelog carries the history.
+        prompt: "Archive milestones to docs/_archive/ in the same commit that marks them done."
+      - value: on-release
+        text: When a version is released
+        why: Done work stays visible until a release; the plan grows between releases.
+        prompt: "Archive done milestones only when a changelog release is cut."
+
+  - id: v-readme
+    call: V.7
+    lead: What happens to README.md?
+    applies_to: "plan q-md-bridge"
+    options:
+      - value: include
+        text: Keep it and include it on the Reference page
+        recommended: true
+        why: One human entry point on GitHub; duplication is limited to the quick start.
+        prompt: "Answer q-md-bridge: keep README.md and the include section."
+      - value: migrate
+        text: Move its content into a generic doc
+        why: One source of truth, but GitHub shows only a pointer.
+        prompt: "Answer q-md-bridge: migrate README content into docs and shrink README to a pointer."
+
+  - id: v-install
+    call: V.8
+    lead: How do other repos get yss?
+    applies_to: "plan q-multi-repo"
+    options:
+      - value: pip
+        text: pip install from the git URL
+        recommended: true
+        why: One command, upgrades are a reinstall, skills refresh with `yss skills --install --force`.
+        prompt: "Answer q-multi-repo: pip install from the git URL is the default."
+      - value: vendor
+        text: Vendor the yss folder
+        why: Schemas visible in the repo, no network; upgrades are copies.
+        prompt: "Answer q-multi-repo: vendor the yss/ folder; document the upgrade copy step."
+
+prompt:
+  task: Apply the verdicts below to the yss docs and configuration
+  background: |
+    Repository YamlStaticSite. Docs are YAML under docs/ validated by `python -m yss validate`.
+    Decisions live in docs/decisions.yaml, open questions in docs/plan.yaml (open_questions),
+    defaults in site.yaml. Load the `yss` skill first, then `yss-doc`.
+  steps:
+    - For each verdict, set the matching open question to status answered with the answer text, or the decision status.
+    - Change site.yaml defaults only where a verdict says so; per-musing overrides go in collection.yaml.
+    - Run `python -m yss validate`, `python -m yss check` and `python -m yss build --target all --no-dynamic`.
+    - Commit with the verdict block in the message body.
+  do_not_touch:
+    - yss/ source code, unless a verdict cannot be applied without it (then flag it).
+    - .yss/local.yaml and anything under dist/.
+  flag_only:
+    - Anything that would need a schema change.
+    - Verdicts that contradict an accepted decision - propose a superseding entry instead.
+  rules:
+    - Project knowledge goes in docs/*.yaml, never in new markdown files.
+    - Validate after every edit; fix every reported file and path.
+    - Mark anything not for the public site as visibility private or private_notes.
+    - No absolute paths in anything that reaches dist/.
+decided_by: true
+extra: true

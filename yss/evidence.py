@@ -1,0 +1,334 @@
+"""Evidence checking: prove that what a doc claims about the repo is still true.
+
+Claims come from two places:
+  1. `evidence:` lists on a doc or any item:
+       - {path: yss/build.py}                      file or folder exists (globs allowed)
+       - {path: yss/build.py, contains: "def build("}  and contains the text
+       - {glob: "yss/prefabs/*.yaml", min: 10}     at least `min` matches
+       - {symbol: "yss.build:build"}               importable module attribute
+       - {command: "python -m yss validate", expect: 0}   exit code (only with --run-commands)
+  2. schema annotations `x-evidence: path|glob|command|symbol` on fields such as codemap
+     modules.path or design components.code, so common fields are checked for free.
+
+Git recency: if any path cited by a doc changed after the doc's `updated` date, the doc gets a
+`warn` claim ("possibly stale"). Statuses: ok | stale | warn | unknown | skipped.
+"""
+from __future__ import annotations
+
+import glob as globmod
+import importlib
+import subprocess
+import sys
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+from typing import Any
+
+from .config import Config
+from .loader import SchemaRegistry
+
+STATUS_ORDER = {"stale": 0, "warn": 1, "unknown": 2, "skipped": 3, "ok": 4}
+
+
+@dataclass
+class Claim:
+    doc: str
+    item: str | None
+    field: str
+    kind: str
+    target: str
+    status: str = "unknown"
+    detail: str = ""
+    source: str = ""
+
+    def as_dict(self) -> dict:
+        return asdict(self)
+
+
+@dataclass
+class EvidenceReport:
+    claims: list[Claim] = field(default_factory=list)
+
+    def by_doc(self) -> dict[str, list[Claim]]:
+        out: dict[str, list[Claim]] = {}
+        for c in self.claims:
+            out.setdefault(c.doc, []).append(c)
+        return out
+
+    def summary(self) -> dict[str, dict]:
+        """{doc_id: {status, counts, items: {item_id: status}}}"""
+        out: dict[str, dict] = {}
+        for doc_id, claims in self.by_doc().items():
+            counts: dict[str, int] = {}
+            items: dict[str, str] = {}
+            for c in claims:
+                counts[c.status] = counts.get(c.status, 0) + 1
+                if c.item:
+                    prev = items.get(c.item)
+                    if prev is None or STATUS_ORDER[c.status] < STATUS_ORDER[prev]:
+                        items[c.item] = c.status
+            worst = min((c.status for c in claims), key=lambda s: STATUS_ORDER[s]) if claims else "ok"
+            out[doc_id] = {"status": worst, "counts": counts, "items": items, "claims": len(claims)}
+        return out
+
+    @property
+    def stale(self) -> list[Claim]:
+        return [c for c in self.claims if c.status == "stale"]
+
+    @property
+    def warnings(self) -> list[Claim]:
+        return [c for c in self.claims if c.status == "warn"]
+
+
+# --- collecting -------------------------------------------------------------
+def _explicit(entry: Any) -> tuple[str, str, dict] | None:
+    if not isinstance(entry, dict):
+        return None
+    if "path" in entry:
+        return ("contains" if "contains" in entry else "path", str(entry["path"]), entry)
+    if "glob" in entry:
+        return ("glob", str(entry["glob"]), entry)
+    if "symbol" in entry:
+        return ("symbol", str(entry["symbol"]), entry)
+    if "command" in entry:
+        return ("command", str(entry["command"]), entry)
+    return None
+
+
+def collect_claims(docs: dict[str, dict], reg: SchemaRegistry) -> list[Claim]:
+    claims: list[Claim] = []
+    for doc_id, doc in docs.items():
+        ann = reg.annotations(f"doc.{doc.get('kind')}")["evidence"]
+        source = doc.get("_source", doc_id)
+
+        def walk(value: Any, path: str, item_id: str | None) -> None:
+            if isinstance(value, dict):
+                current = value.get("id") if isinstance(value.get("id"), str) and path else item_id
+                for key, sub in value.items():
+                    if isinstance(key, str) and key.startswith("_"):
+                        continue
+                    here = f"{path}/{key}" if path else key
+                    if key == "evidence" and isinstance(sub, list):
+                        for i, entry in enumerate(sub):
+                            parsed = _explicit(entry)
+                            if parsed:
+                                kind, target, extra = parsed
+                                claims.append(Claim(doc_id, current, f"{here}/{i}", kind, target, source=source, detail=_extra_detail(extra)))
+                    elif key in ann and sub is not None:
+                        values = sub if isinstance(sub, list) else [sub]
+                        for i, v in enumerate(values):
+                            if isinstance(v, str) and v.strip():
+                                loc = f"{here}/{i}" if isinstance(sub, list) else here
+                                claims.append(Claim(doc_id, current, loc, ann[key], v.strip(), source=source))
+                    walk(sub, here, current)
+            elif isinstance(value, list):
+                for i, entry in enumerate(value):
+                    walk(entry, f"{path}/{i}", item_id)
+
+        walk(doc, "", None)
+    return claims
+
+
+def _extra_detail(extra: dict) -> str:
+    bits = []
+    if "contains" in extra:
+        bits.append(f"contains={extra['contains']!r}")
+    if "min" in extra:
+        bits.append(f"min={extra['min']}")
+    if "expect" in extra:
+        bits.append(f"expect={extra['expect']}")
+    return " ".join(bits)
+
+
+# --- evaluating -------------------------------------------------------------
+def _candidates(cfg: Config, doc: dict, target: str) -> list[Path]:
+    roots = [cfg.root]
+    cid = doc.get("_collection")
+    if cid:
+        try:
+            roots.insert(0, cfg.collection(cid).root)
+        except Exception:  # noqa: BLE001
+            pass
+    return [r / target for r in roots]
+
+
+def _check_path(cfg: Config, doc: dict, claim: Claim, extra: dict) -> None:
+    for candidate in _candidates(cfg, doc, claim.target):
+        matches = globmod.glob(str(candidate)) if any(ch in claim.target for ch in "*?[") else ([str(candidate)] if candidate.exists() else [])
+        if matches:
+            if claim.kind == "contains":
+                needle = str(extra.get("contains", ""))
+                for m in matches:
+                    try:
+                        if needle in Path(m).read_text(encoding="utf-8", errors="ignore"):
+                            claim.status = "ok"
+                            return
+                    except OSError:
+                        continue
+                claim.status = "stale"
+                claim.detail = f"{claim.target} exists but does not contain {needle!r}"
+                return
+            claim.status = "ok"
+            return
+    claim.status = "stale"
+    claim.detail = f"path not found: {claim.target}"
+
+
+def _check_glob(cfg: Config, doc: dict, claim: Claim, extra: dict) -> None:
+    minimum = int(extra.get("min", 1))
+    for candidate in _candidates(cfg, doc, claim.target):
+        matches = globmod.glob(str(candidate), recursive=True)
+        if len(matches) >= minimum:
+            claim.status = "ok"
+            claim.detail = f"{len(matches)} match(es)"
+            return
+    claim.status = "stale"
+    claim.detail = f"fewer than {minimum} match(es) for {claim.target}"
+
+
+def _check_symbol(cfg: Config, claim: Claim) -> None:
+    module_name, _, attr = claim.target.partition(":")
+    if str(cfg.root) not in sys.path:
+        sys.path.insert(0, str(cfg.root))
+    try:
+        module = importlib.import_module(module_name)
+    except Exception as exc:  # noqa: BLE001
+        claim.status = "stale"
+        claim.detail = f"cannot import {module_name}: {type(exc).__name__}: {exc}"
+        return
+    if attr and not hasattr(module, attr):
+        claim.status = "stale"
+        claim.detail = f"{module_name} has no attribute {attr}"
+        return
+    claim.status = "ok"
+
+
+def _check_command(cfg: Config, claim: Claim, extra: dict, run: bool) -> None:
+    if not run:
+        claim.status = "skipped"
+        claim.detail = "commands run only with --run-commands"
+        return
+    expect = int(extra.get("expect", 0))
+    try:
+        proc = subprocess.run(claim.target, shell=True, cwd=cfg.root, capture_output=True, text=True, timeout=int(extra.get("timeout", 300)))
+    except subprocess.TimeoutExpired:
+        claim.status = "stale"
+        claim.detail = "timed out"
+        return
+    if proc.returncode == expect:
+        claim.status = "ok"
+    else:
+        claim.status = "stale"
+        claim.detail = f"exit {proc.returncode} (expected {expect}): {(proc.stderr or proc.stdout).strip()[-300:]}"
+
+
+def _git_last_change(cfg: Config, paths: list[str]) -> str | None:
+    if not paths:
+        return None
+    try:
+        proc = subprocess.run(
+            ["git", "log", "-1", "--format=%cs", "--", *paths],
+            cwd=cfg.root, capture_output=True, text=True, timeout=30,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if proc.returncode != 0:
+        return None
+    return proc.stdout.strip() or None
+
+
+def evaluate(cfg: Config, docs: dict[str, dict], claims: list[Claim], run_commands: bool = False, git_recency: bool = True) -> EvidenceReport:
+    extras: dict[int, dict] = {}
+    for claim in claims:
+        doc = docs.get(claim.doc, {})
+        extra = _explicit_extra(doc, claim)
+        extras[id(claim)] = extra
+        if claim.kind in ("path", "contains"):
+            _check_path(cfg, doc, claim, extra)
+        elif claim.kind == "glob":
+            _check_glob(cfg, doc, claim, extra)
+        elif claim.kind == "symbol":
+            _check_symbol(cfg, claim)
+        elif claim.kind == "command":
+            _check_command(cfg, claim, extra, run_commands)
+        else:
+            claim.status = "unknown"
+            claim.detail = f"unknown evidence kind '{claim.kind}'"
+    report = EvidenceReport(list(claims))
+    if git_recency:
+        for doc_id, doc in docs.items():
+            updated = doc.get("updated")
+            if not updated:
+                continue
+            cited = sorted({c.target for c in claims if c.doc == doc_id and c.kind in ("path", "contains") and c.status == "ok"})
+            cited = [p for p in cited if not any(ch in p for ch in "*?[")]
+            last = _git_last_change(cfg, cited)
+            if last and str(last) > str(updated):
+                report.claims.append(
+                    Claim(doc_id, None, "updated", "git", ", ".join(cited[:5]) + (" ..." if len(cited) > 5 else ""),
+                          status="warn", detail=f"cited code changed {last}, doc updated {updated}", source=doc.get("_source", ""))
+                )
+    return report
+
+
+def _explicit_extra(doc: dict, claim: Claim) -> dict:
+    """Recover the {contains, min, expect} options for an explicit evidence claim from its field path."""
+    if "/evidence/" not in f"/{claim.field}":
+        return {}
+    cur: Any = doc
+    for part in claim.field.split("/"):
+        if isinstance(cur, dict):
+            cur = cur.get(part)
+        elif isinstance(cur, list) and part.isdigit():
+            cur = cur[int(part)] if int(part) < len(cur) else None
+        else:
+            return {}
+    return cur if isinstance(cur, dict) else {}
+
+
+def check(cfg: Config, docs: dict[str, dict], reg: SchemaRegistry, run_commands: bool | None = None, git_recency: bool | None = None) -> EvidenceReport:
+    claims = collect_claims(docs, reg)
+    return evaluate(
+        cfg, docs, claims,
+        run_commands=cfg.evidence.get("run_commands", False) if run_commands is None else run_commands,
+        git_recency=cfg.evidence.get("git_recency", True) if git_recency is None else git_recency,
+    )
+
+
+def inject(docs: dict[str, dict], report: EvidenceReport) -> None:
+    """Attach `_evidence` summaries to docs and to items with ids so prefabs can show freshness."""
+    summary = report.summary()
+    for doc_id, doc in docs.items():
+        info = summary.get(doc_id, {"status": "ok", "counts": {}, "items": {}, "claims": 0})
+        doc["_evidence"] = {"status": info["status"], "counts": info["counts"], "claims": info["claims"]}
+        if not info["items"]:
+            continue
+
+        def walk(value: Any) -> None:
+            if isinstance(value, dict):
+                item_id = value.get("id")
+                if isinstance(item_id, str) and item_id in info["items"] and value is not doc:
+                    value["_evidence"] = {"status": info["items"][item_id]}
+                for sub in value.values():
+                    walk(sub)
+            elif isinstance(value, list):
+                for entry in value:
+                    walk(entry)
+
+        walk(doc)
+
+
+def format_report(report: EvidenceReport, verbose: bool = False) -> str:
+    lines = []
+    for doc_id, claims in sorted(report.by_doc().items()):
+        worst = min((c.status for c in claims), key=lambda s: STATUS_ORDER[s])
+        counts = {}
+        for c in claims:
+            counts[c.status] = counts.get(c.status, 0) + 1
+        lines.append(f"{doc_id:24s} {worst:8s} " + ", ".join(f"{k}={v}" for k, v in sorted(counts.items())))
+        for c in claims:
+            if c.status in ("stale", "warn") or verbose:
+                where = f"{c.source}: at {c.field}" if c.source else c.field
+                lines.append(f"    {c.status:8s} {c.kind:9s} {c.target}  ({where}) {c.detail}".rstrip())
+    if not lines:
+        lines.append("no evidence claims found (add `evidence:` lists or x-evidence annotations)")
+    return "\n".join(lines)

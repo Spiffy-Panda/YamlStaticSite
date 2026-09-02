@@ -5,6 +5,9 @@ description: |
   Fields shared by every structured doc under docs/. The `kind` field selects the body schema
   (doc.<kind>.schema.yaml); the body schema is merged with this envelope at load time, so unknown
   top-level keys are rejected unless they start with "x-".
+  Annotations: `x-vocab` enums and `x-limit` lengths come from site.yaml / collection.yaml
+  (vocabularies, limits); `x-ref` fields must point at existing ids; `x-evidence` fields are
+  checked by `yss check`. Any object may carry `evidence:` claims.
   Visibility rules: any object (doc, list item, nested mapping) with `visibility: private` is removed
   from public builds; any `private_notes` key is stripped from public builds.
 type: object
@@ -15,17 +18,20 @@ properties:
     description: Document kind; selects the body schema (plan, design, codemap, decisions, glossary, changelog, generic, or a project-defined kind).
   id:
     $ref: "#/$defs/slug"
-    description: Stable id used in page bindings (`<id>.<field>`). Defaults to the file stem.
+    description: Stable id used in page bindings (`<id>.<field>`). Defaults to the file stem; collections prefix it with `<collection>/`.
   title:
     type: string
+    x-limit: title
   summary:
     type: string
+    x-limit: summary
     description: One paragraph of plain text. Shown in doc indexes and page headers.
   visibility:
     $ref: "#/$defs/visibility"
   status:
     type: string
-    enum: [draft, active, stable, deprecated, archived]
+    x-vocab: lifecycle
+    description: "Lifecycle only (active, stable, deprecated, archived by default). Whether a doc is current is an evidence result, not a status."
   owners:
     type: array
     items: {type: string}
@@ -33,7 +39,7 @@ properties:
   updated:
     type: string
     format: date
-    description: ISO date (YYYY-MM-DD) of the last meaningful edit.
+    description: ISO date (YYYY-MM-DD) of the last meaningful edit. Git recency compares cited code against it.
   tags:
     type: array
     items: {type: string}
@@ -43,19 +49,25 @@ properties:
   related:
     type: array
     items: {$ref: "#/$defs/slug"}
-    description: Ids of related docs (validated to exist).
+    x-ref: doc
+    description: Ids of related docs (validated to exist; collection-local ids allowed).
+  evidence:
+    type: array
+    items: {$ref: "#/$defs/evidence_item"}
+    description: Claims that prove this doc still matches the repo; checked by `yss check`.
   private_notes:
     description: Free-form notes stripped from public builds (string, list or mapping).
     type: [string, object, array]
   agent_notes:
     type: string
+    x-limit: markdown
     description: Guidance for agents editing this doc (conventions, what not to touch, how to verify).
 patternProperties:
   "^x-": {}
 $defs:
   slug:
     type: string
-    pattern: "^[a-z0-9][a-z0-9_.-]*$"
+    pattern: "^[a-z0-9][a-z0-9_.\\-/]*$"
   visibility:
     type: string
     enum: [public, private]
@@ -68,6 +80,25 @@ $defs:
       href: {type: string}
       kind: {type: string, enum: [repo, issue, pr, doc, page, external, file]}
     additionalProperties: false
+  evidence_item:
+    description: "One checkable claim. Exactly one of path, glob, symbol, command."
+    type: object
+    properties:
+      path: {type: string, description: "Repo-relative file or folder (globs allowed); also tried relative to the collection root."}
+      contains: {type: string, description: "With path: text the file must contain."}
+      glob: {type: string, description: "Glob pattern that must match at least `min` files."}
+      min: {type: integer, minimum: 0, default: 1}
+      symbol: {type: string, description: "module:attribute that must import, e.g. yss.build:build"}
+      command: {type: string, description: "Shell command; run only with `yss check --run-commands`."}
+      expect: {type: integer, default: 0, description: "Expected exit code for command."}
+      timeout: {type: integer}
+      note: {type: string, x-limit: line}
+    oneOf:
+      - {required: [path]}
+      - {required: [glob]}
+      - {required: [symbol]}
+      - {required: [command]}
+    additionalProperties: false
   item_base:
     description: Fields any list item may carry in addition to its own.
     type: object
@@ -76,4 +107,5 @@ $defs:
       private_notes: {type: [string, object, array]}
       tags: {type: array, items: {type: string}}
       links: {type: array, items: {$ref: "#/$defs/link"}}
-      notes: {type: string, description: Markdown notes shown to humans.}
+      notes: {type: string, x-limit: markdown, description: Markdown notes shown to humans.}
+      evidence: {type: array, items: {$ref: "#/$defs/evidence_item"}}

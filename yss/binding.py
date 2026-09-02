@@ -49,9 +49,11 @@ def resolve_from(expr: str, ctx: dict) -> Any:
             "pages": lambda: list(ctx["pages"]),
             "site": lambda: ctx["site"],
             "prefabs": lambda: list(ctx.get("prefabs", {}).values()),
+            "collections": lambda: list(ctx.get("collections") or []),
+            "evidence": lambda: list(ctx.get("evidence") or []),
         }
         if head not in roots:
-            raise BindError(f"unknown virtual root '${head}' (use $docs, $pages, $site, $prefabs)")
+            raise BindError(f"unknown virtual root '${head}' (use $docs, $pages, $site, $prefabs, $collections, $evidence)")
         base = roots[head]()
         try:
             return get_path(base, rest)
@@ -59,6 +61,11 @@ def resolve_from(expr: str, ctx: dict) -> Any:
             raise BindError(f"path '{expr}': no field '{exc.args[0]}'") from exc
     doc_id, _, rest = expr.partition(".")
     docs = ctx["docs"]
+    collection = ctx.get("collection")
+    if doc_id.startswith("/"):
+        doc_id = doc_id[1:]  # `/plan` forces the root doc from inside a collection
+    elif collection and f"{collection}/{doc_id}" in docs:
+        doc_id = f"{collection}/{doc_id}"  # collection-local wins over a root doc with the same name
     if doc_id not in docs:
         if doc_id in ctx.get("all_doc_ids", ()):
             hint = "it is private in this target; mark the section `visibility: private`"

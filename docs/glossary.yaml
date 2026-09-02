@@ -13,12 +13,12 @@ terms:
     definition: A YAML file under `docs/` with a `kind` and the envelope fields, validated by `doc.<kind>.schema.yaml`. The agent-first source of truth.
     see_also: [kind, envelope]
   - term: kind
-    definition: The type of a structured doc (plan, design, codemap, decisions, glossary, changelog, generic, or site-defined). Selects the body schema.
+    definition: The type of a structured doc (plan, design, codemap, decisions, glossary, changelog, worksheet, generic, or site-defined). Selects the body schema.
   - term: envelope
-    definition: The fields every doc shares - kind, id, title, summary, visibility, status, owners, updated, tags, links, related, private_notes, agent_notes.
+    definition: The fields every doc shares - kind, id, title, summary, visibility, status, owners, updated, tags, links, related, evidence, private_notes, agent_notes.
   - term: page
     aliases: [un-inflated page]
-    definition: A YAML file under `site/pages/` describing a route and ordered sections. It is the human framing; it selects and arranges data but holds little content of its own.
+    definition: A YAML file under `site/pages/` (or a collection's pages/) describing a route and ordered sections. The human framing; it selects and arranges data but holds little content of its own.
     see_also: [section, inflate]
   - term: section
     definition: One block of a page. Types - markdown, prefab, dynamic, embed, html, include. `heading` and `intro` are the framing text around the content.
@@ -38,8 +38,36 @@ terms:
     aliases: [leak scan]
     definition: The post-build check that fails a redacting target if any forbidden string (from `.yss/local.yaml` or CI secrets, plus the checkout path) appears in the output.
   - term: dynamic source
-    definition: A runtime JSON feed declared in `site.yaml` and collected from a provider, command or file into `dynamic/<name>.json` with a fixed envelope.
+    definition: A runtime JSON feed declared in `site.yaml` or `collection.yaml` and collected from a provider, command or file into `dynamic/<name>.json` with a fixed envelope.
   - term: provider
-    definition: A Python function `collect(cfg, spec)` referenced as `module:function` by a dynamic source.
+    definition: A Python function `collect(cfg, spec)` referenced as `module:function` (or `hooks:<name>` from a hooks.py) by a dynamic source.
   - term: base URL
     definition: The path prefix a target is served under (`/YamlStaticSite/` for GitHub project pages). Templates use `url()` so links work on both ports.
+  - term: evidence
+    aliases: [claim]
+    definition: "A checkable statement a doc makes about the repo - a path, a glob, a symbol or a command - declared under `evidence:` or implied by an `x-evidence` field. `yss check` proves it."
+    see_also: [stale, git recency]
+  - term: stale
+    definition: The status of a claim that failed, and of the doc and item that carry it. Shown as a badge; fails `yss check` and strict builds.
+  - term: git recency
+    definition: A warning when code cited by a doc changed after the doc's `updated` date. Cleared by re-verifying the doc and bumping the date.
+  - term: annotation
+    definition: "A schema key starting with `x-` that the loader or checker acts on: x-vocab, x-limit, x-ref, x-evidence."
+  - term: vocabulary
+    definition: A named list of allowed status words (work_status, record_status, risk_status...) defined in site.yaml and overridable per collection.
+  - term: collection
+    aliases: [musing]
+    definition: A folder with its own docs, pages, prefabs, schemas, assets, `collection.yaml` and optional `hooks.py`, discovered from a glob in site.yaml. Ids are prefixed by the folder name; routes by `/<folder>/`.
+    see_also: [hooks, mount]
+  - term: hooks
+    aliases: [hooks.py]
+    definition: An optional Python file per site or collection exposing configure, load_docs, load_pages, markdown, before_render, after_build and providers for anything the YAML cannot express.
+  - term: mount
+    definition: "A folder copied into a target's output at a URL (`mounts: [{path, at, targets}]`), used for playables and exports; private-only by default."
+  - term: archive
+    definition: A `_`-prefixed file or folder under docs/ that the loader never reads; where done-and-committed milestones go.
+  - term: worksheet
+    definition: A doc kind and prefab for decisions only the human can make - questions with recommended defaults that build a paste-ready agent instruction with a verdicts block.
+    see_also: [verdict]
+  - term: verdict
+    definition: The human's answer to a worksheet question, carried in the built instruction and applied to the docs by an agent.

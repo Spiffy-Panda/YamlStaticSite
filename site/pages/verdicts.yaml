@@ -1,0 +1,32 @@
+# Page - schema: page. Presents docs/verdicts.yaml as a worksheet.
+id: verdicts
+route: /verdicts/
+title: Verdicts
+summary: The decisions only a human can make, as a worksheet. Answer, build the instruction, hand it to an agent.
+nav: {label: Verdicts, order: 45}
+docs: [verdicts, plan]
+sections:
+  - id: worksheet
+    type: prefab
+    prefab: worksheet
+    args:
+      title: {from: verdicts.title}
+      intro: {from: verdicts.intro}
+      warn: {from: verdicts.warn}
+      questions: {from: verdicts.questions}
+      prompt: {from: verdicts.prompt}
+      decided_by: true
+      extra: true
+
+  - id: questions
+    type: prefab
+    heading: Open questions on record
+    intro: The same questions as they stand in [[plan]]; they flip to answered when the instruction above is applied.
+    prefab: table
+    args:
+      rows: {from: plan.open_questions}
+      columns:
+        - {key: id, label: Id}
+        - {key: question, label: Question, md: true}
+        - {key: options, label: Options}
+        - {key: status, label: Status}

@@ -1,0 +1,46 @@
+# ARCHIVED PLAN - not loaded by yss (folders and files starting with "_" are skipped).
+# Milestones that were completed and committed. The changelog is the authoritative record of what
+# shipped; this file only preserves the task breakdown for humans. Agents: do not read this as the
+# current plan; the current plan is docs/plan.yaml.
+archived: 2026-09-02
+milestones:
+  - id: m1-core
+    title: Core toolchain
+    status: done
+    summary: Config, schema validation, visibility filtering, data binding, Jinja rendering and the build pipeline.
+    tasks: [m1-config, m1-schemas, m1-visibility, m1-binding, m1-render, m1-export]
+  - id: m2-dynamic-serve
+    title: Dynamic data and two-port server
+    status: done
+    summary: Runtime JSON sources with a uniform envelope, built-in providers, and a dev server that serves the private and public builds on separate ports.
+    tasks: [m2-envelope, m2-providers, m2-server, m2-client]
+  - id: m4-skills
+    title: Agent skill suite
+    status: done
+    summary: Skills for docs, pages, prefabs and publishing; shipped inside the package and installed by `yss init` / `yss skills`.
+    tasks: [m4-overview, m4-authoring, m4-publish, m4-packaging]
+  - id: m5-publish
+    title: Publish the public target
+    status: done
+    summary: Repository created, secrets and Pages source set with `yss pages-setup`, first deploy succeeded.
+    tasks: [m5-git, m5-secrets, m5-pages]
+  - id: m8-evidence
+    title: Evidence and staleness checking
+    status: done
+    summary: "`evidence:` claims and x-evidence annotations, `yss check`, git recency, freshness badges, evidence page and provider."
+    tasks: [m8-evidence-schema, m8-annotations, m8-check-command, m8-git-recency, m8-site]
+  - id: m9-schema-tightening
+    title: Length caps and data-driven vocabularies
+    status: done
+    summary: "x-limit and x-vocab annotations resolved from site.yaml / collection.yaml; `draft` removed; risk and question vocabularies per collection."
+    tasks: [m9-caps, m9-vocab, m9-migrate]
+  - id: m10-crossrefs
+    title: Item-level cross-references and inline refs
+    status: done
+    summary: "x-ref annotations validated within and across docs, [[doc#item]] inline references rendered as links, `yss refs`."
+    tasks: [m10-xref-annotation, m10-inline, m10-anchors]
+  - id: m11-collections
+    title: Collections for folder-per-musing repositories
+    status: done
+    summary: "collections[].root globs, collection.yaml, hooks.py contract, mounts, themes, pluggable markdown, collection-index prefab, $collections root."
+    tasks: [m11-paths, m11-theme, m11-mounts, m11-markdown, m11-landing, m11-migration-guide]

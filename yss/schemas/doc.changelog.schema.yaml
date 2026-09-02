@@ -1,7 +1,7 @@
 $schema: https://json-schema.org/draft/2020-12/schema
 $id: yss:doc.changelog
 title: Changelog
-description: Releases newest first. Change types follow keep-a-changelog.
+description: Releases newest first. Change types follow keep-a-changelog; status from the `release_status` vocabulary.
 type: object
 required: [kind, title, releases]
 additionalProperties: false
@@ -16,8 +16,8 @@ properties:
       properties:
         version: {type: string}
         date: {type: string, format: date}
-        status: {type: string, enum: [released, unreleased, yanked], default: released}
-        summary: {type: string}
+        status: {type: string, x-vocab: release_status, default: released}
+        summary: {type: string, x-limit: summary}
         changes:
           type: array
           items:
@@ -25,7 +25,7 @@ properties:
             required: [type, text]
             properties:
               type: {type: string, enum: [added, changed, fixed, removed, deprecated, security]}
-              text: {type: string}
+              text: {type: string, x-limit: summary}
               refs: {type: array, items: {type: string}}
               visibility: {$ref: "#/$defs/visibility"}
             additionalProperties: false

@@ -1,0 +1,29 @@
+name: collection-index
+description: "Cards for every collection (musing, sub-project): emblem, title, summary, doc count and evidence badge, linking to the collection's landing route. Bind `collections` from `$collections`."
+category: list
+params:
+  collections: {type: list, required: true, item: {id: folder name, title: required, summary: optional, emblem: emoji or asset path, href: landing url, docs: list of doc ids, evidence: "ok|warn|stale", tags: list}}
+  columns: {type: integer, default: 3}
+  empty: {type: string, default: No collections yet.}
+template: |
+  {% if collections %}
+  <div class="card-grid cols-{{ columns }} collection-index">
+  {% for c in collections | sort(attribute='order') %}
+    <article class="card collection-card tone-{{ c.evidence or 'ok' }}" id="collection-{{ c.id }}">
+      <div class="card-head">
+        <h3 class="card-title"><a href="{{ c.href }}">{% if c.emblem and c.emblem|length <= 4 %}<span class="collection-card-emblem">{{ c.emblem }}</span>{% endif %}{{ c.title }}</a></h3>
+        {% if c.evidence and c.evidence != 'ok' %}{{ prefab('badge', text=c.evidence) }}{% endif %}
+      </div>
+      {% if c.emblem and c.emblem|length > 4 %}<img class="collection-card-image" src="{{ url(c.id ~ '/' ~ c.emblem) }}" alt="">{% endif %}
+      {% if c.summary %}<div class="card-body prose">{{ c.summary | md }}</div>{% endif %}
+      <ul class="card-meta"><li>{{ (c.docs or []) | length }} docs</li><li>{{ (c.pages or []) | length }} pages</li>{% if c.status %}<li>{{ c.status }}</li>{% endif %}</ul>
+      {% if c.tags %}{{ prefab('tag-list', tags=c.tags) }}{% endif %}
+    </article>
+  {% endfor %}
+  </div>
+  {% else %}<p class="empty">{{ empty }}</p>{% endif %}
+css: |
+  .collection-card-emblem { margin-right: .35rem; }
+  .collection-card-image { max-height: 120px; width: auto; border-radius: 6px; }
+examples:
+  - args: {collections: [{id: demo, title: Demo musing, summary: "A **small** example.", emblem: "🧪", href: "#", docs: [demo/plan], pages: ["/demo/"], evidence: ok, order: 1}]}

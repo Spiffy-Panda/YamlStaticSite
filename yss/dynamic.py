@@ -34,6 +34,15 @@ def collect(cfg: Config, name: str, spec: dict) -> Any:
         module_name, _, func_name = spec["provider"].partition(":")
         if not func_name:
             raise DynamicError(f"source '{name}': provider must look like 'module:function'")
+        if module_name == "hooks":
+            from .hooks import load_hooks, provider as hook_provider
+
+            cid = spec.get("_collection")
+            hooks_path = cfg.collection(cid).hooks_path if cid else (cfg.root / cfg.data["hooks"] if cfg.data.get("hooks") else None)
+            func = hook_provider(load_hooks(hooks_path, cfg.root), func_name)
+            if func is None:
+                raise DynamicError(f"source '{name}': hooks.py has no providers['{func_name}']")
+            return func(cfg, spec)
         try:
             module = importlib.import_module(module_name)
         except ImportError as exc:

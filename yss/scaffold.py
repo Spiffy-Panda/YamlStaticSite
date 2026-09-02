@@ -108,7 +108,7 @@ def new_doc(cfg: Config, reg: SchemaRegistry, kind: str, doc_id: str, title: str
     name = f"doc.{kind}"
     if name not in reg.schemas:
         raise ScaffoldError(f"unknown doc kind '{kind}' (known: {', '.join(reg.doc_kinds())})")
-    schema = reg.get(name)
+    schema = reg.resolved(name, cfg.vocabularies, cfg.limits)
     data = skeleton(schema, required_only=True)
     envelope = {
         "kind": kind,
@@ -116,7 +116,7 @@ def new_doc(cfg: Config, reg: SchemaRegistry, kind: str, doc_id: str, title: str
         "title": title or doc_id.replace("-", " ").title(),
         "summary": "TODO one-paragraph summary",
         "visibility": "public",
-        "status": "draft",
+        "status": "active",
         "updated": date.today().isoformat(),
         "tags": [],
     }

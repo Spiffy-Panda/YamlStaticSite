@@ -12,7 +12,8 @@ sections:
       **The idea.** Agents keep the project's plan, design, code map and decisions in typed YAML
       files under `docs/`. Humans read a generated site that frames that data with prose, cards and
       boards. One source tree produces a redacted **public** site for GitHub Pages and a full
-      **private** site for local use.
+      **private** site for local use, and the docs prove they are current: paths, symbols and
+      commands they cite are checked, and stale claims show up as badges (see [[design#c-evidence]]).
 
       Every page here is assembled from three kinds of files:
 
@@ -23,10 +24,19 @@ sections:
   - id: docs
     type: prefab
     heading: Structured docs in this repo
-    intro: Each card is one YAML file. The link opens the page that presents it; the `json` line names its exported data.
+    intro: Each card is one YAML file. The link opens the page that presents it; a stale or warn badge means a claim in it no longer matches the code.
     prefab: doc-index
     args:
-      docs: {from: $docs, sort: kind}
+      docs: {from: $docs, where: {_collection: ""}, sort: kind}
+      columns: 3
+
+  - id: collections
+    type: prefab
+    heading: Collections
+    intro: A collection is a folder with its own docs, pages, prototypes and hooks - the shape of a musing. This repo ships one demo collection to exercise the contract.
+    prefab: collection-index
+    args:
+      collections: {from: $collections}
       columns: 3
 
   - id: active
@@ -52,9 +62,9 @@ sections:
     heading: How a page comes together
     markdown: |
       ```text
-      docs/plan.yaml ──validate──▶ filtered for target ──┐
-      site/pages/plan.yaml  (sections + bindings) ───────┼──▶ render prefabs ──▶ dist/<target>/plan/index.html
-      yss/prefabs/*.yaml    (templates + css) ───────────┘                        dist/<target>/data/docs/plan.json
+      docs/plan.yaml ──validate + check──▶ filtered for target ──┐
+      site/pages/plan.yaml  (sections + bindings) ──────────────┼──▶ render prefabs ──▶ dist/<target>/plan/index.html
+      yss/prefabs/*.yaml    (templates + css) ──────────────────┘                        dist/<target>/data/docs/plan.json
       ```
 
       The same filtered data is exported as JSON next to the HTML, so anything that can read a

@@ -5,6 +5,9 @@ site:
   description: Agent-first structured docs, human-first static site. This site documents the toolchain that builds it.
   repo: https://github.com/Spiffy-Panda/YamlStaticSite
 
+collections:
+  - root: examples/*                  # each matching folder is a collection named after the folder
+
 targets:
   public:
     base_url: /YamlStaticSite/        # GitHub project pages path; change if the repo is renamed
@@ -14,6 +17,11 @@ targets:
     base_url: /
     redact: false
     description: Everything, including private sections and repo-local dynamic data.
+
+# vocabularies and limits use the yss defaults (python -m yss ls kinds); a collection.yaml can override them
+evidence:
+  git_recency: true                   # warn when cited code changed after a doc's `updated` date
+  run_commands: false                 # `yss check --run-commands` runs command claims on demand
 
 dynamic:
   sources:
@@ -32,6 +40,13 @@ dynamic:
       targets: [private]              # author names are repo-local information
       ttl: 60
       description: Recent commits and working-tree state.
+    evidence:
+      provider: yss.providers.evidence:collect
+      run_commands: true              # the Evidence page's private section runs command claims
+      targets: [private]
+      on_build: false                 # collected on request by the private server, not during build
+      ttl: 120
+      description: Evidence claims including command results.
 
 serve:
   host: 127.0.0.1
@@ -40,7 +55,7 @@ serve:
   coop_coep: true                     # needed for threaded wasm / Godot exports in iframes
   live_dynamic: true
   dynamic_ttl: 30
-  watch: [yss]                        # also rebuild when the toolchain itself changes
+  watch: [yss, examples]              # also rebuild when the toolchain or the demo collection changes
 
 redaction:
   local_file: .yss/local.yaml         # gitignored; holds forbidden_strings / flag_strings

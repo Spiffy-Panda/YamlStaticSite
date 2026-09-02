@@ -1,0 +1,64 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: yss:collection
+title: Collection configuration (collection.yaml)
+description: |
+  A collection is a folder with its own docs/, pages/, prefabs/, schemas/, assets/ and an optional
+  hooks.py, discovered from `collections[].root` globs in site.yaml (e.g. musings/*). Doc ids are
+  prefixed `<collection>/`, pages live under `/<collection>/`, and vocabularies, limits, dynamic
+  sources and mounts can all be overridden here. Unique per-collection behaviour goes in hooks.py:
+  configure(), load_docs(), load_pages(), markdown(), before_render(), after_build(), providers.
+type: object
+additionalProperties: false
+properties:
+  title: {type: string, x-limit: title}
+  summary: {type: string, x-limit: summary}
+  emblem: {type: string, description: "Emoji or a path under the collection's assets/ (e.g. assets/emblem.svg)."}
+  order: {type: integer}
+  visibility: {type: string, enum: [public, private], default: public}
+  status: {type: string, x-vocab: lifecycle}
+  tags: {type: array, items: {type: string}}
+  theme:
+    type: object
+    properties:
+      css: {type: array, items: {type: string}, description: Stylesheets under the collection's assets/, applied to every page in it.}
+      accent: {type: string, description: CSS colour for the --accent variable on this collection's pages.}
+      background: {type: string}
+    additionalProperties: false
+  vocabularies:
+    type: object
+    additionalProperties: {type: array, items: {type: string}}
+    description: Override or add status vocabularies for this collection only.
+  limits:
+    type: object
+    additionalProperties: {type: integer}
+  dynamic:
+    type: object
+    properties:
+      sources:
+        type: object
+        additionalProperties:
+          type: object
+          properties:
+            provider: {type: string, description: "module:function, or hooks:<name> for a provider defined in hooks.py"}
+            command: {type: string}
+            file: {type: string}
+            targets: {type: array, items: {type: string}}
+            on_build: {type: boolean}
+            timeout: {type: integer}
+            ttl: {type: integer}
+            description: {type: string}
+          additionalProperties: true
+    additionalProperties: false
+  mounts:
+    type: array
+    items:
+      type: object
+      required: [path, at]
+      properties:
+        path: {type: string, description: Folder relative to the collection root (a built playable, exports, data).}
+        at: {type: string, description: "URL path under the collection, e.g. play/ -> /<collection>/play/"}
+        targets: {type: array, items: {type: string}, description: "Defaults to [private]."}
+      additionalProperties: false
+  agent_notes: {type: string}
+patternProperties:
+  "^x-": {}

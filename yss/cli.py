@@ -11,6 +11,7 @@ from .binding import BindError, resolve_binding
 from .build import BuildError, build, load_all
 from .config import Config, ConfigError
 from .dynamic import write_all
+from .evidence import check as evidence_check, format_report
 from .ghpages import GhError, setup as pages_setup
 from .loader import LoadError, SchemaRegistry, dump_yaml
 from .scaffold import ScaffoldError, init_site, new_doc, new_page, new_prefab
@@ -107,6 +108,72 @@ def cmd_dynamic(args) -> int:
     return rc
 
 
+def cmd_check(args) -> int:
+    cfg = _cfg(args)
+    loaded = load_all(cfg)
+    if loaded.errors:
+        print("validation failed:")
+        for err in loaded.errors:
+            print("  - " + err)
+        return 1
+    docs = loaded.docs
+    if args.doc:
+        docs = {k: v for k, v in docs.items() if k in args.doc or v.get("_local_id") in args.doc}
+    report = evidence_check(cfg, docs, loaded.registry, run_commands=args.run_commands, git_recency=not args.no_git)
+    if args.json:
+        print(json.dumps({"claims": [c.as_dict() for c in report.claims], "summary": report.summary()}, indent=2))
+    else:
+        print(format_report(report, verbose=args.verbose))
+        print(f"{len(report.claims)} claims: {len(report.stale)} stale, {len(report.warnings)} warnings")
+    return 1 if report.stale or (args.strict and report.warnings) else 0
+
+
+def cmd_refs(args) -> int:
+    from .loader import find_inline_refs, iter_strings, parse_ref, resolve_doc_id
+
+    cfg = _cfg(args)
+    loaded = load_all(cfg)
+    if loaded.errors:
+        print("validation failed; run `python -m yss validate`", file=sys.stderr)
+        return 1
+    want_doc, want_item = parse_ref(args.ref)
+    want_doc = resolve_doc_id(want_doc, None, loaded.docs) if want_doc else None
+    if want_doc is None:
+        print(f"unknown doc in '{args.ref}'", file=sys.stderr)
+        return 1
+    hits = []
+    for doc_id, doc in loaded.docs.items():
+        ann = loaded.registry.annotations(f"doc.{doc.get('kind')}")["ref"]
+        cid = doc.get("_collection")
+        for path, text in iter_strings(doc):
+            parts = path.split("/")
+            key = parts[-1] if not parts[-1].isdigit() else (parts[-2] if len(parts) > 1 else "")
+            if key in ann:
+                if ann[key] == "doc" and want_item is None and resolve_doc_id(text, cid, loaded.docs) == want_doc:
+                    hits.append((doc["_source"], path, text))
+                elif ann[key] == "item":
+                    if "/" in text:
+                        d, _, i = text.rpartition("/")
+                        if resolve_doc_id(d, cid, loaded.docs) == want_doc and (want_item is None or i == want_item):
+                            hits.append((doc["_source"], path, text))
+                    elif doc_id == want_doc and want_item and text == want_item:
+                        hits.append((doc["_source"], path, text))
+            for raw, d, i, _label in find_inline_refs(text):
+                target = doc_id if d is None else resolve_doc_id(d, cid, loaded.docs)
+                if target == want_doc and (want_item is None or i == want_item):
+                    hits.append((doc["_source"], path, raw))
+    for page in loaded.pages:
+        for path, text in iter_strings(page):
+            for raw, d, i, _label in find_inline_refs(text):
+                target = resolve_doc_id(d, page.get("_collection"), loaded.docs) if d else None
+                if target == want_doc and (want_item is None or i == want_item):
+                    hits.append((page["_source"], path, raw))
+    for where, path, text in hits:
+        print(f"{where}: at {path}: {text}")
+    print(f"{len(hits)} inbound reference(s) to {args.ref}")
+    return 0
+
+
 def cmd_scan(args) -> int:
     cfg = _cfg(args)
     forbidden, flags = cfg.redaction_lists(args.target)
@@ -140,8 +207,14 @@ def cmd_ls(args) -> int:
         for name, prefab in sorted(loaded.prefabs.items()):
             params = ", ".join(f"{k}{'*' if (v or {}).get('required') else ''}" for k, v in (prefab.get("params") or {}).items())
             print(f"  {name:20s} [{params}]  {prefab.get('description', '')[:70]}")
+    if what in ("collections", "all"):
+        print("collections:")
+        for c in cfg.collections():
+            n = sum(1 for d in loaded.docs.values() if d.get("_collection", "") == c.id)
+            print(f"  {(c.id or '(root)'):20s} {c.title:24s} docs={n:<3d} route={c.route_prefix}  hooks={'yes' if c.hooks_path else 'no'}")
     if what in ("kinds", "all"):
         print("doc kinds: " + ", ".join(loaded.registry.doc_kinds()))
+        print("vocabularies: " + "; ".join(f"{k}={'|'.join(v)}" for k, v in cfg.vocabularies.items()))
     if what in ("dynamic", "all"):
         print("dynamic sources:")
         for name, spec in cfg.dynamic_sources.items():
@@ -289,7 +362,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("build", help="build one or all targets into dist/<target>")
     p.add_argument("--target", "-t", default="all", help="public | private | all (default)")
     p.add_argument("--out", help="output directory (single target only)")
-    p.add_argument("--strict", action="store_true", help="fail on flagged strings too")
+    p.add_argument("--strict", action="store_true", help="fail on flagged strings and stale evidence too")
     p.add_argument("--no-dynamic", action="store_true", help="skip dynamic data sources")
     p.set_defaults(func=cmd_build)
 
@@ -308,13 +381,26 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--target", "-t", default="all")
     p.set_defaults(func=cmd_dynamic)
 
+    p = sub.add_parser("check", help="evaluate evidence claims (paths, globs, symbols, git recency; commands with --run-commands)")
+    p.add_argument("doc", nargs="*", help="limit to these doc ids")
+    p.add_argument("--run-commands", action="store_true", help="also run command evidence (slow)")
+    p.add_argument("--no-git", action="store_true", help="skip git recency warnings")
+    p.add_argument("--strict", action="store_true", help="warnings fail too")
+    p.add_argument("--verbose", "-v", action="store_true", help="list passing claims as well")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_check)
+
+    p = sub.add_parser("refs", help="list inbound references to a doc or item: refs plan#m8-evidence")
+    p.add_argument("ref")
+    p.set_defaults(func=cmd_refs)
+
     p = sub.add_parser("scan", help="scan the source tree for forbidden/flagged strings before publishing")
     p.add_argument("path", nargs="?", help="directory to scan (default: site root)")
     p.add_argument("--target", "-t", default="public", help="target whose redaction rules apply")
     p.set_defaults(func=cmd_scan)
 
     p = sub.add_parser("ls", help="list docs, pages, prefabs, doc kinds and dynamic sources")
-    p.add_argument("what", nargs="?", default="all", choices=["all", "docs", "pages", "prefabs", "kinds", "dynamic"])
+    p.add_argument("what", nargs="?", default="all", choices=["all", "docs", "pages", "prefabs", "kinds", "dynamic", "collections"])
     p.set_defaults(func=cmd_ls)
 
     p = sub.add_parser("query", help="resolve a binding expression against the docs and print JSON")

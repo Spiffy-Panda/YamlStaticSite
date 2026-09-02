@@ -1,26 +1,28 @@
 # Plan document - schema: doc.plan (python -m yss schema doc.plan --yaml)
-# Agents: update task status here instead of writing a PLAN.md. Keep ids stable; pages link to them.
+# Current work only. Milestones that are done AND committed move to docs/_archive/ (not loaded);
+# the changelog records what shipped. Keep ids stable; pages and references point at them.
 kind: plan
 id: plan
 title: YamlStaticSite plan
-summary: Build a Python toolchain that turns agent-first structured YAML docs into a human-first static site with a redacted public target and a full private target, then pilot it on this repository.
+summary: Forward plan for the yss toolchain. Shipped work lives in the changelog and docs/_archive/; this file holds only what is open.
 status: active
 updated: 2026-09-02
 owners: [panda, agent]
 tags: [toolchain, docs, static-site]
-related: [design, codemap, decisions]
+related: [design, codemap, decisions, verdicts]
 agent_notes: |
-  Statuses: planned | active | blocked | done | dropped. Every task should carry a `verify` command
-  or observation. Add new milestones at the end; do not renumber. Private planning notes go under
-  `private_notes` or in items marked `visibility: private`.
+  Statuses come from `work_status` (planned | active | blocked | done | dropped). Every task carries
+  `verify` (a command or observation) and, where a path or command can prove it, an `evidence:` claim
+  that `yss check` runs. When a milestone is done and committed, move it to docs/_archive/ and add a
+  changelog line. Questions only the human can answer go to open_questions and the verdicts worksheet.
 
 goals:
   - Structured YAML files replace PLAN.md, DESIGN.md, the code map and the decision log as the source of truth agents read and write.
-  - A human-facing site is generated from those files plus a thin "framing" layer (pages) that decides what to show and how.
-  - Two build targets from one source tree, a redacted **public** build for GitHub Pages and a **private** build for local use.
-  - Reusable UI prefabs (cards, boards, tables, timelines) are filled from lists in the structured files, never hand-written HTML.
-  - The site stays mostly static but can load repo-specific runtime data (test runs, git state) and host prototypes (Godot, wasm, plain HTML).
-  - Agents get a skill suite so they use the tools consistently without re-reading the code.
+  - A human-facing site is generated from those files plus a thin framing layer (pages) that decides what to show and how.
+  - Two build targets from one source tree - a redacted public build for GitHub Pages and a private build for local use.
+  - Reusable UI prefabs are filled from lists in the structured files, never hand-written HTML.
+  - Docs prove they are current - cited paths, symbols and commands are checked, and stale claims fail the build.
+  - Folder-per-topic repositories (musings) are first-class through collections with per-collection config and hooks.
 
 non_goals:
   - A general purpose CMS or blog engine.
@@ -28,172 +30,46 @@ non_goals:
   - Supporting XML or XSLT pipelines (rejected after earlier repos, see the decision log).
 
 milestones:
-  - id: m1-core
-    title: Core toolchain
-    status: done
-    priority: 1
-    summary: Config, schema validation, visibility filtering, data binding, Jinja rendering and the build pipeline.
-    done_when: "`python -m yss build` produces dist/public and dist/private from this repo with no validation errors."
-    tasks:
-      - id: m1-config
-        title: site.yaml loader with defaults, targets and redaction lists
-        status: done
-        owner: agent
-        verify: python -m yss schema site
-      - id: m1-schemas
-        title: JSON Schema (as YAML) for doc envelope, six doc kinds, prefabs, pages and site config
-        status: done
-        owner: agent
-        verify: python -m yss validate
-      - id: m1-visibility
-        title: Recursive public/private filtering and forbidden-string scan of build output
-        status: done
-        owner: agent
-        verify: python -m unittest tests.test_yss.VisibilityTests
-      - id: m1-binding
-        title: Binding language (from, where, sort, limit, map, fields, group_by)
-        status: done
-        owner: agent
-        verify: python -m yss query plan.milestones --where status=active --fields id,title
-      - id: m1-render
-        title: Prefab rendering, section types (markdown, prefab, dynamic, embed, html, include) and the default layout
-        status: done
-        owner: agent
-        verify: python -m yss build --target private --no-dynamic
-      - id: m1-export
-        title: Export filtered docs as JSON (data/docs/*.json) and schemas alongside the HTML
-        status: done
-        owner: agent
-        verify: ls dist/public/data/docs
-
-  - id: m2-dynamic-serve
-    title: Dynamic data and two-port server
-    status: done
-    priority: 2
-    depends_on: [m1-core]
-    summary: Runtime JSON sources with a uniform envelope, built-in providers, and a dev server that serves the private and public builds on separate ports.
-    done_when: "`python -m yss serve` serves 8800 (private, live dynamic) and 8801 (public preview under the base_url) and rebuilds on change."
-    tasks:
-      - id: m2-envelope
-        title: Dynamic source envelope {source, collected_at, ok, data|error} and provider/command/file collectors
-        status: done
-        owner: agent
-        verify: python -m yss dynamic --target private
-      - id: m2-providers
-        title: Built-in providers - buildinfo, testruns (unittest in a subprocess), gitlog
-        status: done
-        owner: agent
-        verify: python -m yss.providers.testruns tests
-      - id: m2-server
-        title: ThreadingHTTPServer per target, base_url prefix handling, COOP/COEP headers, watch loop
-        status: done
-        owner: agent
-        verify: python -m yss serve --no-watch
-      - id: m2-client
-        title: yss.js renders dynamic sections as table, kv, list, cards, json or a custom script
-        status: done
-        owner: agent
-        verify: Open /status/ on the private port and see test results render.
-
   - id: m3-pilot
     title: Pilot on this repository
     status: active
     priority: 1
-    depends_on: [m1-core]
-    summary: Write this repo's own plan, design, code map, decisions, glossary and changelog as structured docs, and the pages that frame them.
-    done_when: Every page in site/pages renders from docs/ without hand-written HTML for the main content.
+    summary: This repo's own docs, pages and a demo collection exercise every feature; a human review closes the loop.
+    done_when: The verdicts worksheet has been filled once and its instruction applied without a schema change.
     tasks:
-      - id: m3-docs
-        title: Author plan, design, codemap, decisions, glossary, changelog docs
-        status: done
-        owner: agent
-        verify: python -m yss ls docs
-      - id: m3-pages
-        title: Author index, plan, design, codemap, decisions, glossary, changelog, status, prototypes, reference pages
-        status: done
-        owner: agent
-        verify: python -m yss ls pages
-      - id: m3-site-prefab
-        title: Site-local prefab (prefab-gallery) proving the override/extension path
-        status: done
-        owner: agent
-        verify: python -m yss ls prefabs
       - id: m3-review
-        title: Human review of the rendered site for framing gaps (what else a reader needs)
+        title: Human review of the rendered site for framing gaps
         status: planned
         owner: panda
         verify: Notes captured as open_questions or new page intros.
-
-  - id: m4-skills
-    title: Agent skill suite
-    status: done
-    priority: 2
-    depends_on: [m1-core]
-    summary: Skills that tell agents how to author docs, pages and prefabs, and how to build, serve and publish safely.
-    done_when: An agent with only the skills and the CLI can add a doc kind, a page and a prefab without reading yss/ source.
-    tasks:
-      - id: m4-overview
-        title: yss overview skill with the mental model and CLI cheat sheet
-        status: done
-        owner: agent
-        verify: cat .claude/skills/yss/SKILL.md
-      - id: m4-authoring
-        title: yss-doc, yss-page, yss-prefab skills with worked examples
-        status: done
-        owner: agent
-      - id: m4-publish
-        title: yss-publish skill covering redaction, targets, serve and GitHub Pages
-        status: done
-        owner: agent
-      - id: m4-packaging
-        title: Ship the skills inside the package; `yss init` and `yss skills --install` copy them into a repo
-        status: done
-        owner: agent
-        verify: python -m yss skills
-
-  - id: m5-publish
-    title: Publish the public target
-    status: done
-    priority: 3
-    depends_on: [m3-pilot, m4-skills]
-    summary: Create the git repository, enable GitHub Pages from the workflow, and set the redaction secrets.
-    done_when: The public site is reachable on GitHub Pages and the build fails when a forbidden string is introduced.
-    tasks:
-      - id: m5-git
-        title: git init, first commit, push to GitHub
-        status: done
-        owner: agent
-        verify: git remote -v
-      - id: m5-secrets
-        title: Set YSS_FORBIDDEN_STRINGS and YSS_FLAG_STRINGS repository secrets
-        status: done
+      - id: m3-verdicts
+        title: Fill the verdicts worksheet and hand the instruction to an agent
+        status: planned
         owner: panda
-        verify: python -m yss pages-setup --dry-run
-        notes: "`python -m yss pages-setup` does this and the Pages source in one go; it is a human-triggered step."
-      - id: m5-pages
-        title: Enable Pages with the GitHub Actions source
-        status: done
-        owner: panda
-        verify: gh api repos/Spiffy-Panda/YamlStaticSite/pages --jq .build_type
+        verify: python -m yss query plan.open_questions --where status=answered
 
   - id: m6-prototypes
     title: Prototype hosting
     status: planned
-    priority: 4
-    depends_on: [m2-dynamic-serve]
-    summary: Host Godot web exports and wasm builds under site/assets/prototypes with the headers they need.
-    done_when: A Godot 4 web export runs inside the prototypes page on both the private server and GitHub Pages.
+    priority: 3
+    summary: Host Godot web exports and wasm builds through collection mounts with the headers they need.
+    done_when: A Godot 4 web export runs inside a collection page on both the private server and GitHub Pages.
     tasks:
       - id: m6-godot
-        title: Add a real Godot export and confirm the COOP/COEP headers on the private server
+        title: Add a real Godot export as a collection mount and confirm COOP/COEP on the private server
         status: planned
         owner: panda
       - id: m6-coi
         title: Ship a coi-serviceworker fallback for GitHub Pages (cannot set headers)
         status: planned
         owner: agent
+      - id: m6-serve-mounts
+        title: Serve-mode mounts (private server maps a URL to a source folder without copying)
+        status: planned
+        owner: agent
+        verify: python -m yss serve --no-watch
       - id: m6-export-import
-        title: Dynamic sections that download/upload JSON (export/import of prototype state)
+        title: Dynamic sections that download and upload JSON (prototype state)
         status: planned
         owner: agent
 
@@ -201,12 +77,8 @@ milestones:
     title: Hardening and ergonomics
     status: planned
     priority: 4
-    summary: Things that were consciously left out of the first pass.
+    summary: Things consciously left out so far.
     tasks:
-      - id: m7-crossrefs
-        title: Validate depends_on / related / component ids across docs, not just within a doc
-        status: planned
-        owner: agent
       - id: m7-search
         title: Client-side search index over docs.json
         status: planned
@@ -219,25 +91,57 @@ milestones:
         title: Promote recurring `generic` shapes into real doc kinds
         status: planned
         owner: agent
+      - id: m7-verify-evidence
+        title: Optional CI job that runs `yss check --run-commands` so task verify commands are executed
+        status: planned
+        owner: agent
+        verify: cat .github/workflows/pages.yml
+
+  - id: m12-musings
+    title: Adopt yss in the Musings repository
+    status: planned
+    priority: 2
+    depends_on: [m3-pilot]
+    summary: Migrate one musing at a time through collections; the old site generator is retired last (see decision adr-010).
+    done_when: Every musing is a collection, build_site.py is deleted, and the audited Pages workflow builds with yss.
+    tasks:
+      - id: m12-first
+        title: Migrate the first musing (chosen in the verdicts worksheet) and compare the rendered result
+        status: planned
+        owner: agent
+      - id: m12-renderer
+        title: Plug the Musings markdown subset renderer in through markdown.renderer or hooks.py markdown()
+        status: planned
+        owner: agent
+      - id: m12-retire
+        title: Retire build_site.py once every musing renders through yss
+        status: planned
+        owner: panda
 
 risks:
+  - id: r-two-renderers
+    title: A host repo already has a markdown renderer with a documented subset and the two drift
+    likelihood: medium
+    impact: medium
+    mitigation: markdown.renderer in site.yaml or a collection's hooks.py markdown() makes one renderer authoritative everywhere.
+    status: mitigated
   - id: r-leak
     title: Private or personal data leaks into the public build
     likelihood: medium
     impact: high
-    mitigation: Objects marked private are filtered before rendering; the public build scans every output file for forbidden strings and deletes itself on a hit; the absolute checkout path is always forbidden.
+    mitigation: Private objects are filtered before rendering; the public build scans its output for forbidden strings and deletes itself on a hit; the checkout path is always forbidden.
     status: mitigated
   - id: r-schema-churn
     title: Doc schemas change and old docs stop validating
     likelihood: medium
     impact: medium
-    mitigation: Kinds are additive; `x-` fields are always allowed; `generic` is the escape hatch.
+    mitigation: Kinds are additive, vocabularies and limits are data, `x-` fields are always allowed, `generic` is the escape hatch.
     status: accepted
   - id: r-jinja-in-yaml
     title: Prefab templates in YAML become unreadable
     likelihood: medium
     impact: low
-    mitigation: Keep templates short, push logic into binding (where/sort/map) and CSS, and render prefab examples on the reference page so breakage is visible.
+    mitigation: Keep templates short, push logic into bindings and CSS, render prefab examples on the reference page so breakage is visible.
     status: open
   - id: r-headers
     title: GitHub Pages cannot send COOP/COEP headers, so threaded wasm fails there
@@ -245,19 +149,41 @@ risks:
     impact: low
     mitigation: Export Godot without threads or ship the coi-serviceworker shim (m6-coi).
     status: open
+  - id: r-evidence-noise
+    title: Git recency warns on every doc after a large refactor, and warnings get ignored
+    likelihood: medium
+    impact: medium
+    mitigation: Warnings never fail a build unless --strict; bump `updated` when a doc is re-verified; evidence page shows only failures by default.
+    status: open
 
 open_questions:
   - id: q-md-bridge
-    question: Should existing README.md / CLAUDE.md content be migrated into docs, or stay as include sections?
-    context: The reference page currently includes README.md verbatim.
-    owner: panda
-    status: open
-  - id: q-doc-kinds
-    question: Which additional doc kinds are worth first-class schemas (test plan, runbook, API surface)?
+    question: Should README.md content be migrated into docs, or stay as an include section on the Reference page?
+    context: The Reference page includes README.md verbatim; the same words then exist in two places.
+    options: [Keep the include, Move the content into a generic doc and delete the include, Trim README to a pointer]
     owner: panda
     status: open
   - id: q-multi-repo
     question: Should yss be installed as a package in other repos (pip install) or vendored?
-    context: pyproject.toml is ready for `pip install -e .`; vendoring keeps the schemas visible in the repo.
+    context: pyproject.toml supports `pip install -e .` and the git URL; vendoring keeps the schemas visible in the repo.
+    options: [pip install from the git URL, Vendor the yss folder, Both, decided per repo]
+    owner: panda
+    status: open
+  - id: q-musings-collision
+    question: How does yss enter the Musings repository, which already has build_site.py owning site/?
+    context: "Options - library only, full adoption, one config per musing, or collections migrated one musing at a time (adr-010)."
+    options: [Collections, one musing at a time, Library only, One yss config per musing]
+    owner: panda
+    status: open
+  - id: q-work-status-for-risks
+    question: Should risks share work_status or keep risk_status by default?
+    context: Vocabularies are data and can differ per collection; this decides the default in site.yaml.
+    options: [Keep risk_status (open, mitigated, accepted, closed), Use work_status everywhere]
+    owner: panda
+    status: open
+  - id: q-check-strictness
+    question: Should stale evidence fail the public build in CI, or only warn?
+    context: "`yss build --strict` fails on stale claims; the workflow currently runs `yss check` as a separate step."
+    options: [Fail the build (strict), Warn only]
     owner: panda
     status: open

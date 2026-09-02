@@ -1,0 +1,57 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: yss:doc.worksheet
+title: Worksheet (decision instrument)
+description: |
+  A list of calls only the human can make. Each question offers options with a recommended default
+  and the consequence of each choice; the rendered page gates on required answers and builds a
+  plain-text instruction an agent can be handed, with the rules trailer appended. Nothing is
+  persisted: the instruction is the product, the resulting doc edit is the record.
+  Agents write worksheets when they need a verdict; they never answer them.
+type: object
+required: [kind, title, questions]
+additionalProperties: false
+properties:
+  kind: {const: worksheet}
+  intro: {type: string, x-limit: markdown, description: "In plain words: jargon-free explainer shown first."}
+  warn: {type: string, x-limit: markdown, description: "The trap to avoid; rendered as a must-read box."}
+  questions:
+    type: array
+    items:
+      type: object
+      allOf: [{$ref: "#/$defs/item_base"}]
+      required: [id, lead]
+      properties:
+        id: {$ref: "#/$defs/slug"}
+        call: {type: string, description: "Short label shown with the question, e.g. C.1."}
+        lead: {type: string, x-limit: summary, description: The question itself.}
+        help: {type: string, x-limit: markdown, description: Why this needs a human decision.}
+        kind: {type: string, enum: [radio, check, text], default: radio}
+        required: {type: boolean, default: true}
+        placeholder: {type: string}
+        applies_to: {type: string, x-limit: line, description: "Where the verdict gets recorded, e.g. plan.open_questions q-x answer."}
+        options:
+          type: array
+          items:
+            type: object
+            required: [value, text]
+            properties:
+              value: {type: string}
+              text: {type: string, x-limit: line}
+              why: {type: string, x-limit: summary, description: What this choice lets you say or costs you.}
+              recommended: {type: boolean, default: false}
+              prompt: {type: string, x-limit: summary, description: Sentence placed in the instruction when chosen (defaults to text).}
+            additionalProperties: false
+      unevaluatedProperties: false
+  prompt:
+    type: object
+    description: Skeleton of the instruction that gets built.
+    properties:
+      task: {type: string, x-limit: line}
+      background: {type: string, x-limit: markdown}
+      steps: {type: array, items: {type: string, x-limit: line}}
+      do_not_touch: {type: array, items: {type: string, x-limit: line}}
+      flag_only: {type: array, items: {type: string, x-limit: line}}
+      rules: {type: array, items: {type: string, x-limit: line}, description: Standing rules appended to every instruction.}
+    additionalProperties: false
+  decided_by: {type: boolean, default: true, description: Ask who is recording the decision and when.}
+  extra: {type: boolean, default: true, description: Offer a free-text "anything else the agent should know" field.}

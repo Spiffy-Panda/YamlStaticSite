@@ -1,0 +1,42 @@
+# Plan for the demo musing. Its global id is demo-musing/plan; inside this collection, pages bind it as `plan`.
+kind: plan
+id: plan
+title: Demo musing plan
+summary: Prove that a collection can have its own plan, its own risk vocabulary, evidence pointing at files next to it, and references to the root docs.
+status: active
+updated: 2026-09-02
+owners: [agent]
+evidence:
+  - {path: hooks.py, contains: "def load_docs"}
+  - {path: play/index.html}
+  - {glob: "play/*", min: 1}
+milestones:
+  - id: d1-playable
+    title: Ship the playable
+    status: active
+    priority: 1
+    summary: A static page mounted at play/ in the private build; see [[#d1-mount]] and the root plan's [[/plan#m6-prototypes]].
+    tasks:
+      - id: d1-mount
+        title: Mount play/ through collection.yaml
+        status: done
+        owner: agent
+        verify: ls dist/private/demo-musing/play
+        evidence:
+          - {path: collection.yaml, contains: "mounts:"}
+      - id: d1-embed
+        title: Embed the playable on the collection page (private only)
+        status: done
+        owner: agent
+        depends_on: [d1-mount]
+      - id: d1-public
+        title: Decide whether the playable can be public
+        status: planned
+        owner: panda
+risks:
+  - id: dr-headers
+    title: The playable needs cross-origin isolation on GitHub Pages
+    likelihood: medium
+    impact: low
+    mitigation: Same as the root plan's r-headers risk.
+    status: watching
