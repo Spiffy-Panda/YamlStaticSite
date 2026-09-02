@@ -1,0 +1,13 @@
+# Page - schema: page. Presents docs/glossary.yaml.
+id: glossary
+route: /glossary/
+title: Glossary
+summary: The vocabulary used by the toolchain, its skills and this site.
+nav: {label: Glossary, order: 60}
+docs: [glossary]
+sections:
+  - id: terms
+    type: prefab
+    prefab: term-list
+    args:
+      terms: {from: glossary.terms}

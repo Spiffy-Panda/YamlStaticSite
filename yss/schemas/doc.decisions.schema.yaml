@@ -1,0 +1,28 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: yss:doc.decisions
+title: Decision log
+description: |
+  Architecture decision records. Append new entries; never rewrite an accepted one, supersede it.
+type: object
+required: [kind, title, entries]
+additionalProperties: false
+properties:
+  kind: {const: decisions}
+  entries:
+    type: array
+    items:
+      type: object
+      allOf: [{$ref: "#/$defs/item_base"}]
+      required: [id, title, status, decision]
+      properties:
+        id: {$ref: "#/$defs/slug"}
+        date: {type: string, format: date}
+        title: {type: string}
+        status: {type: string, enum: [proposed, accepted, rejected, superseded, deprecated]}
+        context: {type: string, description: Markdown. The forces at play.}
+        decision: {type: string, description: Markdown. What was decided.}
+        consequences: {type: array, items: {type: string}}
+        alternatives: {type: array, items: {type: string}}
+        supersedes: {$ref: "#/$defs/slug"}
+        superseded_by: {$ref: "#/$defs/slug"}
+      unevaluatedProperties: false

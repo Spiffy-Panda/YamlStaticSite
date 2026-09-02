@@ -1,0 +1,41 @@
+# Page - schema: page. Presents docs/codemap.yaml.
+id: codemap
+route: /codemap/
+title: Code map
+summary: Where things live and how to run them, from codemap.yaml. For agents and humans landing in the repo cold.
+nav: {label: Code map, order: 30}
+docs: [codemap]
+sections:
+  - id: roots
+    type: prefab
+    heading: Directories
+    prefab: table
+    args:
+      rows: {from: codemap.roots}
+      columns: [{key: path, label: Path}, {key: purpose, label: Purpose, md: true}]
+
+  - id: entrypoints
+    type: prefab
+    heading: Commands
+    intro: Copy these; the skills reference the same commands.
+    prefab: table
+    args:
+      rows: {from: codemap.entrypoints}
+      columns: [{key: name, label: Name}, {key: command, label: Command}, {key: description, label: Notes, md: true}]
+
+  - id: modules
+    type: prefab
+    heading: Modules
+    intro: Expand a module to see its exports.
+    prefab: module-list
+    args:
+      modules: {from: codemap.modules}
+
+  - id: conventions
+    type: prefab
+    heading: Conventions
+    prefab: bullet-list
+    args:
+      items:
+        from: codemap.conventions
+        map: {text: "**{{ id }}** - {{ rule }}{{ ' _' ~ rationale ~ '_' if rationale else '' }}"}

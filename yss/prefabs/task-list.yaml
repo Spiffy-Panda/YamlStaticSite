@@ -1,0 +1,59 @@
+name: task-list
+description: Milestones with nested tasks as a checklist. Bind `milestones` straight from `plan.milestones`; no mapping needed.
+category: list
+params:
+  milestones: {type: list, required: true, item: {id: anchor, title: required, status: work status, summary: optional, done_when: optional, tasks: "list of {id,title,status,owner,verify,depends_on}"}}
+  show_verify: {type: boolean, default: true}
+  show_done: {type: boolean, default: true, description: Include milestones whose status is done.}
+template: |
+  {% set glyph = {'done': '☑', 'active': '▶', 'blocked': '⛔', 'planned': '☐', 'dropped': '✕'} %}
+  <div class="task-list">
+  {% for m in milestones if show_done or m.status != 'done' %}
+    <details class="task-milestone tone-{{ m.status | slug }}" {% if m.status in ['active', 'blocked'] %}open{% endif %} id="{{ m.id }}">
+      <summary>
+        <span class="task-glyph">{{ glyph.get(m.status, '•') }}</span>
+        <span class="task-title">{{ m.title }}</span>
+        {{ prefab('badge', text=m.status) }}
+        {% if m.priority %}<span class="task-prio">P{{ m.priority }}</span>{% endif %}
+        {% if m.target_date %}<span class="task-date">{{ m.target_date }}</span>{% endif %}
+        <span class="task-count">{{ (m.tasks or []) | selectattr('status', 'equalto', 'done') | list | length }}/{{ (m.tasks or []) | length }}</span>
+      </summary>
+      {% if m.summary %}<div class="task-summary prose">{{ m.summary | md }}</div>{% endif %}
+      {% if m.done_when %}<div class="task-done-when"><strong>Done when:</strong> {{ m.done_when | md_inline }}</div>{% endif %}
+      {% if m.depends_on %}<div class="task-deps">Depends on: {% for d in m.depends_on %}<a href="#{{ d }}">{{ d }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+      {% if m.tasks %}
+      <ul class="tasks">
+        {% for t in m.tasks %}
+        <li class="task tone-{{ t.status | slug }}" id="{{ t.id }}">
+          <span class="task-glyph">{{ glyph.get(t.status, '•') }}</span>
+          <span class="task-title">{{ t.title | md_inline }}</span>
+          {% if t.owner %}<span class="task-owner">@{{ t.owner }}</span>{% endif %}
+          {% if t.estimate %}<span class="task-est">{{ t.estimate }}</span>{% endif %}
+          {% if t.depends_on %}<span class="task-deps">after {{ t.depends_on | join(', ') }}</span>{% endif %}
+          {% if show_verify and t.verify %}<div class="task-verify">verify: <code>{{ t.verify }}</code></div>{% endif %}
+          {% if t.notes %}<div class="task-notes prose">{{ t.notes | md }}</div>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </details>
+  {% endfor %}
+  </div>
+css: |
+  .task-milestone { border: 1px solid var(--line); border-left: 4px solid var(--tone, var(--line)); border-radius: var(--radius); background: var(--bg-2); margin: .6rem 0; padding: .4rem .8rem; }
+  .task-milestone > summary { cursor: pointer; display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; font-weight: 600; list-style: none; }
+  .task-milestone > summary::-webkit-details-marker { display: none; }
+  .task-glyph { color: var(--tone, var(--muted)); width: 1.2em; display: inline-block; text-align: center; }
+  .task-prio, .task-date, .task-count, .task-owner, .task-est, .task-deps { font-size: .78rem; color: var(--muted); font-weight: 400; }
+  .task-count { margin-left: auto; }
+  .task-summary { color: var(--fg-2); font-size: .92rem; }
+  .task-summary p { margin: .3rem 0; }
+  .task-done-when, .task-deps { font-size: .85rem; color: var(--fg-2); margin: .2rem 0; }
+  .tasks { list-style: none; padding: 0; margin: .5rem 0 .2rem; }
+  .task { padding: .25rem 0 .25rem .2rem; border-top: 1px dashed var(--line); }
+  .task .task-title { font-weight: 500; }
+  .task-verify { font-size: .8rem; color: var(--muted); margin-left: 1.7em; }
+  .task-notes { font-size: .85rem; margin-left: 1.7em; }
+  .tone-done .task-title { text-decoration: line-through; color: var(--muted); }
+examples:
+  - args: {milestones: [{id: m1, title: Pilot, status: active, tasks: [{id: t1, title: Write schema, status: done}, {id: t2, title: Ship, status: planned}]}]}

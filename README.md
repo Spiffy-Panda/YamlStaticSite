@@ -1,0 +1,67 @@
+# YamlStaticSite
+
+Agent-first structured docs, human-first static site.
+
+Agents keep a project's plan, design, code map, decisions, glossary and changelog as typed YAML
+under `docs/`, validated by JSON Schema. Pages under `site/pages/` frame that data for humans by
+binding it into reusable UI prefabs (cards, boards, tables, timelines). One build produces a
+redacted **public** site for GitHub Pages and a full **private** site for local use, plus the same
+data as JSON. A two-port dev server previews both. This repository documents itself with the tool.
+
+## Quick start
+
+```bash
+pip install -r requirements.txt        # PyYAML, Jinja2, jsonschema, markdown-it-py
+python -m yss validate                 # check every YAML file against its schema
+python -m yss build                    # dist/public and dist/private
+python -m yss serve                    # http://127.0.0.1:8800/  (private)  http://127.0.0.1:8801/YamlStaticSite/  (public preview)
+```
+
+Use it in another repository:
+
+```bash
+pip install -e path/to/YamlStaticSite  # or vendor the yss/ folder
+yss init --name MyProject              # site.yaml, docs/plan.yaml, site/pages/index.yaml, .yss/local.example.yaml
+```
+
+## Layout
+
+```
+site.yaml            site config: name, targets (base_url, redact), dynamic sources, serve ports
+docs/                structured docs   (schema: doc.<kind>)   <- agents edit these
+site/pages/          un-inflated pages (schema: page)         <- human framing + bindings
+site/prefabs/        site-local prefabs (schema: prefab)      <- override/extend built-ins
+site/assets/         static files, prototypes/
+schemas/             site-local schema additions (doc.<kind>.schema.yaml)
+yss/                 the toolchain: schemas/, prefabs/, templates/, assets/, providers/
+.claude/skills/      agent skills: yss, yss-doc, yss-page, yss-prefab, yss-publish
+.yss/local.yaml      gitignored forbidden/flagged strings for the redaction scan
+dist/<target>/       output (gitignored)
+```
+
+## Commands
+
+| Command | Purpose |
+|---|---|
+| `python -m yss validate` | Schema-check docs, pages, prefabs, site.yaml; cross-check ids |
+| `python -m yss build [--target public\|private\|all] [--no-dynamic] [--strict]` | Render, export JSON, collect dynamic data, scan for leaks |
+| `python -m yss serve [--no-watch]` | Serve both targets, rebuild on change, live dynamic refresh on the private port |
+| `python -m yss dynamic [name]` | Re-collect dynamic sources into an existing build |
+| `python -m yss scan` | Find forbidden/flagged strings in the source tree |
+| `python -m yss ls [docs\|pages\|prefabs\|kinds\|dynamic]` | Inventory |
+| `python -m yss query <doc>.<path> [--where k=v] [--sort f] [--fields a,b]` | Read data the way pages do |
+| `python -m yss schema <name> [--yaml]` | Print a schema |
+| `python -m yss new doc\|page\|prefab ...` | Scaffold from schema |
+| `python -m yss pages-setup [--dry-run] [--run]` | Via gh: redaction secrets from `.yss/local.yaml`, Pages source = GitHub Actions |
+| `python -m unittest discover -s tests -v` | Tests |
+
+## License
+
+MIT, see [LICENSE](LICENSE).
+
+## Privacy model
+
+Objects marked `visibility: private` and every `private_notes` key are removed before a public
+render. The public build then scans all of its output for forbidden strings (from `.yss/local.yaml`
+or the `YSS_FORBIDDEN_STRINGS` secret, plus the absolute checkout path) and deletes itself if any
+appear. Flagged strings only warn.

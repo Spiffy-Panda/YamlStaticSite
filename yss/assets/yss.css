@@ -1,0 +1,111 @@
+/* yss base stylesheet. Sites may override by shipping site/assets/yss.css or adding page head.css. */
+:root {
+  --bg: #fafaf8;
+  --bg-2: #ffffff;
+  --fg: #1d1d1b;
+  --fg-2: #5c5c57;
+  --line: #e2e1dc;
+  --accent: #2456a4;
+  --accent-2: #e8eefb;
+  --ok: #2e7d32;
+  --warn: #b26a00;
+  --bad: #c62828;
+  --muted: #8a8a84;
+  --code: #f1f0ec;
+  --radius: 8px;
+  --shadow: 0 1px 2px rgba(0,0,0,.06);
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17181a; --bg-2: #202225; --fg: #e8e8e4; --fg-2: #b4b4ae; --line: #33353a;
+    --accent: #8fb3ff; --accent-2: #26304a; --code: #26282c; --muted: #7b7b76;
+    --shadow: 0 1px 2px rgba(0,0,0,.4);
+  }
+}
+* { box-sizing: border-box; }
+html { font-size: 16px; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.55;
+}
+a { color: var(--accent); }
+code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em; }
+pre { background: var(--code); padding: .75rem 1rem; border-radius: var(--radius); overflow-x: auto; }
+code { background: var(--code); padding: .1em .3em; border-radius: 4px; }
+pre code { background: none; padding: 0; }
+.wrap { max-width: 1140px; margin: 0 auto; padding: 0 1.25rem; }
+.skip { position: absolute; left: -999px; }
+.skip:focus { left: 1rem; top: 1rem; background: var(--bg-2); padding: .5rem; z-index: 10; }
+
+/* header */
+.site-header { background: var(--bg-2); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
+.site-header .wrap { display: flex; align-items: center; gap: 1rem; min-height: 3.25rem; flex-wrap: wrap; }
+.brand { font-weight: 700; text-decoration: none; color: var(--fg); }
+.site-nav { display: flex; gap: .25rem; flex-wrap: wrap; flex: 1; }
+.site-nav a { text-decoration: none; color: var(--fg-2); padding: .35rem .6rem; border-radius: 6px; }
+.site-nav a:hover { background: var(--accent-2); color: var(--accent); }
+.site-nav a.active { color: var(--accent); background: var(--accent-2); }
+.site-nav a.private::after { content: " 🔒"; font-size: .8em; }
+.nav-toggle { display: none; }
+.target-badge { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; padding: .15rem .5rem; border: 1px solid var(--line); border-radius: 999px; color: var(--fg-2); }
+.target-private .target-badge { border-color: var(--warn); color: var(--warn); }
+@media (max-width: 720px) {
+  .nav-toggle { display: inline-block; margin-left: auto; }
+  .site-nav { display: none; width: 100%; flex-direction: column; }
+  .site-nav.open { display: flex; }
+}
+
+/* layout */
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 2rem; padding-top: 1.5rem; padding-bottom: 3rem; }
+@media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } .toc { display: none; } }
+.content { min-width: 0; }
+.page-header h1 { margin: 0 0 .25rem; font-size: 2rem; line-height: 1.2; }
+.page-summary { margin: 0; color: var(--fg-2); font-size: 1.05rem; }
+.page-docs { font-size: .8rem; color: var(--muted); margin: .5rem 0 0; }
+.toc { position: sticky; top: 4.25rem; align-self: start; font-size: .9rem; border-left: 2px solid var(--line); padding-left: .9rem; }
+.toc-title { font-weight: 600; margin-bottom: .4rem; color: var(--fg-2); font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; }
+.toc a { display: block; color: var(--fg-2); text-decoration: none; padding: .15rem 0; }
+.toc a:hover { color: var(--accent); }
+
+/* sections */
+.section { margin: 2rem 0; }
+.section-heading { font-size: 1.35rem; margin: 0 0 .6rem; border-bottom: 1px solid var(--line); padding-bottom: .3rem; }
+.section-heading a { color: inherit; text-decoration: none; }
+.section-heading a:hover::after { content: " #"; color: var(--muted); }
+.section-intro { color: var(--fg-2); margin-bottom: .8rem; }
+.section-intro p:first-child { margin-top: 0; }
+.prose > :first-child { margin-top: 0; }
+.prose table, .table { border-collapse: collapse; width: 100%; font-size: .93rem; }
+.prose th, .prose td, .table th, .table td { border: 1px solid var(--line); padding: .4rem .6rem; text-align: left; vertical-align: top; }
+.prose th, .table th { background: var(--code); }
+blockquote { border-left: 3px solid var(--accent); margin: 1rem 0; padding: .2rem 1rem; color: var(--fg-2); }
+
+/* dynamic */
+.dynamic { border: 1px dashed var(--line); border-radius: var(--radius); padding: .75rem 1rem; background: var(--bg-2); }
+.dynamic-status { margin: 0; color: var(--muted); font-size: .9rem; }
+.dynamic-meta { font-size: .75rem; color: var(--muted); margin-top: .5rem; display: flex; gap: .75rem; align-items: center; }
+.dynamic-meta button { font-size: .75rem; }
+.dynamic pre { margin: 0; max-height: 420px; overflow: auto; }
+.dynamic .kv { display: grid; grid-template-columns: max-content 1fr; gap: .25rem 1rem; margin: 0; }
+.dynamic .kv dt { font-weight: 600; color: var(--fg-2); }
+.dynamic .kv dd { margin: 0; word-break: break-word; }
+.dynamic-error { color: var(--bad); }
+
+/* embed */
+.embed { margin: 0; }
+.embed-frame { width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: #000; }
+.embed-image, .embed-video { max-width: 100%; border-radius: var(--radius); }
+.embed figcaption { color: var(--fg-2); font-size: .9rem; margin-top: .4rem; }
+.embed-open { display: inline-block; font-size: .8rem; margin-top: .3rem; }
+
+/* footer */
+.site-footer { border-top: 1px solid var(--line); color: var(--muted); font-size: .8rem; padding: 1rem 0 2rem; }
+
+/* shared status tones used by badges and cards */
+.tone-done, .tone-ok, .tone-accepted, .tone-released, .tone-stable, .tone-passed, .tone-answered, .tone-closed, .tone-mitigated { --tone: var(--ok); }
+.tone-active, .tone-proposed, .tone-unreleased, .tone-open { --tone: var(--accent); }
+.tone-blocked, .tone-failed, .tone-error, .tone-rejected, .tone-high { --tone: var(--bad); }
+.tone-planned, .tone-draft, .tone-medium, .tone-skipped { --tone: var(--warn); }
+.tone-dropped, .tone-deprecated, .tone-superseded, .tone-archived, .tone-low, .tone-deferred { --tone: var(--muted); }

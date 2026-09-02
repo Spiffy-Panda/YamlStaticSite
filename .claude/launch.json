@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "yss-serve",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "yss", "serve", "--no-watch", "--no-build"],
+      "port": 8800
+    }
+  ]
+}

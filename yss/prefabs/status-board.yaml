@@ -1,0 +1,28 @@
+name: status-board
+description: "Kanban-style columns. Bind `groups` with `group_by: status` (gives [{key, items}]); each item is rendered as a card. `order` fixes the column order and shows empty columns."
+category: layout
+params:
+  groups: {type: list, required: true, description: "[{key, items}] as produced by group_by."}
+  order: {type: list, description: Column keys in display order; unknown keys are appended.}
+  empty: {type: string, default: Nothing to show.}
+template: |
+  {% set by_key = {} %}
+  {% for g in groups %}{% set _ = by_key.update({g.key: g['items']}) %}{% endfor %}
+  {% set keys = (order or []) + (groups | map(attribute='key') | reject('in', order or []) | list) %}
+  {% if keys %}
+  <div class="status-board">
+    {% for key in keys %}
+    <div class="board-col tone-{{ key | slug }}">
+      <div class="board-col-head">{{ prefab('badge', text=key) }} <span class="board-count">{{ (by_key.get(key) or []) | length }}</span></div>
+      {% for it in by_key.get(key) or [] %}{{ prefab('card', it) }}{% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}<p class="empty">{{ empty }}</p>{% endif %}
+css: |
+  .status-board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(230px, 1fr); gap: .8rem; overflow-x: auto; padding-bottom: .5rem; }
+  .board-col { background: var(--code); border-radius: var(--radius); padding: .6rem; display: flex; flex-direction: column; gap: .6rem; border-top: 3px solid var(--tone, var(--line)); }
+  .board-col-head { display: flex; justify-content: space-between; align-items: center; }
+  .board-count { color: var(--muted); font-size: .8rem; }
+examples:
+  - args: {groups: [{key: active, items: [{title: Build}]}, {key: planned, items: []}], order: [active, planned, done]}

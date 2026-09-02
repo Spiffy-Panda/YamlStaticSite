@@ -1,0 +1,47 @@
+# yss site configuration for this repository (the toolchain piloting itself).
+# Schema: yss/schemas/site.schema.yaml   Print it: python -m yss schema site --yaml
+site:
+  name: YamlStaticSite
+  description: Agent-first structured docs, human-first static site. This site documents the toolchain that builds it.
+  repo: https://github.com/Spiffy-Panda/YamlStaticSite
+
+targets:
+  public:
+    base_url: /YamlStaticSite/        # GitHub project pages path; change if the repo is renamed
+    redact: true                      # fail the build if forbidden strings leak into output
+    description: Published to GitHub Pages.
+  private:
+    base_url: /
+    redact: false
+    description: Everything, including private sections and repo-local dynamic data.
+
+dynamic:
+  sources:
+    buildinfo:
+      provider: yss.providers.buildinfo:collect
+      description: Counts and versions from the last build.
+    testruns:
+      provider: yss.providers.testruns:collect
+      tests_dir: tests
+      targets: [private]              # test output stays local
+      ttl: 60
+      description: Unit test results (unittest discovery in tests/).
+    gitlog:
+      provider: yss.providers.gitlog:collect
+      limit: 15
+      targets: [private]              # author names are repo-local information
+      ttl: 60
+      description: Recent commits and working-tree state.
+
+serve:
+  host: 127.0.0.1
+  private_port: 8800
+  public_port: 8801
+  coop_coep: true                     # needed for threaded wasm / Godot exports in iframes
+  live_dynamic: true
+  dynamic_ttl: 30
+  watch: [yss]                        # also rebuild when the toolchain itself changes
+
+redaction:
+  local_file: .yss/local.yaml         # gitignored; holds forbidden_strings / flag_strings
+  forbid_root_path: true              # the absolute checkout path must never appear in output

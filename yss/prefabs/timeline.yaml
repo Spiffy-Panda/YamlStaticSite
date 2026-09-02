@@ -1,0 +1,35 @@
+name: timeline
+description: Vertical timeline of dated entries (releases, milestones with target dates, decisions). Items need `title`; `date`, `badge`, `subtitle`, `body` (markdown) and `items` (bullet strings) are optional.
+category: list
+params:
+  items: {type: list, required: true, item: {title: required, date: optional, badge: status, subtitle: optional, body: markdown, items: "list of bullet strings", href: link}}
+  empty: {type: string, default: Nothing yet.}
+template: |
+  {% if items %}
+  <ol class="timeline">
+  {% for it in items %}
+    <li class="timeline-item {% if it.badge %}tone-{{ it.badge | slug }}{% endif %}">
+      <div class="timeline-date">{{ it.date or '' }}</div>
+      <div class="timeline-content">
+        <div class="timeline-head">
+          <strong>{% if it.href %}<a href="{{ it.href }}">{{ it.title }}</a>{% else %}{{ it.title }}{% endif %}</strong>
+          {% if it.badge %}{{ prefab('badge', text=it.badge) }}{% endif %}
+        </div>
+        {% if it.subtitle %}<div class="timeline-sub">{{ it.subtitle }}</div>{% endif %}
+        {% if it.body %}<div class="prose">{{ it.body | md }}</div>{% endif %}
+        {% if it['items'] %}<ul>{% for b in it['items'] %}<li>{{ b | md_inline }}</li>{% endfor %}</ul>{% endif %}
+      </div>
+    </li>
+  {% endfor %}
+  </ol>
+  {% else %}<p class="empty">{{ empty }}</p>{% endif %}
+css: |
+  .timeline { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--line); }
+  .timeline-item { position: relative; padding: 0 0 1.1rem 1.4rem; }
+  .timeline-item::before { content: ""; position: absolute; left: -7px; top: .45rem; width: 12px; height: 12px; border-radius: 50%; background: var(--tone, var(--muted)); }
+  .timeline-date { font-size: .8rem; color: var(--muted); font-family: ui-monospace, monospace; }
+  .timeline-head { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+  .timeline-sub { color: var(--fg-2); font-size: .9rem; }
+  .timeline-content .prose p { margin: .2rem 0; }
+examples:
+  - args: {items: [{date: "2026-09-01", title: "v0.1.0", badge: released, items: ["Initial pilot"]}]}

@@ -1,0 +1,29 @@
+name: steps
+description: Ordered process flows. Bind `flows` from `design.flows`; each flow shows its trigger and numbered steps with actor and output.
+category: list
+params:
+  flows: {type: list, required: true, item: {id: anchor, title: required, trigger: optional, steps: "list of {actor, action, produces}"}}
+template: |
+  <div class="flows">
+  {% for f in flows %}
+    <div class="flow" id="{{ f.id }}">
+      <h3 class="flow-title">{{ f.title }}</h3>
+      {% if f.trigger %}<div class="flow-trigger">Trigger: {{ f.trigger | md_inline }}</div>{% endif %}
+      <ol class="flow-steps">
+        {% for s in f.steps %}
+        <li>{% if s.actor %}<span class="flow-actor">{{ s.actor }}</span>{% endif %} {{ s.action | md_inline }}{% if s.produces %} <span class="flow-produces">→ {{ s.produces | md_inline }}</span>{% endif %}</li>
+        {% endfor %}
+      </ol>
+      {% if f.notes %}<div class="prose">{{ f.notes | md }}</div>{% endif %}
+    </div>
+  {% endfor %}
+  </div>
+css: |
+  .flow { margin: 0 0 1.2rem; }
+  .flow-title { margin: 0 0 .2rem; font-size: 1.05rem; }
+  .flow-trigger { color: var(--fg-2); font-size: .9rem; }
+  .flow-steps li { margin: .2rem 0; }
+  .flow-actor { font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); background: var(--accent-2); padding: .05rem .4rem; border-radius: 4px; margin-right: .2rem; }
+  .flow-produces { color: var(--muted); font-size: .9rem; }
+examples:
+  - args: {flows: [{id: build, title: Build, steps: [{actor: cli, action: validate}, {actor: renderer, action: render pages, produces: html}]}]}

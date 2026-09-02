@@ -1,0 +1,76 @@
+# Page - schema: page. Presents docs/design.yaml.
+id: design
+route: /design/
+title: Design
+summary: Architecture of the toolchain - principles, components, interfaces and flows - from design.yaml. Read this before changing yss/.
+nav: {label: Design, order: 20}
+docs: [design]
+sections:
+  - id: overview
+    type: markdown
+    heading: Overview
+    from: design.overview
+
+  - id: principles
+    type: prefab
+    heading: Principles
+    prefab: card-grid
+    args:
+      items:
+        from: design.principles
+        map: {body: rationale}
+      columns: 2
+
+  - id: components
+    type: prefab
+    heading: Components
+    intro: Each card names the code that implements the component and what it depends on.
+    prefab: card-grid
+    args:
+      items:
+        from: design.components
+        map:
+          title: name
+          badge: kind
+          body: responsibility
+          subtitle: "{{ 'depends on ' ~ (depends_on | join(', ')) if depends_on else '' }}"
+          meta: "{{ (code or []) | join(' · ') }}"
+      columns: 3
+
+  - id: interfaces
+    type: prefab
+    heading: Interfaces
+    prefab: table
+    args:
+      rows: {from: design.interfaces}
+      columns:
+        - {key: name, label: Interface}
+        - {key: kind, label: Kind}
+        - {key: signature, label: Signature}
+        - {key: description, label: Description, md: true}
+
+  - id: flows
+    type: prefab
+    heading: Flows
+    prefab: steps
+    args:
+      flows: {from: design.flows}
+
+  - id: constraints
+    type: prefab
+    heading: Constraints
+    prefab: bullet-list
+    args:
+      items:
+        from: design.constraints
+        map: {text: "{{ text }} _({{ source }})_"}
+
+  - id: alternatives
+    type: prefab
+    heading: Alternatives considered
+    prefab: table
+    args:
+      rows: {from: design.alternatives}
+      columns:
+        - {key: option, label: Option}
+        - {key: rejected_because, label: Rejected because, md: true}

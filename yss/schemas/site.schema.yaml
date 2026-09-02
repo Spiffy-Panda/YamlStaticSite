@@ -1,0 +1,73 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: yss:site
+title: Site configuration (site.yaml)
+description: |
+  Root configuration. Every key is optional; defaults live in yss/config.py. Targets are named
+  builds; `public` is redacted and served under base_url, `private` keeps everything.
+type: object
+additionalProperties: false
+properties:
+  site:
+    type: object
+    properties:
+      name: {type: string}
+      description: {type: string}
+      repo: {type: string, description: Public repository URL (shown in the footer).}
+    additionalProperties: false
+  paths:
+    type: object
+    properties:
+      docs: {type: string}
+      pages: {type: string}
+      prefabs: {type: string}
+      layouts: {type: string}
+      assets: {type: string}
+      schemas: {type: string}
+      out: {type: string}
+    additionalProperties: false
+  targets:
+    type: object
+    additionalProperties:
+      type: object
+      properties:
+        base_url: {type: string, description: "URL prefix, e.g. /RepoName/ for GitHub project pages."}
+        redact: {type: boolean, description: Fail the build if forbidden strings appear in the output.}
+        description: {type: string}
+      additionalProperties: false
+  dynamic:
+    type: object
+    properties:
+      sources:
+        type: object
+        additionalProperties:
+          type: object
+          properties:
+            provider: {type: string, description: "module:function returning JSON-able data."}
+            command: {type: string, description: Shell command printing JSON to stdout.}
+            file: {type: string, description: Repo-relative JSON file to copy.}
+            targets: {type: array, items: {type: string}}
+            on_build: {type: boolean, default: true}
+            timeout: {type: integer}
+            ttl: {type: integer, description: Seconds before the private server re-collects on request.}
+            description: {type: string}
+          additionalProperties: true
+    additionalProperties: false
+  serve:
+    type: object
+    properties:
+      host: {type: string}
+      private_port: {type: integer}
+      public_port: {type: integer}
+      coop_coep: {type: boolean, description: Send COOP/COEP headers (needed by threaded wasm / Godot exports).}
+      live_dynamic: {type: boolean}
+      dynamic_ttl: {type: integer}
+      watch: {type: array, items: {type: string}, description: Extra paths to watch for rebuilds.}
+    additionalProperties: false
+  redaction:
+    type: object
+    properties:
+      local_file: {type: string}
+      env_forbidden: {type: string}
+      env_flag: {type: string}
+      forbid_root_path: {type: boolean}
+    additionalProperties: false

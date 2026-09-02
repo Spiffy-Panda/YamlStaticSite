@@ -1,0 +1,25 @@
+# Page - schema: page. Hosts embedded prototypes (plain HTML, Godot web exports, wasm).
+id: prototypes
+route: /prototypes/
+title: Prototypes
+summary: Interactive builds hosted inside the site. Drop an export under site/assets/prototypes/<name>/ and add an embed section here.
+nav: {label: Prototypes, order: 55}
+sections:
+  - id: how
+    type: markdown
+    markdown: |
+      An `embed` section points at a folder under `site/assets/prototypes/`. The private server
+      sends the `Cross-Origin-Opener-Policy` / `Cross-Origin-Embedder-Policy` headers that Godot 4
+      and threaded wasm builds require. GitHub Pages cannot send headers, so export Godot projects
+      **without threads** or ship a `coi-serviceworker` shim next to the export (planned, see the
+      plan's prototype milestone).
+
+  - id: hello
+    type: embed
+    heading: Hello canvas
+    intro: A stand-in for a real export - a plain HTML page with a canvas, so the embed path is exercised end to end.
+    kind: iframe
+    src: assets/prototypes/hello/index.html
+    height: 320
+    title: Hello canvas prototype
+    caption: Replace with a Godot export's index.html; the section does not change.

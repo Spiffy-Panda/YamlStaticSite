@@ -1,0 +1,22 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: yss:doc.glossary
+title: Glossary
+description: Project vocabulary. One entry per term; aliases map alternative spellings to the canonical term.
+type: object
+required: [kind, title, terms]
+additionalProperties: false
+properties:
+  kind: {const: glossary}
+  terms:
+    type: array
+    items:
+      type: object
+      allOf: [{$ref: "#/$defs/item_base"}]
+      required: [term, definition]
+      properties:
+        id: {$ref: "#/$defs/slug"}
+        term: {type: string}
+        definition: {type: string, description: Markdown.}
+        aliases: {type: array, items: {type: string}}
+        see_also: {type: array, items: {type: string}}
+      unevaluatedProperties: false

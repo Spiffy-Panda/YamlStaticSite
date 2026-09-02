@@ -1,0 +1,99 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: yss:doc.design
+title: Design document
+description: |
+  Architecture and design: overview, principles, components with interfaces, flows, constraints and
+  rejected alternatives. The agent-first replacement for DESIGN.md / ARCHITECTURE.md.
+type: object
+required: [kind, title, components]
+additionalProperties: false
+properties:
+  kind: {const: design}
+  overview:
+    type: string
+    description: Markdown. The one-screen explanation a newcomer reads first.
+  principles:
+    type: array
+    items:
+      type: object
+      allOf: [{$ref: "#/$defs/item_base"}]
+      required: [id, title]
+      properties:
+        id: {$ref: "#/$defs/slug"}
+        title: {type: string}
+        rationale: {type: string}
+      unevaluatedProperties: false
+  components:
+    type: array
+    items:
+      type: object
+      allOf: [{$ref: "#/$defs/item_base"}]
+      required: [id, name, responsibility]
+      properties:
+        id: {$ref: "#/$defs/slug"}
+        name: {type: string}
+        kind: {type: string, enum: [module, service, schema, data, ui, process, external, library]}
+        responsibility: {type: string, description: One sentence. What it owns.}
+        inputs: {type: array, items: {type: string}}
+        outputs: {type: array, items: {type: string}}
+        depends_on: {type: array, items: {$ref: "#/$defs/slug"}}
+        code: {type: array, items: {type: string}, description: Paths implementing this component.}
+        status: {type: string, enum: [planned, active, stable, deprecated]}
+      unevaluatedProperties: false
+  interfaces:
+    type: array
+    items:
+      type: object
+      allOf: [{$ref: "#/$defs/item_base"}]
+      required: [id, name, kind]
+      properties:
+        id: {$ref: "#/$defs/slug"}
+        name: {type: string}
+        kind: {type: string, enum: [cli, http, file, python, json, yaml, event]}
+        signature: {type: string}
+        description: {type: string}
+        component: {$ref: "#/$defs/slug"}
+      unevaluatedProperties: false
+  flows:
+    type: array
+    items:
+      type: object
+      allOf: [{$ref: "#/$defs/item_base"}]
+      required: [id, title, steps]
+      properties:
+        id: {$ref: "#/$defs/slug"}
+        title: {type: string}
+        trigger: {type: string}
+        steps:
+          type: array
+          items:
+            type: object
+            required: [action]
+            properties:
+              actor: {type: string}
+              action: {type: string}
+              produces: {type: string}
+            additionalProperties: false
+      unevaluatedProperties: false
+  constraints:
+    type: array
+    items:
+      type: object
+      allOf: [{$ref: "#/$defs/item_base"}]
+      required: [id, text]
+      properties:
+        id: {$ref: "#/$defs/slug"}
+        text: {type: string}
+        source: {type: string, description: Where the constraint comes from (platform, policy, user).}
+      unevaluatedProperties: false
+  alternatives:
+    type: array
+    items:
+      type: object
+      allOf: [{$ref: "#/$defs/item_base"}]
+      required: [id, option, rejected_because]
+      properties:
+        id: {$ref: "#/$defs/slug"}
+        option: {type: string}
+        rejected_because: {type: string}
+      unevaluatedProperties: false

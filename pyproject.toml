@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yss"
+version = "0.1.0"
+description = "YAML static site: agent-first structured docs rendered into a human-first site with public and private targets."
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Spiffy-Panda"}]
+dependencies = [
+  "PyYAML>=6",
+  "Jinja2>=3.1",
+  "jsonschema>=4.18",
+  "markdown-it-py>=3",
+]
+
+[project.scripts]
+yss = "yss.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["yss*"]
+
+[tool.setuptools.package-data]
+yss = ["schemas/*.yaml", "prefabs/*.yaml", "templates/*.html", "assets/*"]

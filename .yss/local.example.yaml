@@ -1,0 +1,8 @@
+# Copy to .yss/local.yaml (gitignored) and fill in.
+# forbidden_strings: a public build FAILS and its output is deleted if any of these appear (case-insensitive).
+# flag_strings: a build only WARNS. Use for things that need a human look before publishing.
+# In CI, set YSS_FORBIDDEN_STRINGS / YSS_FLAG_STRINGS (semicolon separated) as secrets instead.
+forbidden_strings:
+  - "example-legal-name"
+flag_strings:
+  - "example-surname"

@@ -1,0 +1,35 @@
+name: decision-list
+description: Architecture decision records. Bind `entries` from `decisions.entries`; each entry gets an anchor equal to its id.
+category: list
+params:
+  entries: {type: list, required: true, item: {id: anchor, title: required, status: required, date: optional, context: markdown, decision: markdown, consequences: list, alternatives: list}}
+  collapsed: {type: boolean, default: false, description: Start entries collapsed (only title and status visible).}
+template: |
+  <div class="decision-list">
+  {% for d in entries %}
+    <details class="decision tone-{{ d.status | slug }}" id="{{ d.id }}" {% if not collapsed %}open{% endif %}>
+      <summary>
+        <span class="decision-id">{{ d.id }}</span>
+        <span class="decision-title">{{ d.title }}</span>
+        {{ prefab('badge', text=d.status) }}
+        {% if d.date %}<span class="decision-date">{{ d.date }}</span>{% endif %}
+      </summary>
+      {% if d.context %}<h4>Context</h4><div class="prose">{{ d.context | md }}</div>{% endif %}
+      <h4>Decision</h4><div class="prose">{{ d.decision | md }}</div>
+      {% if d.consequences %}<h4>Consequences</h4><ul>{% for c in d.consequences %}<li>{{ c | md_inline }}</li>{% endfor %}</ul>{% endif %}
+      {% if d.alternatives %}<h4>Alternatives considered</h4><ul>{% for a in d.alternatives %}<li>{{ a | md_inline }}</li>{% endfor %}</ul>{% endif %}
+      {% if d.supersedes %}<p class="decision-rel">Supersedes <a href="#{{ d.supersedes }}">{{ d.supersedes }}</a></p>{% endif %}
+      {% if d.superseded_by %}<p class="decision-rel">Superseded by <a href="#{{ d.superseded_by }}">{{ d.superseded_by }}</a></p>{% endif %}
+    </details>
+  {% endfor %}
+  </div>
+css: |
+  .decision { border: 1px solid var(--line); border-left: 4px solid var(--tone, var(--line)); border-radius: var(--radius); background: var(--bg-2); margin: .7rem 0; padding: .5rem .9rem; }
+  .decision > summary { cursor: pointer; display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; font-weight: 600; }
+  .decision-id { font-family: ui-monospace, monospace; color: var(--muted); font-size: .8rem; }
+  .decision-date { margin-left: auto; color: var(--muted); font-size: .8rem; font-weight: 400; }
+  .decision h4 { margin: .7rem 0 .2rem; font-size: .85rem; text-transform: uppercase; letter-spacing: .05em; color: var(--fg-2); }
+  .decision .prose p { margin: .25rem 0; }
+  .decision-rel { font-size: .85rem; color: var(--fg-2); }
+examples:
+  - args: {entries: [{id: adr-1, title: Use YAML, status: accepted, decision: "YAML over XML."}]}

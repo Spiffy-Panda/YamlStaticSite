@@ -1,0 +1,21 @@
+name: card-grid
+description: Responsive grid of cards. Each item is passed to the `card` prefab, so map list fields onto title/subtitle/body/badge/href/meta/tags.
+category: list
+params:
+  items: {type: list, required: true, item: {title: required, subtitle: optional, body: markdown, badge: status text, href: link, meta: list, tags: list}}
+  columns: {type: integer, default: 3, description: Max columns on wide screens (1-4).}
+  empty: {type: string, default: Nothing to show.}
+template: |
+  {% if items %}
+  <div class="card-grid cols-{{ columns }}">
+    {% for it in items %}{{ prefab('card', it) }}{% endfor %}
+  </div>
+  {% else %}<p class="empty">{{ empty }}</p>{% endif %}
+css: |
+  .card-grid { display: grid; gap: .9rem; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+  .card-grid.cols-1 { grid-template-columns: 1fr; }
+  .card-grid.cols-2 { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+  .card-grid.cols-4 { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  .empty { color: var(--muted); font-style: italic; }
+examples:
+  - args: {items: [{title: One, badge: done}, {title: Two, badge: planned, body: "Second card."}], columns: 2}

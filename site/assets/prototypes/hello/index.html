@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hello canvas prototype</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #111; color: #eee; font-family: system-ui, sans-serif; }
+  canvas { display: block; width: 100%; height: 100%; }
+  .hud { position: absolute; top: .5rem; left: .75rem; font-size: .85rem; opacity: .8; }
+</style>
+</head>
+<body>
+<div class="hud">prototype stand-in · click to add a ball · <span id="count">0</span> balls · isolated: <span id="coi">?</span></div>
+<canvas id="c"></canvas>
+<script>
+(function () {
+  var canvas = document.getElementById("c"), ctx = canvas.getContext("2d");
+  var balls = [], count = document.getElementById("count");
+  document.getElementById("coi").textContent = String(window.crossOriginIsolated);
+  function resize() { canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight; }
+  function add(x, y) {
+    balls.push({ x: x, y: y, vx: (Math.random() - .5) * 4, vy: (Math.random() - .5) * 4, r: 6 + Math.random() * 14, h: Math.random() * 360 });
+    count.textContent = balls.length;
+  }
+  canvas.addEventListener("click", function (e) { add(e.offsetX, e.offsetY); });
+  window.addEventListener("resize", resize);
+  resize();
+  for (var i = 0; i < 5; i++) add(Math.random() * canvas.width, Math.random() * canvas.height);
+  function frame() {
+    ctx.fillStyle = "rgba(17,17,17,.35)"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    balls.forEach(function (b) {
+      b.x += b.vx; b.y += b.vy;
+      if (b.x < b.r || b.x > canvas.width - b.r) b.vx *= -1;
+      if (b.y < b.r || b.y > canvas.height - b.r) b.vy *= -1;
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.fillStyle = "hsl(" + b.h + ",70%,60%)"; ctx.fill();
+    });
+    requestAnimationFrame(frame);
+  }
+  frame();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+# Site-local prefab (schema: prefab). Lists every prefab with params and renders its examples.
+name: prefab-gallery
+description: Documentation gallery for prefabs - name, category, params table and live-rendered examples. Bind `prefabs` from `$prefabs`.
+category: layout
+params:
+  prefabs: {type: list, required: true, description: Prefab specs (from $prefabs).}
+template: |
+  <div class="prefab-gallery">
+  {% for p in prefabs if p.name != _prefab %}
+    <details class="gallery-item" id="prefab-{{ p.name }}">
+      <summary><code>{{ p.name }}</code> <span class="gallery-cat">{{ p.category or 'any' }}</span>{% if not p._builtin %} <span class="gallery-site">site</span>{% endif %} <span class="gallery-desc">{{ p.description }}</span></summary>
+      <div class="gallery-body">
+        <div class="gallery-source">{{ p._source }}</div>
+        {% if p.params %}
+        <table class="table gallery-params">
+          <thead><tr><th>param</th><th>type</th><th>required</th><th>default</th><th>description</th></tr></thead>
+          <tbody>
+          {% for name, def in p.params.items() %}
+            <tr><td><code>{{ name }}</code></td><td>{{ def.type or 'any' }}</td><td>{{ 'yes' if def.required else '' }}</td><td>{% if def.default is defined %}<code>{{ def.default | tojson }}</code>{% endif %}</td><td>{{ def.description or '' }}{% if def.item %}<br><small>item fields: {% for k, v in def.item.items() %}<code>{{ k }}</code> ({{ v }}){% if not loop.last %}, {% endif %}{% endfor %}</small>{% endif %}</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+        {% for ex in p.examples or [] %}
+          <div class="gallery-example">
+            <div class="gallery-example-label">example{% if ex.note %} - {{ ex.note }}{% endif %}</div>
+            <div class="gallery-example-render">{{ prefab(p.name, ex.args) }}</div>
+            <details class="gallery-example-args"><summary>args</summary><pre>{{ ex.args | tojson(indent=2) }}</pre></details>
+          </div>
+        {% endfor %}
+      </div>
+    </details>
+  {% endfor %}
+  </div>
+css: |
+  .gallery-item { border: 1px solid var(--line); border-radius: var(--radius); margin: .5rem 0; background: var(--bg-2); }
+  .gallery-item > summary { cursor: pointer; padding: .5rem .8rem; display: flex; gap: .6rem; align-items: baseline; flex-wrap: wrap; }
+  .gallery-cat, .gallery-site { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .gallery-site { color: var(--warn); }
+  .gallery-desc { color: var(--fg-2); font-size: .9rem; }
+  .gallery-body { padding: .3rem .8rem .8rem; border-top: 1px solid var(--line); }
+  .gallery-source { font-size: .75rem; color: var(--muted); font-family: ui-monospace, monospace; margin: .3rem 0 .5rem; }
+  .gallery-params { font-size: .85rem; margin-bottom: .6rem; }
+  .gallery-example { border-top: 1px dashed var(--line); padding-top: .5rem; margin-top: .5rem; }
+  .gallery-example-label { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: .3rem; }
+  .gallery-example-render { padding: .5rem; background: var(--bg); border-radius: var(--radius); }
+  .gallery-example-args summary { font-size: .8rem; color: var(--accent); cursor: pointer; }
+  .gallery-example-args pre { font-size: .8rem; }

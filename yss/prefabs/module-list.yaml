@@ -1,0 +1,41 @@
+name: module-list
+description: Code map modules with path, purpose, exports (collapsible) and dependencies. Bind `modules` from `codemap.modules`.
+category: list
+params:
+  modules: {type: list, required: true, item: {id: anchor, path: required, purpose: required, exports: "list of {name, kind, signature, description}", depends_on: list, tests: list, status: optional}}
+  repo_url: {type: string, description: "If set, paths link to <repo_url>/blob/main/<path>."}
+template: |
+  <div class="module-list">
+  {% for m in modules %}
+    <div class="module tone-{{ (m.status or 'active') | slug }}" id="{{ m.id }}">
+      <div class="module-head">
+        <code class="module-path">{% if repo_url %}<a href="{{ repo_url }}/blob/main/{{ m.path }}">{{ m.path }}</a>{% else %}{{ m.path }}{% endif %}</code>
+        {% if m.status %}{{ prefab('badge', text=m.status) }}{% endif %}
+        {% if m.language %}<span class="module-lang">{{ m.language }}</span>{% endif %}
+      </div>
+      <div class="module-purpose">{{ m.purpose | md_inline }}</div>
+      {% if m.depends_on %}<div class="module-deps">depends on: {% for d in m.depends_on %}<a href="#{{ d }}">{{ d }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+      {% if m.tests %}<div class="module-deps">tests: {{ m.tests | join(', ') }}</div>{% endif %}
+      {% if m.exports %}
+      <details class="module-exports"><summary>{{ m.exports | length }} exports</summary>
+        <table class="table">
+          {% for e in m.exports %}<tr><td><code>{{ e.name }}</code>{% if e.kind %} <span class="module-kind">{{ e.kind }}</span>{% endif %}</td><td>{% if e.signature %}<code>{{ e.signature }}</code><br>{% endif %}{{ e.description or '' }}</td></tr>{% endfor %}
+        </table>
+      </details>
+      {% endif %}
+      {% if m.notes %}<div class="prose module-notes">{{ m.notes | md }}</div>{% endif %}
+    </div>
+  {% endfor %}
+  </div>
+css: |
+  .module { border-left: 3px solid var(--tone, var(--line)); padding: .3rem .8rem; margin: .6rem 0; background: var(--bg-2); border-radius: 0 var(--radius) var(--radius) 0; }
+  .module-head { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
+  .module-path { font-weight: 600; }
+  .module-lang, .module-kind { font-size: .75rem; color: var(--muted); }
+  .module-purpose { margin: .2rem 0; }
+  .module-deps { font-size: .82rem; color: var(--fg-2); }
+  .module-exports { margin-top: .3rem; font-size: .88rem; }
+  .module-exports summary { cursor: pointer; color: var(--accent); }
+  .module-exports table { margin-top: .3rem; }
+examples:
+  - args: {modules: [{id: cli, path: yss/cli.py, purpose: Command line., exports: [{name: main, kind: function}]}]}

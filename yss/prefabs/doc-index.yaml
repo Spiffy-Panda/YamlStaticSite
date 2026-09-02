@@ -1,0 +1,24 @@
+name: doc-index
+description: Cards for every structured doc, linking to the page that presents it (doc_url) and to its JSON export. Bind `docs` from `$docs`.
+category: list
+params:
+  docs: {type: list, required: true, item: {id: doc id, kind: doc kind, title: required, summary: optional, status: optional, updated: optional, tags: list}}
+  columns: {type: integer, default: 3}
+template: |
+  <div class="card-grid cols-{{ columns }} doc-index">
+  {% for d in docs %}
+    {{ prefab('card', {
+        'title': d.title,
+        'href': doc_url(d.id) or url('data/docs/' ~ d.id ~ '.json'),
+        'badge': d.kind,
+        'subtitle': d.status ~ (' · updated ' ~ d.updated if d.updated else '') if d.status else d.updated,
+        'body': d.summary,
+        'meta': [{'label': 'json', 'value': d.id ~ '.json'}],
+        'tags': d.tags
+      }) }}
+  {% endfor %}
+  </div>
+css: |
+  .doc-index .card { --tone: var(--accent); }
+examples:
+  - args: {docs: [{id: plan, kind: plan, title: Plan, summary: "What we are doing."}]}

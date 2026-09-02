@@ -1,0 +1,24 @@
+name: bullet-list
+description: Plain list of strings or {text, badge, href} items, rendered as inline markdown. Use for goals, principles, constraints.
+category: list
+params:
+  items: {type: list, required: true, item: {text: "string (or the item itself is a string)", badge: optional, href: optional}}
+  ordered: {type: boolean, default: false}
+  empty: {type: string, default: Nothing listed.}
+template: |
+  {% if items %}
+  <{{ 'ol' if ordered else 'ul' }} class="bullet-list">
+    {% for it in items %}
+    <li>
+      {% if it is mapping %}
+        {% if it.href %}<a href="{{ it.href }}">{{ (it.text or it.title) | md_inline }}</a>{% else %}{{ (it.text or it.title) | md_inline }}{% endif %}
+        {% if it.badge %} {{ prefab('badge', text=it.badge) }}{% endif %}
+      {% else %}{{ it | md_inline }}{% endif %}
+    </li>
+    {% endfor %}
+  </{{ 'ol' if ordered else 'ul' }}>
+  {% else %}<p class="empty">{{ empty }}</p>{% endif %}
+css: |
+  .bullet-list li { margin: .2rem 0; }
+examples:
+  - args: {items: ["First **goal**", {text: "Second goal", badge: done}]}

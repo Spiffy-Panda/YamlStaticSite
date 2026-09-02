@@ -1,0 +1,33 @@
+# Page - schema: page. Reference for authors: prefab gallery, schemas, README.
+id: reference
+route: /reference/
+title: Reference
+summary: Every prefab with its parameters and a rendered example, the schema files, and the README. For anyone authoring pages.
+nav: {label: Reference, order: 80}
+sections:
+  - id: prefabs
+    type: prefab
+    heading: Prefab gallery
+    intro: Built-in prefabs come from `yss/prefabs/`; site-local ones (like this gallery) from `site/prefabs/`. Examples are rendered live, so a broken prefab breaks the build here first.
+    prefab: prefab-gallery
+    args:
+      prefabs: {from: $prefabs, sort: [category, name]}
+
+  - id: schemas
+    type: markdown
+    heading: Schemas
+    jinja: true
+    markdown: |
+      Printed with `python -m yss schema <name> --yaml`; exported as JSON in this build:
+
+      - [doc.envelope]({{ url('schemas/doc.envelope.json') }}) - fields every doc shares
+      - [doc.plan]({{ url('schemas/doc.plan.json') }}), [doc.design]({{ url('schemas/doc.design.json') }}), [doc.codemap]({{ url('schemas/doc.codemap.json') }}), [doc.decisions]({{ url('schemas/doc.decisions.json') }}), [doc.glossary]({{ url('schemas/doc.glossary.json') }}), [doc.changelog]({{ url('schemas/doc.changelog.json') }}), [doc.generic]({{ url('schemas/doc.generic.json') }})
+      - [prefab]({{ url('schemas/prefab.json') }}) - UI prefabs
+      - [page]({{ url('schemas/page.json') }}) - un-inflated pages and the binding language
+      - [site]({{ url('schemas/site.json') }}) - site.yaml
+
+  - id: readme
+    type: include
+    heading: README
+    path: README.md
+    as: markdown

@@ -1,0 +1,133 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: yss:page
+title: Un-inflated page
+description: |
+  The human-facing framing of structured data. A page is a route plus an ordered list of sections.
+  Sections either carry prose (markdown), invoke a prefab with args bound to doc data, load a dynamic
+  JSON source at runtime, embed a prototype, or include a file. Bindings look like
+  `{from: plan.milestones, where: {status: active}, sort: -priority, limit: 6, map: {title: name}}`.
+type: object
+required: [title, sections]
+additionalProperties: false
+properties:
+  id:
+    type: string
+    pattern: "^[a-z0-9][a-z0-9_-]*$"
+    description: Defaults to the file stem. `index` maps to route `/`.
+  route:
+    type: string
+    pattern: "^/([A-Za-z0-9._-]+/)*$"
+    description: Pretty URL ending in `/`. Defaults to `/<id>/`.
+  title: {type: string}
+  summary: {type: string, description: One sentence shown under the title. Say who the page is for.}
+  visibility: {type: string, enum: [public, private], default: public}
+  layout: {type: string, default: default, description: Layout template name (site/layouts/<name>.html).}
+  docs:
+    type: array
+    items: {type: string}
+    description: Doc ids this page presents. Enables doc_url() links and the doc index.
+  nav:
+    type: object
+    properties:
+      label: {type: string}
+      order: {type: integer}
+      group: {type: string}
+      hidden: {type: boolean}
+    additionalProperties: false
+  head:
+    type: object
+    properties:
+      css: {type: array, items: {type: string}, description: Extra stylesheet paths (site-relative).}
+      js: {type: array, items: {type: string}}
+      meta: {type: object, additionalProperties: {type: string}}
+    additionalProperties: false
+  sections:
+    type: array
+    items: {$ref: "#/$defs/section"}
+  agent_notes: {type: string}
+$defs:
+  binding:
+    type: object
+    required: [from]
+    properties:
+      from: {type: string, description: "`<doc-id>.<path>` or `$docs` / `$pages` / `$site` / `$prefabs`."}
+      where:
+        type: object
+        description: "field: value | [any, of] | {not: x} | {contains: x} | {exists: true} | {gte: n} | {lte: n}"
+      sort:
+        oneOf:
+          - {type: string}
+          - {type: array, items: {type: string}}
+        description: "field or -field (descending); dotted paths allowed."
+      limit: {type: integer, minimum: 0}
+      map:
+        type: object
+        description: "target field -> source field, dotted path, Jinja string ({{ id }}) or literal."
+      fields: {type: array, items: {type: string}, description: Keep only these fields.}
+      group_by: {type: string, description: "Turns the list into [{key, items}] groups."}
+    additionalProperties: false
+  section:
+    type: object
+    required: [type]
+    properties:
+      id: {type: string, pattern: "^[a-z0-9][a-z0-9_-]*$", description: Anchor id; defaults to section-N.}
+      type: {type: string, enum: [markdown, prefab, dynamic, embed, html, include]}
+      heading: {type: string}
+      intro: {type: string, description: Markdown shown between the heading and the content. This is the human framing.}
+      visibility: {type: string, enum: [public, private]}
+      class: {type: string}
+      # markdown
+      markdown: {type: string}
+      from: {type: string}
+      where: {type: object}
+      sort: {oneOf: [{type: string}, {type: array, items: {type: string}}]}
+      limit: {type: integer}
+      map: {type: object}
+      fields: {type: array, items: {type: string}}
+      jinja: {type: boolean, description: Render the markdown through Jinja first (docs, site, url available).}
+      # prefab
+      prefab: {type: string}
+      args:
+        type: object
+        description: Literal values or bindings (objects with `from`).
+        additionalProperties:
+          anyOf:
+            - {$ref: "#/$defs/binding"}
+            - {not: {type: object, required: [from]}}
+      # dynamic
+      source: {type: string, description: Name under dynamic.sources in site.yaml.}
+      view: {type: string, enum: [json, table, kv, list, cards, custom], default: json}
+      path: {type: string, description: Dotted path into the source's `data`.}
+      columns:
+        type: array
+        items:
+          oneOf:
+            - {type: string}
+            - {type: object, required: [key], properties: {key: {type: string}, label: {type: string}}, additionalProperties: false}
+      card_fields: {type: object, description: "cards view: {title, subtitle, body, badge} -> field names."}
+      script: {type: string, description: "custom view: JS body with (el, data, envelope) in scope."}
+      empty: {type: string, description: Text shown when the source is missing in this build.}
+      refresh: {type: integer, minimum: 0, description: Seconds between re-fetches (0 = never).}
+      # embed
+      src: {type: string}
+      kind: {type: string, enum: [iframe, godot, wasm, image, video], default: iframe}
+      height: {type: integer, minimum: 50}
+      title: {type: string}
+      caption: {type: string}
+      sandbox: {type: string}
+      # html / include
+      html: {type: string}
+      path: {type: string}
+      as: {type: string, enum: [markdown, html, text]}
+    additionalProperties: false
+    allOf:
+      - if: {properties: {type: {const: prefab}}}
+        then: {required: [prefab]}
+      - if: {properties: {type: {const: dynamic}}}
+        then: {required: [source]}
+      - if: {properties: {type: {const: embed}}}
+        then: {required: [src]}
+      - if: {properties: {type: {const: html}}}
+        then: {required: [html]}
+      - if: {properties: {type: {const: include}}}
+        then: {required: [path]}

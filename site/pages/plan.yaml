@@ -1,0 +1,75 @@
+# Page - schema: page. Presents docs/plan.yaml.
+id: plan
+route: /plan/
+title: Plan
+summary: Goals, milestones and tasks for the toolchain, read straight from plan.yaml. For anyone deciding what to work on next.
+nav: {label: Plan, order: 10}
+docs: [plan]
+sections:
+  - id: goals
+    type: prefab
+    heading: Goals
+    prefab: bullet-list
+    args:
+      items: {from: plan.goals}
+
+  - id: non-goals
+    type: prefab
+    heading: Non-goals
+    intro: Things deliberately out of scope, so nobody re-litigates them by accident.
+    prefab: bullet-list
+    args:
+      items: {from: plan.non_goals}
+
+  - id: board
+    type: prefab
+    heading: Milestone board
+    intro: One column per status. Cards link to the detailed task list below.
+    prefab: status-board
+    args:
+      groups:
+        from: plan.milestones
+        sort: priority
+        map:
+          badge: status
+          body: summary
+          href: "#{{ id }}"
+          meta: "{{ 'P' ~ priority if priority else '' }}{{ ' · target ' ~ target_date if target_date else '' }}"
+        group_by: status
+      order: [active, blocked, planned, done, dropped]
+
+  - id: tasks
+    type: prefab
+    heading: Milestones and tasks
+    intro: Active and blocked milestones are expanded. Each task shows how to verify it.
+    prefab: task-list
+    args:
+      milestones: {from: plan.milestones, sort: [status, priority]}
+      show_verify: true
+
+  - id: risks
+    type: prefab
+    heading: Risks
+    prefab: table
+    args:
+      rows: {from: plan.risks}
+      columns:
+        - {key: title, label: Risk, md: true}
+        - {key: likelihood, label: Likelihood}
+        - {key: impact, label: Impact}
+        - {key: mitigation, label: Mitigation, md: true}
+        - {key: status, label: Status}
+      empty: No risks recorded.
+
+  - id: questions
+    type: prefab
+    heading: Open questions
+    intro: "Answer these in `plan.yaml` (set `status: answered` and fill `answer`); do not answer them in chat only."
+    prefab: table
+    args:
+      rows: {from: plan.open_questions, where: {status: open}}
+      columns:
+        - {key: question, label: Question, md: true}
+        - {key: context, label: Context, md: true}
+        - {key: owner, label: Owner}
+      empty: No open questions.

@@ -1,0 +1,45 @@
+# Glossary - schema: doc.glossary
+kind: glossary
+id: glossary
+title: Glossary
+summary: The words the toolchain and its skills use.
+status: active
+updated: 2026-09-02
+
+terms:
+  - term: structured doc
+    id: structured-doc
+    aliases: [doc]
+    definition: A YAML file under `docs/` with a `kind` and the envelope fields, validated by `doc.<kind>.schema.yaml`. The agent-first source of truth.
+    see_also: [kind, envelope]
+  - term: kind
+    definition: The type of a structured doc (plan, design, codemap, decisions, glossary, changelog, generic, or site-defined). Selects the body schema.
+  - term: envelope
+    definition: The fields every doc shares - kind, id, title, summary, visibility, status, owners, updated, tags, links, related, private_notes, agent_notes.
+  - term: page
+    aliases: [un-inflated page]
+    definition: A YAML file under `site/pages/` describing a route and ordered sections. It is the human framing; it selects and arranges data but holds little content of its own.
+    see_also: [section, inflate]
+  - term: section
+    definition: One block of a page. Types - markdown, prefab, dynamic, embed, html, include. `heading` and `intro` are the framing text around the content.
+  - term: prefab
+    aliases: [UI prefab, component]
+    definition: A reusable HTML fragment defined in YAML - declared params, a Jinja2 template, optional CSS/JS and examples. Built-ins live in `yss/prefabs/`, site ones in `site/prefabs/`.
+  - term: binding
+    definition: "A mapping with `from` (and optionally where, sort, limit, map, fields, group_by) that pulls a value out of the docs for a prefab arg or a markdown section."
+    see_also: [prefab, section]
+  - term: inflate
+    definition: What the build does to a page - resolve its bindings, render its prefabs and wrap the result in a layout.
+  - term: target
+    definition: A named build (public or private by default) with its own base URL, redaction setting and output folder `dist/<target>/`.
+  - term: visibility
+    definition: "`public` or `private` on any object. Private objects vanish from public targets; `private_notes` keys are always stripped there."
+  - term: redaction scan
+    aliases: [leak scan]
+    definition: The post-build check that fails a redacting target if any forbidden string (from `.yss/local.yaml` or CI secrets, plus the checkout path) appears in the output.
+  - term: dynamic source
+    definition: A runtime JSON feed declared in `site.yaml` and collected from a provider, command or file into `dynamic/<name>.json` with a fixed envelope.
+  - term: provider
+    definition: A Python function `collect(cfg, spec)` referenced as `module:function` by a dynamic source.
+  - term: base URL
+    definition: The path prefix a target is served under (`/YamlStaticSite/` for GitHub project pages). Templates use `url()` so links work on both ports.

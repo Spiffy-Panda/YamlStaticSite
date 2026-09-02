@@ -1,0 +1,246 @@
+# Design document - schema: doc.design (python -m yss schema doc.design --yaml)
+kind: design
+id: design
+title: YamlStaticSite design
+summary: Three schema families (structured docs, UI prefabs, un-inflated pages) feed a Python build that renders a static site per target and exports the same data as JSON; a two-port server previews both targets.
+status: active
+updated: 2026-09-02
+owners: [agent]
+related: [plan, codemap, decisions]
+
+overview: |
+  The system separates **what is true** from **how it is shown**.
+
+  - `docs/*.yaml` are *structured docs*: typed, validated data that agents read and write directly
+    (plan, design, code map, decisions, glossary, changelog, or `generic`).
+  - `site/pages/*.yaml` are *un-inflated pages*: the human framing. A page is a route plus ordered
+    sections; each section is prose, a prefab invocation bound to doc data, a runtime JSON source,
+    an embedded prototype, or an included file.
+  - `yss/prefabs/*.yaml` and `site/prefabs/*.yaml` are *UI prefabs*: small Jinja2 templates with
+    declared parameters and scoped CSS. Pages fill them from lists in the docs using bindings
+    (`from`, `where`, `sort`, `limit`, `map`, `group_by`).
+
+  The build validates everything against JSON Schema, filters the data for the chosen target
+  (public builds drop anything marked `visibility: private` and every `private_notes` key), renders
+  pages, exports the filtered docs as JSON, collects dynamic sources, and finally scans the output
+  for forbidden strings. The private server adds live re-collection of dynamic sources and the
+  cross-origin isolation headers that Godot and threaded wasm builds need.
+
+principles:
+  - id: p-agent-first
+    title: Structured files are the source of truth; HTML is derived
+    rationale: Agents should never edit rendered output, and humans should never need to read YAML to understand the project.
+  - id: p-validate-early
+    title: Validate before rendering, with file and path in every error
+    rationale: An agent fixing a doc needs the exact location and the allowed values, not a stack trace.
+  - id: p-private-by-marking
+    title: Privacy is declared on the data, enforced on the output
+    rationale: Marking an item private is cheap and local; the output scan catches anything the marking missed.
+  - id: p-no-logic-in-templates
+    title: Selection and shaping happen in bindings, presentation in prefabs
+    rationale: Keeps Jinja small enough to live in YAML and keeps the same prefab reusable across doc kinds.
+  - id: p-static-first
+    title: Pages read without JavaScript; dynamic sections degrade to a note
+    rationale: GitHub Pages is a file host. Runtime data is a bonus, not a dependency.
+  - id: p-few-deps
+    title: Four dependencies, standard library for everything else
+    rationale: PyYAML, Jinja2, jsonschema and markdown-it-py. The server is http.server; watching is mtime polling.
+
+components:
+  - id: c-config
+    name: Config
+    kind: module
+    responsibility: Load site.yaml over defaults; resolve paths, targets, base URLs, dynamic sources and redaction lists.
+    inputs: [site.yaml, .yss/local.yaml, YSS_FORBIDDEN_STRINGS, YSS_FLAG_STRINGS]
+    outputs: [Config object]
+    code: [yss/config.py]
+    status: active
+  - id: c-schemas
+    name: Schema registry and loaders
+    kind: schema
+    responsibility: Load *.schema.yaml from the package and the site, fold the doc envelope into each kind, validate docs, pages, prefabs and site config.
+    inputs: [yss/schemas, schemas/, docs/, site/pages, site/prefabs]
+    outputs: [validated dicts with _source, error lists]
+    depends_on: [c-config]
+    code: [yss/loader.py, yss/schemas/]
+    status: active
+  - id: c-visibility
+    name: Visibility and redaction
+    kind: module
+    responsibility: Remove private objects and private_notes for public targets; scan output trees for forbidden and flagged strings.
+    depends_on: [c-config]
+    code: [yss/visibility.py]
+    status: active
+  - id: c-binding
+    name: Binding resolver
+    kind: module
+    responsibility: Turn a `from/where/sort/limit/map/fields/group_by` spec into data, with virtual roots $docs, $pages, $site, $prefabs.
+    inputs: [binding spec, filtered docs]
+    outputs: [list or scalar]
+    code: [yss/binding.py]
+    status: active
+  - id: c-render
+    name: Renderer
+    kind: module
+    responsibility: Jinja2 environment with prefab templates, section handlers for each section type, layout wrapping, nav and doc_url helpers.
+    depends_on: [c-binding, c-prefabs, c-config]
+    code: [yss/render.py, yss/templates/default.html]
+    status: active
+  - id: c-prefabs
+    name: Prefab library
+    kind: ui
+    responsibility: Built-in cards, grids, tables, boards, timelines, lists; sites override or add prefabs by name.
+    code: [yss/prefabs/, site/prefabs/]
+    status: active
+  - id: c-build
+    name: Build pipeline
+    kind: process
+    responsibility: Orchestrate load, filter, render, export, assets, dynamic collection, manifest and the leak scan; delete output on a forbidden hit.
+    depends_on: [c-schemas, c-visibility, c-render, c-dynamic]
+    outputs: [dist/<target>/]
+    code: [yss/build.py]
+    status: active
+  - id: c-dynamic
+    name: Dynamic sources
+    kind: data
+    responsibility: Collect runtime JSON from providers, commands or files into a uniform envelope; built-in providers for build info, test runs and git log.
+    outputs: [dist/<target>/dynamic/<name>.json]
+    depends_on: [c-config]
+    code: [yss/dynamic.py, yss/providers/]
+    status: active
+  - id: c-server
+    name: Two-port server
+    kind: service
+    responsibility: Serve dist/private and dist/public on separate ports, honour base_url, refresh stale dynamic sources in the background (stale-while-revalidate), send COOP/COEP, rebuild on change.
+    depends_on: [c-build, c-dynamic]
+    code: [yss/server.py]
+    status: active
+  - id: c-client
+    name: Client runtime
+    kind: ui
+    responsibility: Fetch dynamic JSON and render it as table, kv, list, cards, json or a custom script; nav toggle.
+    code: [yss/assets/yss.js, yss/assets/yss.css]
+    status: active
+  - id: c-cli
+    name: CLI
+    kind: module
+    responsibility: validate, build, serve, dynamic, scan, ls, query, schema, new, init, pages-setup (gh wrapper).
+    depends_on: [c-build, c-server]
+    code: [yss/cli.py, yss/scaffold.py]
+    status: active
+  - id: c-skills
+    name: Agent skills
+    kind: process
+    responsibility: Teach agents the mental model and the commands; one skill per authoring task plus publishing.
+    code: [.claude/skills/]
+    status: active
+
+interfaces:
+  - id: i-cli
+    name: python -m yss
+    kind: cli
+    signature: "yss [--root DIR] {validate|build|serve|dynamic|scan|ls|query|schema|new|init} ..."
+    description: Exit code 0 on success, 1 on validation/build failure, 2 on configuration errors.
+    component: c-cli
+  - id: i-binding
+    name: Binding spec
+    kind: yaml
+    signature: "{from: <doc>.<path> | $docs | $pages | $site | $prefabs, where: {}, sort: str|[str], limit: int, map: {}, fields: [], group_by: str}"
+    description: Used for prefab args and markdown sections. `map` values are field names, dotted paths, Jinja strings or literals.
+    component: c-binding
+  - id: i-data-json
+    name: Exported data
+    kind: json
+    signature: "data/docs.json, data/docs/<id>.json, data/pages.json, data/site.json, schemas/<name>.json, build.json"
+    description: Same filtering as the HTML; agents and client scripts can read the site as data.
+    component: c-build
+  - id: i-dynamic
+    name: Dynamic envelope
+    kind: json
+    signature: "{source, collected_at, ok, seconds, data} | {source, collected_at, ok: false, error}"
+    description: Every dynamic source, regardless of collector, is wrapped this way so the client can render errors uniformly.
+    component: c-dynamic
+  - id: i-provider
+    name: Provider function
+    kind: python
+    signature: "collect(cfg: Config, spec: dict) -> JSON-able"
+    description: "Referenced from site.yaml as `provider: module:function`. Must not return absolute paths."
+    component: c-dynamic
+  - id: i-prefab-call
+    name: Prefab call from templates
+    kind: python
+    signature: "prefab(name, *dicts, **kwargs) -> Markup; url(path); doc_url(doc_id); filters md, md_inline, slug"
+    component: c-render
+
+flows:
+  - id: f-build
+    title: Build one target
+    trigger: "`python -m yss build --target public`"
+    steps:
+      - actor: loader
+        action: Load schemas, docs, pages, prefabs and site.yaml; validate each against its schema
+        produces: error list (build stops if non-empty)
+      - actor: visibility
+        action: Drop private docs, pages, sections and items for the target; strip private_notes
+        produces: filtered docs and pages
+      - actor: renderer
+        action: For each page, resolve section bindings, render prefabs and markdown, wrap in the layout
+        produces: dist/<target>/<route>/index.html
+      - actor: build
+        action: Export docs as JSON, copy assets, write prefabs.css/js, copy schemas, write .nojekyll
+      - actor: dynamic
+        action: Collect every source enabled for the target with on_build true
+        produces: dist/<target>/dynamic/<name>.json
+      - actor: build
+        action: Scan every text file in the output for forbidden and flagged strings
+        produces: BuildError and deleted output on a forbidden hit; warnings for flags
+  - id: f-serve
+    title: Serve both targets
+    trigger: "`python -m yss serve`"
+    steps:
+      - actor: server
+        action: Build both targets once
+      - actor: server
+        action: Start a ThreadingHTTPServer per target on its port, private with live dynamic refresh and COOP/COEP
+      - actor: watcher
+        action: Poll source mtimes each second; rebuild on change and write an error page if a build fails
+  - id: f-author
+    title: Agent adds a milestone and shows it
+    trigger: A task is planned
+    steps:
+      - actor: agent
+        action: Append a milestone to docs/plan.yaml with id, title, status and tasks
+      - actor: agent
+        action: Run `python -m yss validate` and fix any reported path
+      - actor: agent
+        action: If a new view is needed, add a section to site/pages/plan.yaml binding `plan.milestones` into a prefab
+      - actor: agent
+        action: Run `python -m yss build --target private --no-dynamic` and open the page on the private port
+
+constraints:
+  - id: k-gh-pages
+    text: GitHub Pages serves files only; no custom headers, no server logic, project sites live under /<repo>/.
+    source: platform
+  - id: k-no-leak
+    text: The public build must never contain the maintainer's legal name, the absolute checkout path, or anything marked private.
+    source: policy
+  - id: k-agent-readable
+    text: Every artefact an agent needs (docs, schemas, prefabs, pages) is YAML with a schema that can be printed by the CLI.
+    source: user
+  - id: k-windows
+    text: Development happens on Windows with Git Bash and PowerShell; no shell-specific tooling in the pipeline.
+    source: platform
+
+alternatives:
+  - id: a-xslt
+    option: XML documents transformed with XSLT
+    rejected_because: Verbose for agents to author, brittle to validate, poor tooling for data selection and no sane way to embed markdown or runtime data.
+  - id: a-mkdocs
+    option: MkDocs / Sphinx with markdown sources
+    rejected_because: Markdown is the thing being replaced; the structured data would have to be embedded in front matter or plugins.
+  - id: a-hugo
+    option: Hugo or Jekyll data files
+    rejected_because: Extra runtime outside Python, template languages agents rarely get right, and no built-in public/private redaction.
+  - id: a-spa
+    option: Single page app rendering JSON client-side
+    rejected_because: Unreadable without JavaScript, harder to diff, and GitHub Pages previews would not match local builds.

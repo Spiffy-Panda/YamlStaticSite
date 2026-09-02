@@ -1,0 +1,83 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: yss:doc.plan
+title: Plan document
+description: |
+  Goals, milestones with tasks, risks and open questions. The agent-first replacement for PLAN.md.
+  Status vocabulary: planned, active, blocked, done, dropped. Keep ids stable; pages bind to them.
+type: object
+required: [kind, title, milestones]
+additionalProperties: false
+properties:
+  kind: {const: plan}
+  goals:
+    type: array
+    items: {type: string}
+    description: What success looks like, one sentence each.
+  non_goals:
+    type: array
+    items: {type: string}
+  milestones:
+    type: array
+    items:
+      type: object
+      allOf: [{$ref: "#/$defs/item_base"}]
+      required: [id, title, status]
+      properties:
+        id: {$ref: "#/$defs/slug"}
+        title: {type: string}
+        summary: {type: string}
+        status: {$ref: "#/$defs/work_status"}
+        priority: {type: integer, minimum: 1, maximum: 5, description: 1 is highest.}
+        target_date: {type: string, format: date}
+        depends_on: {type: array, items: {$ref: "#/$defs/slug"}}
+        done_when: {type: string, description: Observable completion criterion.}
+        tasks:
+          type: array
+          items: {$ref: "#/$defs/task"}
+      unevaluatedProperties: false
+  risks:
+    type: array
+    items:
+      type: object
+      allOf: [{$ref: "#/$defs/item_base"}]
+      required: [id, title]
+      properties:
+        id: {$ref: "#/$defs/slug"}
+        title: {type: string}
+        likelihood: {type: string, enum: [low, medium, high]}
+        impact: {type: string, enum: [low, medium, high]}
+        mitigation: {type: string}
+        status: {type: string, enum: [open, mitigated, accepted, closed], default: open}
+      unevaluatedProperties: false
+  open_questions:
+    type: array
+    items:
+      type: object
+      allOf: [{$ref: "#/$defs/item_base"}]
+      required: [id, question]
+      properties:
+        id: {$ref: "#/$defs/slug"}
+        question: {type: string}
+        context: {type: string}
+        owner: {type: string}
+        status: {type: string, enum: [open, answered, deferred], default: open}
+        answer: {type: string}
+      unevaluatedProperties: false
+$defs:
+  work_status:
+    type: string
+    enum: [planned, active, blocked, done, dropped]
+  task:
+    type: object
+    allOf: [{$ref: "#/$defs/item_base"}]
+    required: [id, title, status]
+    properties:
+      id: {$ref: "#/$defs/slug"}
+      title: {type: string}
+      status: {$ref: "#/$defs/work_status"}
+      owner: {type: string, description: Handle or role (agent, human, ci).}
+      estimate: {type: string, description: Free-form size (S/M/L or hours).}
+      depends_on: {type: array, items: {$ref: "#/$defs/slug"}}
+      done_when: {type: string}
+      verify: {type: string, description: Command or observation that proves the task is done.}
+    unevaluatedProperties: false

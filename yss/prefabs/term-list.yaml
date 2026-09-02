@@ -1,0 +1,20 @@
+name: term-list
+description: Glossary definition list. Bind `terms` from `glossary.terms`.
+category: text
+params:
+  terms: {type: list, required: true, item: {term: required, definition: markdown, aliases: list, see_also: list}}
+template: |
+  <dl class="term-list">
+  {% for t in terms | sort(attribute='term') %}
+    <dt id="term-{{ (t.id or t.term) | slug }}">{{ t.term }}{% if t.aliases %} <span class="term-aliases">also: {{ t.aliases | join(', ') }}</span>{% endif %}</dt>
+    <dd>{{ t.definition | md }}{% if t.see_also %}<div class="term-see">See also: {% for s in t.see_also %}<a href="#term-{{ s | slug }}">{{ s }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</div>{% endif %}</dd>
+  {% endfor %}
+  </dl>
+css: |
+  .term-list dt { font-weight: 700; margin-top: .8rem; }
+  .term-aliases { font-weight: 400; color: var(--muted); font-size: .85rem; }
+  .term-list dd { margin: .1rem 0 0 1rem; }
+  .term-list dd p { margin: .2rem 0; }
+  .term-see { font-size: .85rem; color: var(--fg-2); }
+examples:
+  - args: {terms: [{term: prefab, definition: "A reusable **UI** fragment.", aliases: [component]}]}

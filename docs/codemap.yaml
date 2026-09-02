@@ -1,0 +1,212 @@
+# Code map - schema: doc.codemap (python -m yss schema doc.codemap --yaml)
+# Agents: when you add or move a module, update `modules` here. Paths are repo-relative.
+kind: codemap
+id: codemap
+title: YamlStaticSite code map
+summary: Where each part of the toolchain lives, what it exports, and how to run it.
+status: active
+updated: 2026-09-02
+related: [design]
+
+roots:
+  - path: yss/
+    purpose: The toolchain package. Installable (`pip install -e .`) or run in place with `python -m yss`.
+  - path: yss/schemas/
+    purpose: Built-in JSON Schemas written as YAML - doc envelope and kinds, prefab, page, site.
+  - path: yss/prefabs/
+    purpose: Built-in UI prefabs (Jinja2 template + params + CSS in one YAML file each).
+  - path: yss/templates/
+    purpose: Default page layout. A site overrides it with site/layouts/default.html.
+  - path: yss/assets/
+    purpose: Base stylesheet and client runtime copied into every build.
+  - path: yss/providers/
+    purpose: Built-in dynamic data providers.
+  - path: docs/
+    purpose: This repo's structured docs (the agent-first source of truth).
+  - path: site/
+    purpose: This repo's pages, site-local prefabs, layouts and static assets (including prototypes).
+  - path: schemas/
+    purpose: Site-local schema additions or overrides (empty in the pilot).
+  - path: tests/
+    purpose: unittest suite; also collected by the `testruns` dynamic source.
+  - path: .claude/skills/
+    purpose: Skill files that teach agents to use the toolchain.
+  - path: dist/
+    purpose: Build output, one folder per target. Gitignored.
+
+modules:
+  - id: config
+    path: yss/config.py
+    purpose: site.yaml over defaults; targets, base URLs, dynamic sources, redaction lists.
+    language: python
+    status: active
+    exports:
+      - {name: Config, kind: class, signature: "Config.load(root=None)", description: Finds site.yaml upwards from cwd.}
+      - {name: Config.redaction_lists, kind: function, signature: "(target) -> (forbidden, flags)", description: Combines .yss/local.yaml and env vars; adds the checkout path for redacting targets.}
+      - {name: DEFAULTS, kind: constant}
+    tests: [tests/test_yss.py]
+  - id: loader
+    path: yss/loader.py
+    purpose: YAML loading (dates stay strings), SchemaRegistry, load_docs / load_pages / load_prefabs.
+    language: python
+    status: active
+    depends_on: [config]
+    exports:
+      - {name: SchemaRegistry, kind: class, signature: "SchemaRegistry(dirs).validate(instance, name, where) -> [errors]", description: Folds the doc envelope into each doc.<kind> schema.}
+      - {name: load_docs, kind: function, signature: "(cfg, reg) -> (docs_by_id, errors)"}
+      - {name: load_pages, kind: function, signature: "(cfg, reg) -> (pages, errors)"}
+      - {name: load_prefabs, kind: function, signature: "(cfg, reg) -> (prefabs_by_name, errors)", description: Site prefabs override built-ins by name.}
+    tests: [tests/test_yss.py]
+  - id: visibility
+    path: yss/visibility.py
+    purpose: filter_for_target, is_visible, scan_tree, slugify.
+    language: python
+    status: active
+    exports:
+      - {name: filter_for_target, kind: function, signature: "(data, target) -> data", description: Deep copy without private objects / private_notes for public.}
+      - {name: scan_tree, kind: function, signature: "(root, forbidden, flags) -> (hits, flag_hits)", description: Case-insensitive substring scan of text files.}
+    tests: [tests/test_yss.py]
+  - id: binding
+    path: yss/binding.py
+    purpose: Resolve binding specs against docs; where/sort/limit/map/fields/group_by.
+    language: python
+    status: active
+    exports:
+      - {name: resolve_binding, kind: function, signature: "(spec, ctx, render=None) -> value"}
+      - {name: is_binding, kind: function, signature: "(value) -> bool", description: A dict with a string `from` key.}
+    tests: [tests/test_yss.py]
+  - id: render
+    path: yss/render.py
+    purpose: Renderer - Jinja env, prefab(), section handlers, render_page; markdown helpers.
+    language: python
+    status: active
+    depends_on: [binding, config, visibility]
+    exports:
+      - {name: Renderer, kind: class, signature: "Renderer(cfg, target, docs, pages, prefabs, all_doc_ids, build_info)"}
+      - {name: Renderer.prefab, kind: function, signature: "(name, *dicts, **kwargs) -> Markup", description: "Applies defaults, checks required params and types."}
+      - {name: route_to_path, kind: function, signature: "(out_dir, route) -> Path"}
+    tests: [tests/test_yss.py]
+  - id: build
+    path: yss/build.py
+    purpose: load_all (validate + cross checks) and build (filter, render, export, assets, dynamic, manifest, scan).
+    language: python
+    status: active
+    depends_on: [loader, visibility, render, dynamic]
+    exports:
+      - {name: load_all, kind: function, signature: "(cfg) -> Loaded"}
+      - {name: build, kind: function, signature: "(cfg, target, out_dir=None, strict=False, run_dynamic=True, loaded=None) -> BuildReport", description: Raises BuildError; deletes output on forbidden strings.}
+    tests: [tests/test_yss.py]
+  - id: dynamic
+    path: yss/dynamic.py
+    purpose: Collect dynamic sources (provider / command / file) into the JSON envelope.
+    language: python
+    status: active
+    depends_on: [config]
+    exports:
+      - {name: collect_envelope, kind: function, signature: "(cfg, name, spec) -> dict"}
+      - {name: write_all, kind: function, signature: "(cfg, target, out_dir, names=None, only_on_build=False) -> {name: envelope}"}
+  - id: providers
+    path: yss/providers/
+    purpose: buildinfo (counts), testruns (unittest in a subprocess), gitlog (recent commits).
+    language: python
+    status: active
+    depends_on: [dynamic]
+    exports:
+      - {name: buildinfo.collect, kind: function}
+      - {name: testruns.collect, kind: function, description: "Also runnable: python -m yss.providers.testruns tests"}
+      - {name: gitlog.collect, kind: function}
+  - id: server
+    path: yss/server.py
+    purpose: SiteHandler (prefix stripping, live dynamic, COOP/COEP), make_server, rebuild, serve with watch loop.
+    language: python
+    status: active
+    depends_on: [build, dynamic]
+    exports:
+      - {name: serve, kind: function, signature: "(cfg, watch=True, host=None, private_port=None, public_port=None, targets=('private','public'))"}
+      - {name: make_server, kind: function, signature: "(cfg, target, host, port, live) -> ThreadingHTTPServer"}
+    tests: [tests/test_yss.py]
+  - id: ghpages
+    path: yss/ghpages.py
+    purpose: "`pages-setup` - gh CLI wrapper that stores redaction secrets and sets the Pages source to GitHub Actions."
+    language: python
+    status: active
+    depends_on: [config, visibility]
+    exports:
+      - {name: setup, kind: function, signature: "(cfg, repo=None, dry_run=False, secrets=True, pages=True, run_workflow=False) -> [messages]"}
+  - id: scaffold
+    path: yss/scaffold.py
+    purpose: Skeleton generation from schemas for `yss new` and `yss init`.
+    language: python
+    status: active
+    depends_on: [loader]
+    exports:
+      - {name: new_doc, kind: function}
+      - {name: new_page, kind: function}
+      - {name: new_prefab, kind: function}
+      - {name: init_site, kind: function}
+  - id: cli
+    path: yss/cli.py
+    purpose: argparse front end for every command.
+    language: python
+    status: active
+    depends_on: [build, server, scaffold, dynamic]
+    exports:
+      - {name: main, kind: function, signature: "(argv=None) -> int"}
+  - id: client
+    path: yss/assets/yss.js
+    purpose: Dynamic section rendering and nav toggle; exposes window.yss.
+    language: javascript
+    status: active
+  - id: layout
+    path: yss/templates/default.html
+    purpose: Default layout - header/nav, page header, sections, table of contents, footer with build info.
+    language: jinja
+    status: active
+
+entrypoints:
+  - id: e-validate
+    name: Validate
+    command: python -m yss validate
+    module: cli
+    description: Schema-check every structured file. Run after every edit.
+  - id: e-build
+    name: Build
+    command: python -m yss build [--target public|private|all] [--no-dynamic] [--strict]
+    module: cli
+  - id: e-serve
+    name: Serve
+    command: python -m yss serve [--no-watch]
+    module: cli
+    description: Private on 8800, public preview on 8801 under /YamlStaticSite/.
+  - id: e-query
+    name: Query
+    command: python -m yss query plan.milestones --where status=active --fields id,title
+    module: cli
+    description: Read structured data the way pages do.
+  - id: e-tests
+    name: Tests
+    command: python -m unittest discover -s tests -v
+    module: cli
+  - id: e-pages
+    name: Pages setup
+    command: python -m yss pages-setup [--dry-run] [--run]
+    module: ghpages
+    description: One-time GitHub setup via gh - secrets from .yss/local.yaml, Pages source = Actions.
+  - id: e-new
+    name: Scaffold
+    command: python -m yss new doc <kind> <id> | new page <id> [--doc <id>] | new prefab <name>
+    module: scaffold
+
+conventions:
+  - id: cv-ids
+    rule: Ids are lowercase slugs, stable forever, unique within a doc. Pages and prefabs link by id.
+    rationale: Anchors, depends_on and doc_url all rely on ids.
+  - id: cv-private
+    rule: "Anything not for the public site is either `visibility: private` or under `private_notes`; never rely on the scan alone."
+  - id: cv-no-abs-paths
+    rule: Nothing that ends up in dist/ may contain an absolute path.
+    rationale: The checkout path contains personal information; the public build forbids it automatically.
+  - id: cv-verify
+    rule: Every plan task carries a `verify` command or observation.
+  - id: cv-prefab-css
+    rule: Prefab CSS is scoped under a class named after the prefab and uses the shared tone variables.

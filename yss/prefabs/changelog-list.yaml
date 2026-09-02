@@ -1,0 +1,26 @@
+name: changelog-list
+description: Releases with changes grouped by type. Bind `releases` from `changelog.releases`.
+category: list
+params:
+  releases: {type: list, required: true, item: {version: required, date: optional, status: optional, summary: optional, changes: "list of {type, text, refs}"}}
+template: |
+  <div class="changelog">
+  {% for r in releases %}
+    <section class="release tone-{{ (r.status or 'released') | slug }}" id="v{{ r.version | slug }}">
+      <h3 class="release-head">{{ r.version }} {% if r.date %}<span class="release-date">{{ r.date }}</span>{% endif %} {{ prefab('badge', text=r.status or 'released') }}</h3>
+      {% if r.summary %}<p class="release-summary">{{ r.summary | md_inline }}</p>{% endif %}
+      {% for group in r.changes | groupby('type') %}
+        <h4 class="change-type change-{{ group.grouper }}">{{ group.grouper }}</h4>
+        <ul>{% for c in group.list %}<li>{{ c.text | md_inline }}{% if c.refs %} <span class="change-refs">({{ c.refs | join(', ') }})</span>{% endif %}</li>{% endfor %}</ul>
+      {% endfor %}
+    </section>
+  {% endfor %}
+  </div>
+css: |
+  .release { border-top: 1px solid var(--line); padding-top: .6rem; margin-top: .6rem; }
+  .release-head { margin: 0; display: flex; gap: .6rem; align-items: center; }
+  .release-date { color: var(--muted); font-size: .85rem; font-weight: 400; }
+  .change-type { margin: .5rem 0 .1rem; font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: var(--fg-2); }
+  .change-refs { color: var(--muted); font-size: .85rem; }
+examples:
+  - args: {releases: [{version: "0.1.0", date: "2026-09-01", changes: [{type: added, text: "Everything."}]}]}

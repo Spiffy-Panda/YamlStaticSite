@@ -1,0 +1,54 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: yss:prefab
+title: UI prefab
+description: |
+  A reusable HTML fragment rendered with Jinja2. Pages invoke a prefab by name and pass `args`;
+  each arg matches a declared param. Templates can call other prefabs with `prefab('name', args)`,
+  render markdown with `| md`, make hrefs with `url('/route/')` and doc links with `doc_url('id')`.
+  Built-ins live in yss/prefabs/; a site overrides or adds prefabs in site/prefabs/ (same name wins).
+type: object
+required: [template]
+additionalProperties: false
+properties:
+  name:
+    type: string
+    pattern: "^[a-z0-9][a-z0-9_-]*$"
+    description: Defaults to the file stem.
+  description: {type: string}
+  category:
+    type: string
+    enum: [layout, list, item, badge, data, media, nav, text]
+  params:
+    type: object
+    description: Declared parameters. Undeclared args are still passed to the template.
+    additionalProperties:
+      type: object
+      properties:
+        type: {type: string, enum: [string, markdown, integer, number, boolean, list, object, any], default: any}
+        required: {type: boolean, default: false}
+        default: {}
+        description: {type: string}
+        item:
+          type: object
+          description: For lists - the fields each item may carry (field -> description). Documentation only.
+          additionalProperties: {type: string}
+      additionalProperties: false
+  template:
+    type: string
+    description: Jinja2 template producing HTML. Autoescaping is on; use `| md` for markdown fields.
+  css:
+    type: string
+    description: CSS appended to assets/prefabs.css (scope selectors under a prefab-specific class).
+  js:
+    type: string
+    description: JavaScript appended to assets/prefabs.js.
+  examples:
+    type: array
+    items:
+      type: object
+      required: [args]
+      properties:
+        note: {type: string}
+        args: {type: object}
+      additionalProperties: false
+  agent_notes: {type: string}

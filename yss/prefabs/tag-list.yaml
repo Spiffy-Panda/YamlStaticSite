@@ -1,0 +1,12 @@
+name: tag-list
+description: Row of small tag chips.
+category: badge
+params:
+  tags: {type: list, required: true}
+template: |
+  <ul class="tag-list">{% for t in tags %}<li class="tag">{{ t }}</li>{% endfor %}</ul>
+css: |
+  .tag-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .3rem; }
+  .tag { font-size: .72rem; background: var(--code); color: var(--fg-2); padding: .05rem .45rem; border-radius: 4px; }
+examples:
+  - args: {tags: [yaml, jinja]}

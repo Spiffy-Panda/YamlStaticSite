@@ -1,0 +1,17 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: yss:doc.generic
+title: Generic structured document
+description: |
+  Escape hatch for data that has no dedicated kind yet. Put everything under `data`; when a shape
+  repeats across repos, promote it to a real kind in schemas/doc.<kind>.schema.yaml.
+type: object
+required: [kind, title, data]
+additionalProperties: false
+properties:
+  kind: {const: generic}
+  shape:
+    type: string
+    description: Short name for the shape of `data`, so agents can recognise it (e.g. "env-vars", "checklist").
+  data:
+    description: Any JSON-able structure. Lists of mappings bind best to prefabs.
+    type: [object, array]

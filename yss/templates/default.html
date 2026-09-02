@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en" data-base="{{ base_url }}" data-target="{{ target }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ page.title }} · {{ site.name }}</title>
+{% if page.summary %}<meta name="description" content="{{ page.summary }}">{% endif %}
+{% for key, value in (head.meta or {}).items() %}<meta name="{{ key }}" content="{{ value }}">{% endfor %}
+<link rel="stylesheet" href="{{ url('assets/yss.css') }}">
+<link rel="stylesheet" href="{{ url('assets/prefabs.css') }}">
+{% for href in css_links %}<link rel="stylesheet" href="{{ href }}">{% endfor %}
+</head>
+<body class="target-{{ target }}">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="{{ url('/') }}">{{ site.name }}</a>
+    <button class="nav-toggle" aria-expanded="false" aria-controls="site-nav">Menu</button>
+    <nav id="site-nav" class="site-nav">
+      {% for item in nav %}
+      <a href="{{ item.href }}" class="{% if item.route == current_route %}active{% endif %} {% if item.visibility == 'private' %}private{% endif %}">{{ item.label }}</a>
+      {% endfor %}
+    </nav>
+    <span class="target-badge" title="build target">{{ target }}</span>
+  </div>
+</header>
+<main id="main" class="wrap layout">
+  <article class="content">
+    <header class="page-header">
+      <h1>{{ page.title }}</h1>
+      {% if page.summary %}<p class="page-summary">{{ page.summary }}</p>{% endif %}
+      {% if page.docs %}
+      <p class="page-docs">Data:
+        {% for d in page.docs %}<a class="doc-link" href="{{ url('data/docs/' ~ d ~ '.json') }}">{{ d }}.json</a>{% if not loop.last %} · {% endif %}{% endfor %}
+      </p>
+      {% endif %}
+    </header>
+    {% for s in sections %}{{ s.html }}{% endfor %}
+  </article>
+  {% if toc|length > 1 %}
+  <aside class="toc" aria-label="On this page">
+    <div class="toc-title">On this page</div>
+    {% for s in toc %}<a href="#{{ s.id }}">{{ s.heading }}</a>{% endfor %}
+  </aside>
+  {% endif %}
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <span>{{ site.name }}</span>
+    {% if site.repo %} · <a href="{{ site.repo }}">repository</a>{% endif %}
+    · <a href="{{ url('data/docs.json') }}">docs.json</a>
+    · <a href="{{ url('build.json') }}">build.json</a>
+    · built {{ build.built_at }} ({{ target }}, yss {{ build.version }})
+  </div>
+</footer>
+<script src="{{ url('assets/yss.js') }}"></script>
+<script src="{{ url('assets/prefabs.js') }}"></script>
+{% for src in js_links %}<script src="{{ src }}"></script>{% endfor %}
+</body>
+</html>

@@ -1,0 +1,71 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: yss:doc.codemap
+title: Code map document
+description: |
+  Where things live: roots, modules with exports and dependencies, entry points and conventions.
+  The agent-first replacement for a hand-written "repo tour". Paths are relative to the repo root.
+type: object
+required: [kind, title, modules]
+additionalProperties: false
+properties:
+  kind: {const: codemap}
+  roots:
+    type: array
+    items:
+      type: object
+      allOf: [{$ref: "#/$defs/item_base"}]
+      required: [path, purpose]
+      properties:
+        path: {type: string}
+        purpose: {type: string}
+      unevaluatedProperties: false
+  modules:
+    type: array
+    items:
+      type: object
+      allOf: [{$ref: "#/$defs/item_base"}]
+      required: [id, path, purpose]
+      properties:
+        id: {$ref: "#/$defs/slug"}
+        path: {type: string}
+        purpose: {type: string}
+        language: {type: string}
+        status: {type: string, enum: [planned, active, stable, deprecated]}
+        exports:
+          type: array
+          items:
+            type: object
+            required: [name]
+            properties:
+              name: {type: string}
+              kind: {type: string, enum: [function, class, command, constant, type, template, schema]}
+              signature: {type: string}
+              description: {type: string}
+            additionalProperties: false
+        depends_on: {type: array, items: {$ref: "#/$defs/slug"}}
+        tests: {type: array, items: {type: string}}
+      unevaluatedProperties: false
+  entrypoints:
+    type: array
+    items:
+      type: object
+      allOf: [{$ref: "#/$defs/item_base"}]
+      required: [id, command]
+      properties:
+        id: {$ref: "#/$defs/slug"}
+        name: {type: string}
+        command: {type: string}
+        module: {$ref: "#/$defs/slug"}
+        description: {type: string}
+      unevaluatedProperties: false
+  conventions:
+    type: array
+    items:
+      type: object
+      allOf: [{$ref: "#/$defs/item_base"}]
+      required: [id, rule]
+      properties:
+        id: {$ref: "#/$defs/slug"}
+        rule: {type: string}
+        rationale: {type: string}
+      unevaluatedProperties: false

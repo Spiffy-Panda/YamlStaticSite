@@ -1,0 +1,53 @@
+# Page - schema: page. Runtime data: tests, build info, git state.
+id: status
+route: /status/
+title: Status
+summary: Repo-specific runtime data - test results, build information and git state - loaded from dynamic JSON sources.
+nav: {label: Status, order: 50}
+sections:
+  - id: about
+    type: markdown
+    markdown: |
+      Everything below is fetched at page load from `dynamic/<source>.json`. On the private server
+      a stale source is re-collected on request (press *refresh*). The public build only includes
+      sources that list `public` in their targets, so some sections show a note instead of data.
+
+  - id: tests-summary
+    type: dynamic
+    heading: Test summary
+    source: testruns
+    view: custom
+    empty: Test results are only collected for the private build.
+    script: |
+      var s = (data && data.summary) || {};
+      var ok = s.ok ? 'passed' : 'failed';
+      var p = h('p', {'class': 'test-summary tone-' + ok}, [
+        (s.passed || 0) + ' passed, ' + (s.failed || 0) + ' failed, ' + (s.errors || 0) + ' errors, ' +
+        (s.skipped || 0) + ' skipped in ' + (s.duration || 0) + 's'
+      ]);
+      el.appendChild(p);
+
+  - id: tests
+    type: dynamic
+    heading: Test cases
+    source: testruns
+    view: table
+    path: cases
+    columns: [{key: name, label: Test}, {key: status, label: Status}, {key: time, label: Seconds}, {key: message, label: Message}]
+    empty: Test results are only collected for the private build.
+
+  - id: buildinfo
+    type: dynamic
+    heading: Build information
+    source: buildinfo
+    view: kv
+
+  - id: gitlog
+    type: dynamic
+    heading: Recent commits
+    visibility: private
+    source: gitlog
+    view: table
+    path: commits
+    columns: [hash, date, author, subject]
+    empty: Not a git repository yet.

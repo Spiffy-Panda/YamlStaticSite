@@ -1,0 +1,81 @@
+# Page - schema: page (python -m yss schema page --yaml)
+id: index
+route: /
+title: YamlStaticSite
+summary: A toolchain that turns agent-first structured YAML into a human-first static site. This site is built from its own docs.
+visibility: public
+nav: {label: Home, order: 0}
+sections:
+  - id: what
+    type: markdown
+    markdown: |
+      **The idea.** Agents keep the project's plan, design, code map and decisions in typed YAML
+      files under `docs/`. Humans read a generated site that frames that data with prose, cards and
+      boards. One source tree produces a redacted **public** site for GitHub Pages and a full
+      **private** site for local use.
+
+      Every page here is assembled from three kinds of files:
+
+      1. **Structured docs** (`docs/*.yaml`) hold the facts, validated by schema.
+      2. **Pages** (`site/pages/*.yaml`) decide what to show, in what order, with what framing.
+      3. **Prefabs** (`yss/prefabs/*.yaml`, `site/prefabs/*.yaml`) are the reusable UI pieces the pages fill from lists in the docs.
+
+  - id: docs
+    type: prefab
+    heading: Structured docs in this repo
+    intro: Each card is one YAML file. The link opens the page that presents it; the `json` line names its exported data.
+    prefab: doc-index
+    args:
+      docs: {from: $docs, sort: kind}
+      columns: 3
+
+  - id: active
+    type: prefab
+    heading: What is active right now
+    intro: Pulled live from `plan.yaml` - milestones whose status is `active`.
+    prefab: card-grid
+    args:
+      items:
+        from: plan.milestones
+        where: {status: active}
+        sort: priority
+        map:
+          badge: status
+          body: summary
+          href: "{{ url('/plan/') }}#{{ id }}"
+          meta: "{{ (tasks | selectattr('status', 'equalto', 'done') | list | length) ~ ' of ' ~ (tasks | length) ~ ' tasks done' }}"
+      columns: 2
+      empty: Nothing is active.
+
+  - id: how
+    type: markdown
+    heading: How a page comes together
+    markdown: |
+      ```text
+      docs/plan.yaml ──validate──▶ filtered for target ──┐
+      site/pages/plan.yaml  (sections + bindings) ───────┼──▶ render prefabs ──▶ dist/<target>/plan/index.html
+      yss/prefabs/*.yaml    (templates + css) ───────────┘                        dist/<target>/data/docs/plan.json
+      ```
+
+      The same filtered data is exported as JSON next to the HTML, so anything that can read a
+      file can read the site. Runtime data (test runs, git state) is fetched from
+      `dynamic/*.json` and rendered by a small script; without JavaScript you still get the page.
+
+  - id: buildinfo
+    type: dynamic
+    heading: This build
+    intro: A dynamic section. The numbers come from `dynamic/buildinfo.json`, collected when the site was built.
+    source: buildinfo
+    view: kv
+    empty: Build information was not collected for this target.
+
+  - id: local
+    type: dynamic
+    heading: Repository state (private)
+    intro: This section only exists in the private build; the public build drops it before rendering.
+    visibility: private
+    source: gitlog
+    view: table
+    path: commits
+    columns: [hash, date, author, subject]
+    empty: Not a git repository yet.

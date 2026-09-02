@@ -1,0 +1,32 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: yss:doc.changelog
+title: Changelog
+description: Releases newest first. Change types follow keep-a-changelog.
+type: object
+required: [kind, title, releases]
+additionalProperties: false
+properties:
+  kind: {const: changelog}
+  releases:
+    type: array
+    items:
+      type: object
+      allOf: [{$ref: "#/$defs/item_base"}]
+      required: [version, changes]
+      properties:
+        version: {type: string}
+        date: {type: string, format: date}
+        status: {type: string, enum: [released, unreleased, yanked], default: released}
+        summary: {type: string}
+        changes:
+          type: array
+          items:
+            type: object
+            required: [type, text]
+            properties:
+              type: {type: string, enum: [added, changed, fixed, removed, deprecated, security]}
+              text: {type: string}
+              refs: {type: array, items: {type: string}}
+              visibility: {$ref: "#/$defs/visibility"}
+            additionalProperties: false
+      unevaluatedProperties: false

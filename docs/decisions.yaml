@@ -1,0 +1,118 @@
+# Decision log - schema: doc.decisions (python -m yss schema doc.decisions --yaml)
+# Agents: append; never edit an accepted decision - add a new one with `supersedes`.
+kind: decisions
+id: decisions
+title: Decision log
+summary: Why the toolchain is shaped the way it is.
+status: active
+updated: 2026-09-02
+related: [design]
+
+entries:
+  - id: adr-001
+    date: 2026-09-01
+    title: YAML plus JSON Schema instead of XML plus XSLT
+    status: accepted
+    context: |
+      Earlier repositories tried XML documents transformed by XSLT. Agents produced verbose, often
+      invalid XML; XSLT made data selection and markdown embedding painful; nothing could host
+      runtime JSON.
+    decision: |
+      Structured files are YAML validated by JSON Schema (draft 2020-12, itself written in YAML).
+      Selection is a tiny binding language; presentation is Jinja2.
+    consequences:
+      - Agents write the same YAML they already read and can print the schema for any kind.
+      - Validation errors carry file, path and allowed values.
+      - Markdown fields are first-class; the `| md` filter renders them.
+    alternatives:
+      - XML/XSLT (rejected, see context)
+      - TOML (no multi-line lists of mappings that read well)
+      - JSON (no comments, painful for humans to edit)
+
+  - id: adr-002
+    date: 2026-09-01
+    title: Three schema families with a shared doc envelope
+    status: accepted
+    context: Docs, prefabs and pages have different lifecycles and authors; docs are per-kind.
+    decision: |
+      One envelope schema (kind, id, title, summary, visibility, status, owners, updated, tags,
+      links, related, private_notes, agent_notes) is folded into every `doc.<kind>` schema at load
+      time. Prefabs and pages have their own schemas. Sites can add `schemas/doc.<kind>.schema.yaml`.
+    consequences:
+      - "Kind schemas can be strict (`additionalProperties: false`) without repeating the envelope."
+      - "`x-` prefixed keys are always allowed for experiments."
+
+  - id: adr-003
+    date: 2026-09-01
+    title: Prefabs are Jinja2 templates in YAML with declared params
+    status: accepted
+    context: Cards and boards must be filled from lists in the docs, composed, and styled consistently.
+    decision: |
+      A prefab file declares `params` (type, required, default), a `template`, optional `css`/`js`
+      and `examples`. Templates call other prefabs with `prefab()`. Built-ins ship in the package;
+      a site overrides by name in `site/prefabs/`.
+    consequences:
+      - Missing required params and wrong types fail the build with the prefab and param named.
+      - Examples are rendered on the reference page, so a broken prefab is visible.
+      - Templates in YAML need discipline; logic belongs in bindings (see principle p-no-logic-in-templates).
+
+  - id: adr-004
+    date: 2026-09-01
+    title: Privacy by marking, enforced by an output scan
+    status: accepted
+    context: The public site must not leak personal or private information, and markings can be forgotten.
+    decision: |
+      Any object with `visibility: private` and any `private_notes` key is removed for public
+      targets before rendering. After writing, the public build scans every text file for
+      forbidden strings (from gitignored `.yss/local.yaml` or CI secrets) plus the absolute
+      checkout path, and deletes its own output on a hit. Flagged strings only warn.
+    consequences:
+      - Forbidden strings never live in the repository; CI uses secrets.
+      - Console output masks matched strings.
+      - Private-only nav entries simply do not exist in the public build.
+
+  - id: adr-005
+    date: 2026-09-01
+    title: Two named targets, two local ports
+    status: accepted
+    context: The public preview must behave like GitHub Pages (sub-path base URL) while the private site should feel local.
+    decision: |
+      `public` builds under `base_url: /RepoName/` and is served on 8801 with that prefix; `private`
+      builds under `/` on 8800 with live dynamic refresh and COOP/COEP headers. Both bind 127.0.0.1.
+    consequences:
+      - Links that work on 8801 work on GitHub Pages.
+      - Additional targets (for example `staging`) are just more entries in site.yaml.
+
+  - id: adr-006
+    date: 2026-09-01
+    title: Dynamic data is JSON with a fixed envelope, rendered client-side
+    status: accepted
+    context: Test results, git state and prototype data change without a doc edit and may be repo-local.
+    decision: |
+      A dynamic source is a provider function, a shell command or a file, collected at build time
+      (and on request by the private server) into `dynamic/<name>.json` shaped as
+      `{source, collected_at, ok, data | error}`. Sections choose a view (table, kv, list, cards,
+      json, custom script). Sources list the targets they are allowed in.
+    consequences:
+      - Public builds can omit a source; the section shows its `empty` text instead of failing.
+      - Providers must avoid absolute paths or the scan fails the public build.
+
+  - id: adr-007
+    date: 2026-09-02
+    title: Pretty routes, .nojekyll and exported data next to the HTML
+    status: accepted
+    context: GitHub Pages runs Jekyll by default and hides underscore paths; agents want the data the page shows.
+    decision: Every page is `<route>/index.html`; the build writes `.nojekyll`, `data/docs/*.json`, `data/docs.json`, `schemas/*.json` and `build.json`.
+    consequences:
+      - A page footer links to the JSON behind it.
+      - The output is a complete, self-describing snapshot for other tools.
+
+  - id: adr-008
+    date: 2026-09-02
+    title: Standard library server and polling watcher
+    status: accepted
+    context: Keep the dependency list to four packages.
+    decision: "`http.server.ThreadingHTTPServer` with a small handler; a one-second mtime poll for rebuilds."
+    consequences:
+      - No websockets or live reload; refresh the browser after a rebuild message.
+      - watchdog support is a planned enhancement (m7-watchdog), not a requirement.

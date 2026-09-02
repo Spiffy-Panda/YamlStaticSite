@@ -1,0 +1,34 @@
+# Changelog - schema: doc.changelog. Newest release first.
+kind: changelog
+id: changelog
+title: Changelog
+summary: Releases of the yss toolchain.
+status: active
+updated: 2026-09-02
+
+releases:
+  - version: 0.1.0
+    date: 2026-09-02
+    status: unreleased
+    summary: First working pilot - the toolchain documents itself.
+    changes:
+      - type: added
+        text: Doc envelope and six doc kinds (plan, design, codemap, decisions, glossary, changelog) plus `generic`.
+      - type: added
+        text: Prefab and page schemas; sixteen built-in prefabs.
+      - type: added
+        text: Binding language - from, where, sort, limit, map, fields, group_by; virtual roots $docs, $pages, $site, $prefabs.
+      - type: added
+        text: Build pipeline with public/private targets, JSON export, schema export and the redaction scan.
+      - type: added
+        text: Dynamic sources (provider, command, file) with buildinfo, testruns and gitlog providers.
+      - type: added
+        text: Two-port dev server with live dynamic refresh, base URL handling, COOP/COEP headers and rebuild on change.
+      - type: added
+        text: CLI - validate, build, serve, dynamic, scan, ls, query, schema, new, init.
+      - type: added
+        text: Agent skill suite under .claude/skills and a GitHub Pages workflow.
+      - type: added
+        text: MIT license.
+      - type: added
+        text: "`pages-setup` command - gh CLI wrapper for redaction secrets and the Pages source."

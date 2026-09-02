@@ -1,0 +1,25 @@
+name: kv
+description: Key/value definition list from a mapping or a list of {key, value}. String values render as inline markdown.
+category: data
+params:
+  pairs: {type: any, required: true, description: "Mapping, or list of {key, value} / {label, value}."}
+  title: {type: string}
+template: |
+  {% macro val(v) %}{% if v is none %}{% elif v is string %}{{ v | md_inline }}{% elif v is mapping %}<code>{{ v | tojson }}</code>{% elif v is sequence %}{{ v | join(', ') }}{% else %}{{ v }}{% endif %}{% endmacro %}
+  <div class="kv-block">
+  {% if title %}<div class="kv-title">{{ title }}</div>{% endif %}
+  <dl class="kv">
+  {% if pairs is mapping %}
+    {% for k, v in pairs.items() %}<dt>{{ k }}</dt><dd>{{ val(v) }}</dd>{% endfor %}
+  {% else %}
+    {% for p in pairs %}<dt>{{ p.key or p.label }}</dt><dd>{{ val(p.value) }}</dd>{% endfor %}
+  {% endif %}
+  </dl>
+  </div>
+css: |
+  .kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: .3rem 1.2rem; margin: 0; }
+  .kv dt { font-weight: 600; color: var(--fg-2); }
+  .kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+  .kv-title { font-weight: 600; margin-bottom: .4rem; }
+examples:
+  - args: {pairs: {name: yss, version: "0.1.0", deps: [PyYAML, Jinja2]}}
