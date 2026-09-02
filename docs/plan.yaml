@@ -96,6 +96,12 @@ milestones:
         status: planned
         owner: agent
         verify: cat .github/workflows/pages.yml
+      - id: m7-flow-overrides
+        title: "Config and CLI overrides for the flow: build.strict in site.yaml, --no-strict, evidence.git_recency per collection"
+        status: planned
+        owner: agent
+        notes: Requested with the 2026-09-02 verdicts; needs a site schema change, so flagged rather than applied.
+        verify: python -m yss schema site --yaml
 
   - id: m12-musings
     title: Adopt yss in the Musings repository
@@ -106,7 +112,7 @@ milestones:
     done_when: Every musing is a collection, build_site.py is deleted, and the audited Pages workflow builds with yss.
     tasks:
       - id: m12-first
-        title: Migrate the first musing (chosen in the verdicts worksheet) and compare the rendered result
+        title: Migrate the space cargo cannon musing first and compare the rendered result
         status: planned
         owner: agent
       - id: m12-renderer
@@ -162,28 +168,33 @@ open_questions:
     context: The Reference page includes README.md verbatim; the same words then exist in two places.
     options: [Keep the include, Move the content into a generic doc and delete the include, Trim README to a pointer]
     owner: panda
-    status: open
+    status: answered
+    answer: "Keep README.md and the include section on the Reference page (Panda, 2026-09-02)."
   - id: q-multi-repo
     question: Should yss be installed as a package in other repos (pip install) or vendored?
     context: pyproject.toml supports `pip install -e .` and the git URL; vendoring keeps the schemas visible in the repo.
     options: [pip install from the git URL, Vendor the yss folder, Both, decided per repo]
     owner: panda
-    status: open
+    status: answered
+    answer: "pip install from the git URL is the default; vendoring stays possible (Panda, 2026-09-02)."
   - id: q-musings-collision
     question: How does yss enter the Musings repository, which already has build_site.py owning site/?
     context: "Options - library only, full adoption, one config per musing, or collections migrated one musing at a time (adr-010)."
     options: [Collections, one musing at a time, Library only, One yss config per musing]
     owner: panda
-    status: open
+    status: answered
+    answer: "Collections, one musing at a time, build_site.py retired last; adr-010 accepted. First musing: space cargo cannon (Panda, 2026-09-02)."
   - id: q-work-status-for-risks
     question: Should risks share work_status or keep risk_status by default?
     context: Vocabularies are data and can differ per collection; this decides the default in site.yaml.
     options: [Keep risk_status (open, mitigated, accepted, closed), Use work_status everywhere]
     owner: panda
-    status: open
+    status: answered
+    answer: "Keep risk_status as the shipped default; a collection overrides it in collection.yaml when it wants (Panda, 2026-09-02)."
   - id: q-check-strictness
     question: Should stale evidence fail the public build in CI, or only warn?
     context: "`yss build --strict` fails on stale claims; the workflow currently runs `yss check` as a separate step."
     options: [Fail the build (strict), Warn only]
     owner: panda
-    status: open
+    status: answered
+    answer: "Strict: the CI public build runs with --strict so stale evidence fails the deploy; git recency stays on (Panda, 2026-09-02)."

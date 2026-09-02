@@ -36,7 +36,7 @@ jobs:
           # Semicolon-separated secrets; the build fails if any appear in the output.
           YSS_FORBIDDEN_STRINGS: ${{ secrets.YSS_FORBIDDEN_STRINGS }}
           YSS_FLAG_STRINGS: ${{ secrets.YSS_FLAG_STRINGS }}
-        run: python -m yss build --target public
+        run: python -m yss build --target public --strict   # stale evidence or flagged strings fail the deploy (verdict V.4)
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist/public

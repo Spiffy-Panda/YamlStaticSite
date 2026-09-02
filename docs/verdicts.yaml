@@ -4,11 +4,14 @@ kind: worksheet
 id: verdicts
 title: Verdicts for the yss pilot
 summary: The calls only Panda can make after the Musings review - adoption path, vocabularies, strictness, archiving and the first migration.
-status: active
+status: archived
 updated: 2026-09-02
 owners: [agent]
 related: [plan, decisions]
 intro: |
+  **Applied 2026-09-02 by Panda.** Every question below has been answered and recorded in the plan
+  and decisions; this worksheet is kept as the record. Do not re-answer it - open a new worksheet.
+
   Everything below is a methodology choice, not an implementation detail. Each question has a
   recommended default already selected and says what each answer costs. Answer, press **Build the
   instruction**, and hand the text to an agent in a fresh session; the agent applies the verdict block

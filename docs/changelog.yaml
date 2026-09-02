@@ -28,6 +28,8 @@ releases:
         text: "Loader skips `_`-prefixed files and folders; done milestones moved to docs/_archive/."
       - type: changed
         text: "Inside a collection, doc ids resolve to the local doc first; `/doc` forces the root doc."
+      - type: changed
+        text: "CI public build is strict (stale evidence fails the deploy); verdicts of 2026-09-02 recorded in the plan."
   - version: 0.1.0
     date: 2026-09-02
     status: released
