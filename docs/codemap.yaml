@@ -37,8 +37,6 @@ roots:
     purpose: unittest suite; also collected by the `testruns` dynamic source.
   - path: .claude/skills/
     purpose: This repo's installed copies of the skills (kept identical to yss/skills/ by a test).
-  - path: dist/
-    purpose: Build output, one folder per target. Gitignored.
 
 modules:
   - id: config
@@ -274,5 +272,8 @@ conventions:
     rule: Done-and-committed milestones move to docs/_archive/; the plan holds open work only; the changelog is the history.
   - id: cv-local-first
     rule: "Inside a collection, doc ids resolve to the local doc first; use `/doc` to reach a root doc that shares the name."
+  - id: cv-generated
+    rule: Never cite generated or gitignored paths (dist/) as evidence; a fresh clone must satisfy every claim.
+    rationale: CI runs `yss check` on a clean checkout, so claims about build output are always stale there.
   - id: cv-prefab-css
     rule: Prefab CSS is scoped under a class named after the prefab and uses the shared tone variables.
