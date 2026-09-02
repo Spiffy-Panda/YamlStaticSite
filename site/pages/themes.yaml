@@ -1,0 +1,64 @@
+# Page - schema: page. Playground first (experiment), worksheet second (decide).
+id: themes
+route: /themes/
+title: Colour & theme
+summary: Play with the palettes on the live page, then answer the worksheet to fix a default.
+nav: {label: Themes, order: 46}
+docs: [palettes, themes]
+sections:
+  - id: playground
+    type: prefab
+    heading: Playground
+    intro: |
+      Pick a palette and the whole page changes under you - header, nav, badges, code blocks, this
+      paragraph. Every token is editable, the contrast table updates as you drag, and the accent hue
+      slider is there for wandering off the map. Nothing is saved: a reload puts the site back, and the
+      export box is the only way anything survives.
+    prefab: theme-playground
+    args:
+      palettes:
+        from: palettes.data.palettes
+        where: {family: preset}
+      tokens: {from: palettes.data.tokens}
+
+  - id: worksheet
+    type: prefab
+    heading: Worksheet
+    prefab: worksheet
+    args:
+      title: {from: themes.title}
+      intro: {from: themes.intro}
+      warn: {from: themes.warn}
+      questions: {from: themes.questions}
+      prompt: {from: themes.prompt}
+      decided_by: true
+      extra: true
+
+  - id: palette-notes
+    type: prefab
+    heading: The palettes, and why these colours
+    intro: What each palette is for, and what had to be compromised to make it readable. Same data the playground runs on.
+    prefab: card-grid
+    args:
+      columns: 2
+      items:
+        from: palettes.data.palettes
+        where: {family: preset}
+        map:
+          title: "{{ emblem }} {{ name }}"
+          subtitle: blurb
+          body: notes
+          badge: id
+          tags: mood
+
+  - id: token-roles
+    type: prefab
+    heading: What each token colours
+    intro: The custom properties in [[palettes]]; the playground edits these and nothing else.
+    prefab: table
+    args:
+      rows: {from: palettes.data.tokens}
+      columns:
+        - {key: key, label: Token}
+        - {key: label, label: Name}
+        - {key: role, label: Where it shows up}

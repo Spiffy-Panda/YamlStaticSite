@@ -1,0 +1,389 @@
+# Site-local prefab (schema: prefab). Live colour playground for the theme worksheet.
+name: theme-playground
+description: "Colour playground: pick a palette, edit every token live against the real page chrome, read the contrast ratios, and copy the result out as CSS or as a docs/palettes.yaml entry. Applies tokens as inline custom properties - nothing is stored, a reload is the reset."
+category: layout
+params:
+  palettes: {type: list, required: true, item: {id: required, name: label, emblem: "short emoji", blurb: one line, mood: list of tags, notes: markdown, tokens: "{light: {token: hex}, dark: {token: hex}}"}}
+  tokens: {type: list, description: "Token metadata: {key, label, role}. Order here is the order of the editor rows.", item: {key: "custom property without --", label: short name, role: what it colours}}
+  intro: {type: markdown, description: Shown above the controls.}
+template: |
+  <div class="theme-lab" data-lab>
+    {% if intro %}<div class="lab-intro">{{ intro | md }}</div>{% endif %}
+
+    <div class="lab-bar">
+      <div class="lab-palettes" role="group" aria-label="Palettes">
+        {% for p in palettes %}
+        <button type="button" class="lab-pal" data-pal="{{ p.id }}" title="{{ p.blurb }}">
+          <span class="lab-pal-emblem">{{ p.emblem or '' }}</span>
+          <span class="lab-pal-name">{{ p.name }}</span>
+          <span class="lab-pal-strip">
+            {% for k in ['bg', 'fg', 'accent', 'ok', 'bad'] %}<i style="background: {{ p.tokens.light[k] }}"></i>{% endfor %}
+          </span>
+        </button>
+        {% endfor %}
+      </div>
+      <div class="lab-controls">
+        <label>Mode
+          <select class="lab-mode">
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </label>
+        <label>Apply to
+          <select class="lab-scope">
+            <option value="page">The whole page</option>
+            <option value="lab">This box only</option>
+          </select>
+        </label>
+        <label class="lab-hue">Accent hue
+          <input type="range" class="lab-hue-range" min="-180" max="180" value="0" step="5">
+          <output class="lab-hue-out">0°</output>
+        </label>
+        <button type="button" class="lab-reset">Reset</button>
+      </div>
+    </div>
+
+    <p class="lab-current" aria-live="polite"></p>
+
+    <div class="lab-grid">
+      <div class="lab-editor">
+        <h4 class="lab-h">Tokens</h4>
+        <div class="lab-rows"></div>
+      </div>
+
+      <div class="lab-preview">
+        <h4 class="lab-h">What it looks like</h4>
+        <div class="lab-sample">
+          <div class="lab-sample-head">
+            <strong>YamlStaticSite</strong>
+            <span class="lab-nav"><a href="#" class="on">Plan</a><a href="#">Design</a><a href="#">Verdicts</a></span>
+            <span class="lab-target">private</span>
+          </div>
+          <div class="lab-sample-body">
+            <h5>Milestone m12 - first migration</h5>
+            <p>Body text at the size the site actually uses, with <a href="#">a link in the accent colour</a>
+              and <code>inline code</code> in the middle of it.</p>
+            <p class="lab-dim">Secondary text: summaries, help lines and table labels live here.</p>
+            <p class="lab-badges">
+              <span class="lab-badge ok">ok</span>
+              <span class="lab-badge warn">stale</span>
+              <span class="lab-badge bad">failed</span>
+              <span class="lab-badge line">planned</span>
+            </p>
+            <pre class="lab-pre">python -m yss build --target all</pre>
+            <table class="lab-table"><tbody>
+              <tr><th>id</th><td>t-default</td></tr>
+              <tr><th>status</th><td>active</td></tr>
+            </tbody></table>
+            <button type="button" class="lab-btn">Build the instruction</button>
+          </div>
+        </div>
+
+        <h4 class="lab-h">Contrast</h4>
+        <table class="lab-contrast"><thead><tr><th>pair</th><th>ratio</th><th>AA</th></tr></thead><tbody></tbody></table>
+        <p class="lab-note"></p>
+      </div>
+    </div>
+
+    <details class="lab-export">
+      <summary>Take it with you</summary>
+      <div class="lab-export-body">
+        <div class="lab-export-controls">
+          <label><input type="radio" name="lab-fmt" value="css" checked> CSS override</label>
+          <label><input type="radio" name="lab-fmt" value="yaml"> palettes.yaml entry</label>
+          <button type="button" class="lab-copy">Copy</button>
+        </div>
+        <textarea class="lab-out" readonly rows="16"></textarea>
+        <p class="lab-note">Nothing here is saved. Copy what you like before you reload - that text is the only
+          record, and it is also exactly what the worksheet's instruction tells an agent to apply.</p>
+      </div>
+    </details>
+
+    <script type="application/json" class="lab-config">{{ {'palettes': palettes, 'tokens': tokens or []} | tojson }}</script>
+  </div>
+css: |
+  .theme-lab { border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); padding: .9rem 1rem 1rem; }
+  .lab-intro { color: var(--fg-2); margin-bottom: .7rem; }
+  .lab-intro p:last-child { margin-bottom: 0; }
+  .lab-bar { display: flex; flex-wrap: wrap; gap: .8rem; justify-content: space-between; align-items: flex-start; }
+  .lab-palettes { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .lab-pal { font: inherit; cursor: pointer; display: flex; align-items: center; gap: .45rem; padding: .35rem .6rem; border: 1px solid var(--line); border-radius: 999px; background: var(--bg-2); color: var(--fg); }
+  .lab-pal:hover { border-color: var(--accent); }
+  .lab-pal[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-2); color: var(--accent); }
+  .lab-pal-emblem { font-size: 1rem; }
+  .lab-pal-name { font-size: .9rem; }
+  .lab-pal-strip { display: inline-flex; border-radius: 3px; overflow: hidden; border: 1px solid var(--line); }
+  .lab-pal-strip i { width: .55rem; height: .9rem; display: block; }
+  .lab-controls { display: flex; flex-wrap: wrap; gap: .8rem; align-items: center; font-size: .85rem; color: var(--fg-2); }
+  .lab-controls label { display: inline-flex; align-items: center; gap: .35rem; }
+  .lab-controls select, .lab-reset { font: inherit; font-size: .85rem; padding: .2rem .4rem; border: 1px solid var(--line); border-radius: 6px; background: var(--bg-2); color: var(--fg); }
+  .lab-reset { cursor: pointer; }
+  .lab-hue-range { width: 8rem; }
+  .lab-hue-out { font-family: ui-monospace, monospace; min-width: 3ch; }
+  .lab-current { font-size: .88rem; color: var(--fg-2); margin: .7rem 0 .3rem; }
+  .lab-grid { display: grid; grid-template-columns: minmax(0, 20rem) minmax(0, 1fr); gap: 1.2rem; align-items: start; }
+  @media (max-width: 780px) { .lab-grid { grid-template-columns: minmax(0, 1fr); } }
+  .lab-h { font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: .6rem 0 .4rem; }
+  .lab-row { display: grid; grid-template-columns: auto 1fr auto; gap: .5rem; align-items: center; padding: .18rem 0; }
+  .lab-row input[type="color"] { width: 2rem; height: 1.6rem; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; cursor: pointer; }
+  .lab-row-label { font-size: .85rem; min-width: 0; }
+  .lab-row-label small { display: block; color: var(--muted); font-size: .72rem; }
+  .lab-row input[type="text"] { font-family: ui-monospace, monospace; font-size: .8rem; width: 9ch; padding: .15rem .3rem; border: 1px solid var(--line); border-radius: 4px; background: var(--bg-2); color: var(--fg); }
+  .lab-sample { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--bg); }
+  .lab-sample-head { display: flex; align-items: center; gap: .6rem; padding: .45rem .7rem; background: var(--bg-2); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .lab-nav { display: flex; gap: .2rem; flex: 1; }
+  .lab-nav a { text-decoration: none; color: var(--fg-2); padding: .15rem .45rem; border-radius: 6px; font-size: .85rem; }
+  .lab-nav a.on { color: var(--accent); background: var(--accent-2); }
+  .lab-target { font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; padding: .1rem .45rem; border: 1px solid var(--warn); color: var(--warn); border-radius: 999px; }
+  .lab-sample-body { padding: .6rem .8rem .8rem; }
+  .lab-sample-body h5 { margin: .2rem 0 .4rem; font-size: 1.05rem; }
+  .lab-sample-body p { margin: .35rem 0; font-size: .93rem; }
+  .lab-dim { color: var(--fg-2); }
+  .lab-sample-body code { background: var(--code); }
+  .lab-pre { background: var(--code); padding: .5rem .7rem; border-radius: var(--radius); font-size: .8rem; margin: .5rem 0; }
+  .lab-badges { display: flex; gap: .4rem; flex-wrap: wrap; }
+  .lab-badge { font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; padding: .05rem .5rem; border-radius: 999px; border: 1px solid; }
+  .lab-badge.ok { color: var(--ok); border-color: var(--ok); }
+  .lab-badge.warn { color: var(--warn); border-color: var(--warn); }
+  .lab-badge.bad { color: var(--bad); border-color: var(--bad); }
+  .lab-badge.line { color: var(--muted); border-color: var(--line); }
+  .lab-table { border-collapse: collapse; font-size: .85rem; margin: .5rem 0; }
+  .lab-table th, .lab-table td { border: 1px solid var(--line); padding: .2rem .5rem; text-align: left; }
+  .lab-table th { background: var(--code); color: var(--fg-2); font-weight: 600; }
+  .lab-btn { font: inherit; font-size: .9rem; cursor: pointer; background: var(--accent); color: var(--bg-2); border: 1px solid var(--accent); border-radius: 999px; padding: .3rem .9rem; margin-top: .3rem; }
+  .lab-contrast { border-collapse: collapse; font-size: .85rem; width: 100%; }
+  .lab-contrast th, .lab-contrast td { border: 1px solid var(--line); padding: .2rem .5rem; text-align: left; }
+  .lab-contrast th { background: var(--code); color: var(--fg-2); }
+  .lab-contrast td.pass { color: var(--ok); }
+  .lab-contrast td.fail { color: var(--bad); font-weight: 600; }
+  .lab-note { font-size: .8rem; color: var(--muted); margin: .4rem 0 0; }
+  .lab-export { margin-top: 1rem; border-top: 1px solid var(--line); padding-top: .6rem; }
+  .lab-export > summary { cursor: pointer; color: var(--accent); font-size: .9rem; }
+  .lab-export-controls { display: flex; gap: .9rem; align-items: center; flex-wrap: wrap; margin: .5rem 0 .4rem; font-size: .85rem; }
+  .lab-copy { font: inherit; font-size: .85rem; cursor: pointer; border: 1px solid var(--accent); color: var(--accent); background: transparent; border-radius: 999px; padding: .2rem .8rem; }
+  .lab-out { width: 100%; font-family: ui-monospace, Consolas, monospace; font-size: .8rem; padding: .5rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--code); color: var(--fg); }
+js: |
+  (function () {
+    function hex2rgb(h) {
+      h = (h || "").trim().replace("#", "");
+      if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+      if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+      return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+    }
+    function rgb2hex(r, g, b) {
+      return "#" + [r, g, b].map(function (v) {
+        var s = Math.max(0, Math.min(255, Math.round(v))).toString(16);
+        return s.length === 1 ? "0" + s : s;
+      }).join("");
+    }
+    function lum(rgb) {
+      var c = rgb.map(function (v) {
+        v = v / 255;
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    }
+    function ratio(a, b) {
+      var ra = hex2rgb(a), rb = hex2rgb(b);
+      if (!ra || !rb) return null;
+      var la = lum(ra), lb = lum(rb);
+      return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+    }
+    function rotateHue(hex, deg) {
+      var rgb = hex2rgb(hex);
+      if (!rgb || !deg) return hex;
+      var r = rgb[0] / 255, g = rgb[1] / 255, b = rgb[2] / 255;
+      var max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min, h = 0, l = (max + min) / 2;
+      var s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+      if (d !== 0) {
+        if (max === r) h = 60 * (((g - b) / d) % 6);
+        else if (max === g) h = 60 * ((b - r) / d + 2);
+        else h = 60 * ((r - g) / d + 4);
+      }
+      h = (h + deg + 360) % 360;
+      var c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2, p;
+      if (h < 60) p = [c, x, 0]; else if (h < 120) p = [x, c, 0]; else if (h < 180) p = [0, c, x];
+      else if (h < 240) p = [0, x, c]; else if (h < 300) p = [x, 0, c]; else p = [c, 0, x];
+      return rgb2hex((p[0] + m) * 255, (p[1] + m) * 255, (p[2] + m) * 255);
+    }
+
+    document.querySelectorAll(".theme-lab").forEach(function (lab) {
+      var cfg = JSON.parse(lab.querySelector(".lab-config").textContent || "{}");
+      var palettes = cfg.palettes || [];
+      if (!palettes.length) return;
+      var meta = (cfg.tokens || []).length ? cfg.tokens : Object.keys(palettes[0].tokens.light).map(function (k) { return { key: k, label: k }; });
+      var rows = lab.querySelector(".lab-rows"), current = lab.querySelector(".lab-current");
+      var modeSel = lab.querySelector(".lab-mode"), scopeSel = lab.querySelector(".lab-scope");
+      var hue = lab.querySelector(".lab-hue-range"), hueOut = lab.querySelector(".lab-hue-out");
+      var out = lab.querySelector(".lab-out"), copy = lab.querySelector(".lab-copy");
+      var state = { pal: palettes[0], mode: "light", tokens: {}, edited: false };
+      var inputs = {};
+
+      meta.forEach(function (t) {
+        var row = document.createElement("label");
+        row.className = "lab-row";
+        row.innerHTML = '<input type="color"><span class="lab-row-label">' + t.label +
+          (t.role ? "<small>" + t.role + "</small>" : "") + '</span><input type="text" spellcheck="false">';
+        var color = row.querySelector('input[type="color"]'), text = row.querySelector('input[type="text"]');
+        inputs[t.key] = { color: color, text: text };
+        color.addEventListener("input", function () { set(t.key, color.value, true); });
+        text.addEventListener("change", function () {
+          if (hex2rgb(text.value)) set(t.key, text.value.trim(), true); else text.value = state.tokens[t.key];
+        });
+        rows.appendChild(row);
+      });
+
+      function targets() {
+        return scopeSel.value === "page" ? [document.documentElement, lab] : [lab];
+      }
+      function clearApplied() {
+        [document.documentElement, lab].forEach(function (el) {
+          meta.forEach(function (t) { el.style.removeProperty("--" + t.key); });
+        });
+      }
+      function apply() {
+        clearApplied();
+        targets().forEach(function (el) {
+          meta.forEach(function (t) {
+            if (state.tokens[t.key]) el.style.setProperty("--" + t.key, state.tokens[t.key]);
+          });
+        });
+        meta.forEach(function (t) {
+          var v = state.tokens[t.key] || "";
+          if (!inputs[t.key]) return;
+          if (hex2rgb(v)) inputs[t.key].color.value = v;
+          inputs[t.key].text.value = v;
+        });
+        contrast();
+        render();
+        label();
+      }
+      function set(key, value, edited) {
+        state.tokens[key] = value;
+        if (edited) state.edited = true;
+        apply();
+      }
+      function load(pal, mode) {
+        state.pal = pal;
+        state.mode = mode;
+        state.edited = false;
+        state.tokens = Object.assign({}, (pal.tokens || {})[mode] || {});
+        hue.value = 0; hueOut.textContent = "0°";
+        lab.querySelectorAll(".lab-pal").forEach(function (b) {
+          b.setAttribute("aria-pressed", b.dataset.pal === pal.id ? "true" : "false");
+        });
+        apply();
+      }
+      function label() {
+        current.textContent = state.pal.name + " · " + state.mode + (state.edited ? " · edited" : "") +
+          " — " + (state.pal.blurb || "");
+      }
+      function contrast() {
+        var t = state.tokens;
+        var pairs = [
+          ["body text on page", t.fg, t.bg, 4.5],
+          ["body text on card", t.fg, t["bg-2"], 4.5],
+          ["secondary text", t["fg-2"], t.bg, 4.5],
+          ["link / accent", t.accent, t.bg, 4.5],
+          ["accent on its wash", t.accent, t["accent-2"], 4.5],
+          ["ok badge", t.ok, t.bg, 3],
+          ["warn badge", t.warn, t.bg, 3],
+          ["bad badge", t.bad, t.bg, 3],
+          ["muted text", t.muted, t.bg, 3],
+          ["borders (decorative)", t.line, t.bg, 0]
+        ];
+        var body = lab.querySelector(".lab-contrast tbody"), fails = 0;
+        body.innerHTML = "";
+        pairs.forEach(function (p) {
+          var r = ratio(p[1], p[2]);
+          if (r === null) return;
+          var ok = r >= p[3];
+          if (!ok) fails += 1;
+          var tr = document.createElement("tr");
+          var verdict = p[3] === 0 ? "<td>no floor</td>"
+            : '<td class="' + (ok ? "pass" : "fail") + '">' + (ok ? "pass" : "needs " + p[3] + ":1") + "</td>";
+          tr.innerHTML = "<td>" + p[0] + "</td><td>" + r.toFixed(2) + ":1</td>" + verdict;
+          body.appendChild(tr);
+        });
+        lab.querySelector(".lab-preview .lab-note").textContent = fails
+          ? fails + " pair" + (fails === 1 ? "" : "s") + " below the floor. Text pairs are held to 4.5:1, badges and borders lower."
+          : "Every pair clears its floor.";
+      }
+      function render() {
+        var fmt = lab.querySelector('input[name="lab-fmt"]:checked').value;
+        var t = state.tokens, lines;
+        if (fmt === "css") {
+          lines = ["/* site/assets/yss.css - token override, " + state.pal.name + " (" + state.mode + ") */",
+                   ":root {"];
+          meta.forEach(function (m) { if (t[m.key]) lines.push("  --" + m.key + ": " + t[m.key] + ";"); });
+          lines.push("}");
+        } else {
+          lines = ["    - id: " + state.pal.id + (state.edited ? "-edit" : ""),
+                   "      name: " + state.pal.name + (state.edited ? " (edited)" : ""),
+                   "      blurb: " + (state.pal.blurb || "Describe it in one line."),
+                   "      tokens:",
+                   "        " + state.mode + ": {" + meta.filter(function (m) { return t[m.key]; })
+                     .map(function (m) { return m.key + ': "' + t[m.key] + '"'; }).join(", ") + "}"];
+          var other = state.mode === "light" ? "dark" : "light";
+          var o = (state.pal.tokens || {})[other] || {};
+          if (Object.keys(o).length) {
+            lines.push("        " + other + ": {" + meta.filter(function (m) { return o[m.key]; })
+              .map(function (m) { return m.key + ': "' + o[m.key] + '"'; }).join(", ") + "}");
+          }
+        }
+        out.value = lines.join("\n") + "\n";
+      }
+
+      lab.querySelectorAll(".lab-pal").forEach(function (b) {
+        b.addEventListener("click", function () {
+          var p = palettes.filter(function (x) { return x.id === b.dataset.pal; })[0];
+          if (p) load(p, modeSel.value);
+        });
+      });
+      modeSel.addEventListener("change", function () { load(state.pal, modeSel.value); });
+      scopeSel.addEventListener("change", apply);
+      hue.addEventListener("input", function () {
+        var deg = parseInt(hue.value, 10) || 0;
+        hueOut.textContent = deg + "°";
+        var base = (state.pal.tokens || {})[state.mode] || {};
+        ["accent", "accent-2"].forEach(function (k) {
+          if (base[k]) state.tokens[k] = rotateHue(base[k], deg);
+        });
+        state.edited = deg !== 0;
+        apply();
+      });
+      lab.querySelector(".lab-reset").addEventListener("click", function () {
+        clearApplied();
+        load(palettes[0], "light");
+        scopeSel.value = "page";
+        apply();
+      });
+      lab.querySelectorAll('input[name="lab-fmt"]').forEach(function (r) {
+        r.addEventListener("change", render);
+      });
+      copy.addEventListener("click", function () {
+        var done = function () { copy.textContent = "Copied"; setTimeout(function () { copy.textContent = "Copy"; }, 1600); };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(out.value).then(done, done);
+        else { out.select(); document.execCommand("copy"); done(); }
+      });
+
+      var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      modeSel.value = prefersDark ? "dark" : "light";
+      load(palettes[0], modeSel.value);
+    });
+  })();
+examples:
+  - note: Two tiny palettes; the real page binds palettes.data.palettes and palettes.data.tokens.
+    args:
+      tokens:
+        - {key: bg, label: Page background}
+        - {key: fg, label: Body text}
+        - {key: accent, label: Accent}
+      palettes:
+        - id: demo-light
+          name: Demo
+          emblem: "🎨"
+          blurb: A two-token demo palette.
+          tokens:
+            light: {bg: "#ffffff", fg: "#111111", accent: "#2456a4", ok: "#2e7d32", bad: "#c62828"}
+            dark: {bg: "#111111", fg: "#eeeeee", accent: "#8fb3ff", ok: "#7bc47f", bad: "#ef8a8a"}

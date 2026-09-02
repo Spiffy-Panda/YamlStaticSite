@@ -196,3 +196,24 @@ entries:
       - "`yss query plan.milestones` returns only live work."
       - Archives are plain YAML for humans and are not validated.
       - Worksheets are written by agents and answered by humans; the verdict block closes the loop.
+
+  - id: adr-013
+    date: 2026-09-02
+    title: The house palette is a theme package, not a shipped preset
+    status: accepted
+    context: |
+      Palettes were prototyped on a live playground page. The author's own palette is not something
+      the toolchain should ship to everyone who installs it, but the sites the author runs - this
+      repository's site among them - are theirs to dress. Two separate things had been conflated:
+      what yss ships, and what any one site wears.
+    decision: |
+      yss ships neutral presets in docs/palettes.yaml: ink-blue, high-contrast, lavender-warm and
+      trans-pride. A personal palette is a theme package kept out of tree - a sibling folder holding
+      a token override stylesheet and the same tokens as a `generic` doc - which a site adopts by
+      copying the stylesheet over site/assets/yss.css. The playground prefab renders either source,
+      so a theme package can be compared without being installed.
+    consequences:
+      - Adding a preset to this repository is a claim that it is for everybody; personal palettes are not.
+      - A site's own palette is one file copy, and reverting it is deleting that file.
+      - Trans-pride is recorded as dark-first - its light set was tried and rejected, and is kept as the record of the attempt.
+      - Emblems must be single glyphs older than Emoji 12; ZWJ sequences render as tofu in Chrome and Firefox on Windows.

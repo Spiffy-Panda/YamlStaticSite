@@ -1,0 +1,210 @@
+# Worksheet - schema: doc.worksheet. Agents write these; only the human answers them.
+# The rendered page (site/pages/themes.yaml) pairs it with a live palette playground.
+kind: worksheet
+id: themes
+title: Colour palette and site theme
+summary: Which palette the site defaults to, how dark mode behaves, how loud the identity signalling is, and where theme tokens live.
+status: active
+updated: 2026-09-02
+owners: [agent]
+related: [palettes, design, decisions]
+private_notes: |
+  Half-settled 2026-09-02 by adr-013: what yss ships is a set of neutral presets, and what any one
+  site wears is a theme package outside this repository. T.1 is therefore only about which preset is
+  the default here; the author's own palette is not one of the options and is not in this repo.
+tags: [theme, colour, accessibility]
+intro: |
+  The playground above this worksheet is the experiment; this is where you write the result down.
+  Nothing here is applied automatically. Pick a palette in the playground, live with it for a minute
+  on a real page, then answer below and press **Build the instruction** - the text it produces is what
+  an agent turns into `site/assets/yss.css`, a decision entry and (if you want one) a theme switcher.
+
+  Every palette in [[palettes]] carries both a light and a dark token set, so choosing a default is
+  choosing a pair, not a single look.
+warn: |
+  🐼 **T.4 is a personal call, not a design one.** The public site is on GitHub Pages under your
+  handle; a trans-pride default is a statement made to everyone who lands on it, including people you
+  did not choose. No option there is recommended, and picking the neutral default is not a smaller
+  answer than picking the flag.
+
+questions:
+  - id: t-default
+    call: T.1
+    lead: Which palette is the public default?
+    help: The private build's default is settled in [[decisions#adr-013]]. This question is only about what a stranger sees on GitHub Pages, so only the shipped presets are listed.
+    applies_to: "site/assets/yss.css :root tokens; decisions adr-013"
+    options:
+      - value: trans-pride
+        text: Trans Pride
+        why: Dark-first only - the light set was tried and rejected, so this makes the public site unreadable-ish for light-mode visitors.
+        prompt: "Set the public default palette to trans-pride, and fix or drop its light token set first - the current one is recorded as not working."
+      - value: lavender-warm
+        text: Lavender & Warm Sand
+        why: Softest of the three; a purple accent on warm paper, terracotta instead of red. No hard-coded neutral survives it.
+        prompt: "Set the site default palette to lavender-warm from docs/palettes.yaml."
+      - value: ink-blue
+        text: Keep Ink Blue
+        recommended: true
+        why: Zero work, zero risk, zero signature - which is what adr-013 asks of the public target. The site keeps looking like a default.
+        prompt: "Keep the current ink-blue tokens as the default; record the decision so the question is not reopened by accident."
+      - value: high-contrast
+        text: High Contrast
+        why: Maximum legibility, minimum warmth; usually better as a switchable option than as the default.
+        prompt: "Set the site default palette to high-contrast from docs/palettes.yaml."
+
+  - id: t-dark
+    call: T.2
+    lead: How does dark mode work?
+    help: "Today `yss.css` has a single `prefers-color-scheme: dark` block and no way to override it. A switcher means a `data-theme` attribute, a small script and a stored preference."
+    applies_to: "yss/assets/yss.css; yss/assets/yss.js; yss/templates/default.html"
+    options:
+      - value: system
+        text: Follow the system setting only
+        recommended: true
+        why: What the site does now; no script, no stored state, nothing to get out of sync.
+        prompt: "Keep dark mode driven solely by prefers-color-scheme; no toggle."
+      - value: toggle
+        text: Add a light/dark toggle in the header
+        why: Readers can override the system; costs a `data-theme` attribute, a token block per state and a localStorage read before first paint.
+        prompt: "Add a header light/dark toggle: data-theme on the html element, tokens defined for :root, prefers-color-scheme dark and the data-theme selectors, preference in localStorage, applied before first paint."
+      - value: light-only
+        text: Light only
+        why: One set of tokens to maintain and to check for contrast; hostile to anyone reading at night.
+        prompt: "Drop the dark token block; the site is light only. Record the accessibility cost in the decision."
+
+  - id: t-switcher
+    call: T.3
+    lead: Does the site ship the palette switcher itself, or only the playground page?
+    help: The playground already switches palettes at runtime. Making it site-wide means the choice persists across pages for a reader, which is a feature and a maintenance promise.
+    applies_to: "site/prefabs/theme-playground.yaml; yss/assets/yss.js"
+    options:
+      - value: playground-only
+        text: Playground page only
+        recommended: true
+        why: The switcher stays a tool for you; every other page renders in exactly one palette, so screenshots and CSS bugs are reproducible.
+        prompt: "Keep palette switching confined to the theme playground page; do not persist it site-wide."
+      - value: site-wide
+        text: Site-wide, remembered per reader
+        why: A real feature for readers, and every palette becomes a surface you have to keep looking right.
+        prompt: "Promote the palette switcher to the site header and persist the choice in localStorage across pages; every palette in docs/palettes.yaml becomes supported surface."
+
+  - id: t-identity
+    call: T.4
+    lead: How visible is identity signalling on the public site?
+    help: This governs the public target specifically - the GitHub Pages build that anyone can reach. The private build can differ.
+    applies_to: "site.yaml targets.public; decisions (new entry)"
+    options:
+      - value: default-palette
+        text: The public default palette carries it
+        why: Unmissable and unconditional. Everyone who opens the site sees it before they read a word.
+        prompt: "The public target uses the identity palette chosen in T.1 as its default. Record that this is a deliberate, public statement."
+      - value: switcher-option
+        text: Neutral default, identity palettes offered in the switcher
+        why: Present but chosen by the reader; depends on T.3 shipping a site-wide switcher.
+        prompt: "Keep a neutral public default and offer the identity palettes through the switcher; this requires the site-wide switcher from T.3."
+      - value: accent-only
+        text: A small emblem or accent, not the whole page
+        why: A flag in the footer or a coloured rule - legible to people looking for it, quiet to everyone else.
+        prompt: "Signal identity through a small emblem or accent detail rather than the page palette; specify where it appears."
+      - value: none
+        text: Nothing on the public site
+        why: The public target stays neutral; personal palettes live in the private build only.
+        prompt: "Keep the public target neutral. Any identity palette applies to the private target only; note this in site.yaml targets.public."
+
+  - id: t-floor
+    call: T.5
+    lead: What is the contrast floor a palette has to clear?
+    help: Whatever you pick becomes a check an agent runs before adding a palette, and the reason a pastel gets deepened. It is also what rejected m4's first accent at 4.3:1.
+    applies_to: "docs/palettes.yaml agent_notes; new evidence claim"
+    options:
+      - value: aa
+        text: "WCAG AA - 4.5:1 body text, 3:1 large text and UI borders"
+        recommended: true
+        why: The usual floor; every palette in [[palettes]] already clears it. Rules out raw pastel links on white.
+        prompt: "Adopt WCAG AA (4.5:1 body, 3:1 large and UI) as the palette floor and state it in docs/palettes.yaml agent_notes."
+      - value: aaa
+        text: "WCAG AAA - 7:1 body text"
+        why: Excludes most soft palettes outright, including the lavender accent in light mode.
+        prompt: "Adopt WCAG AAA (7:1 body) as the palette floor and re-check every palette in docs/palettes.yaml against it, flagging failures."
+      - value: none
+        text: No stated floor, judge by eye
+        why: Faster, and the first thing to go wrong on someone else's screen.
+        prompt: "State that palettes are judged by eye with no numeric floor, and record the risk."
+
+  - id: t-tokens
+    call: T.6
+    lead: Where do palette tokens live once one is chosen?
+    help: The tokens exist in [[palettes]] as data; the browser needs them as CSS. Something has to bridge that - and a default that applies to the private build only needs that bridge to be target-aware, which nothing here is yet.
+    applies_to: "site/assets/yss.css; site.yaml"
+    options:
+      - value: css-override
+        text: Hand-written site/assets/yss.css override
+        recommended: true
+        why: One small file, no new machinery, and the base stylesheet already documents this as the override path.
+        prompt: "Write the chosen palette into site/assets/yss.css as a token override; leave yss/assets/yss.css alone."
+      - value: site-yaml
+        text: A theme block in site.yaml that the build renders into CSS
+        why: Tokens become validated data rather than a hand-copied stylesheet; needs a schema change and build work.
+        prompt: "Add a theme block to the site schema and render its tokens into CSS at build time. Flag the schema change before making it."
+      - value: generated
+        text: Generate the CSS from docs/palettes.yaml at build time
+        why: Single source of truth for palettes, and the docs layer starts owning presentation.
+        prompt: "Generate the token CSS from docs/palettes.yaml at build time, keyed by the chosen palette id. Flag the coupling between docs and presentation."
+
+  - id: t-collections
+    call: T.7
+    lead: May a collection override the site palette?
+    help: "`collection.yaml` already has a `theme` block with `accent`, `background` and extra `css`, applied by the renderer."
+    applies_to: "yss/render.py theme handling; collection.yaml theme"
+    options:
+      - value: accent-only
+        text: Accent and background only, as today
+        recommended: true
+        why: A musing can feel like itself without any collection being able to break contrast or badge colours.
+        prompt: "Keep collection theming limited to accent and background; document the limit in the collection schema description."
+      - value: full-palette
+        text: A collection may set the full token set
+        why: Real per-musing identity; also nine chances to ship an unreadable page.
+        prompt: "Let a collection set the full token set via a palette id or inline tokens, and check the contrast floor from T.5 for each."
+      - value: none
+        text: No overrides; one palette everywhere
+        why: Total consistency, and the folder-per-musing structure loses its visual cue.
+        prompt: "Remove collection theming; every collection renders in the site palette."
+
+  - id: t-loved
+    call: T.8
+    lead: Any colour you want to see or never see again?
+    kind: text
+    required: false
+    placeholder: "e.g. no pure black backgrounds; keep the green in ok badges; that blue looks like a bank"
+    help: Free text. Anything you notice while playing that a token list does not capture - a hue that reads wrong to you, a badge that disappears, a palette that only works at night.
+    applies_to: "docs/palettes.yaml notes"
+
+prompt:
+  task: Apply the theme verdicts to the yss site
+  background: |
+    Repository YamlStaticSite. Palette token data is docs/palettes.yaml (kind generic, shape palettes),
+    with light and dark token sets per palette keyed by the custom properties in yss/assets/yss.css.
+    The base stylesheet documents site/assets/yss.css as the override path. The playground prefab is
+    site/prefabs/theme-playground.yaml and the page is site/pages/themes.yaml. Load the `yss` skill
+    first, then `yss-doc`, `yss-page` or `yss-prefab` for whatever the verdicts touch.
+  steps:
+    - Apply the palette verdict by writing tokens where T.6 says they live; copy the values from docs/palettes.yaml rather than re-inventing them.
+    - Record the outcome as a new entry in docs/decisions.yaml, including the identity answer from T.4 and the contrast floor from T.5.
+    - Set the themes worksheet status to archived and note in its intro that it was applied, with the date from the decided-by field.
+    - Fold any free-text remarks from T.8 into the relevant palette's notes in docs/palettes.yaml.
+    - Run `python -m yss validate`, `python -m yss check` and `python -m yss build --target all --no-dynamic`, then check the themes page in `python -m yss serve`.
+  do_not_touch:
+    - yss/ source code, unless a verdict cannot be applied without it - then flag it first.
+    - .yss/local.yaml and anything under dist/.
+    - The palettes not chosen; they stay in docs/palettes.yaml as options.
+  flag_only:
+    - Anything needing a schema change (the site.yaml theme block in T.6, full collection palettes in T.7).
+    - Any palette that fails the contrast floor from T.5 - report the ratio, do not quietly adjust the colour.
+  rules:
+    - Project knowledge goes in docs/*.yaml, never in new markdown files.
+    - Validate after every edit; fix every reported file and path.
+    - Mark anything not for the public site as visibility private or private_notes.
+    - No absolute paths in anything that reaches dist/.
+decided_by: true
+extra: true

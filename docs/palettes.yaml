@@ -1,0 +1,113 @@
+# Generic doc - schema: doc.generic. The palette data the theme playground renders and the
+# themes worksheet chooses between. Token keys are yss.css custom properties without the `--`.
+kind: generic
+id: palettes
+title: Colour palettes
+summary: The colour palettes yss ships as presets, each a full light and dark token set with a contrast note.
+shape: palettes
+status: active
+visibility: public
+updated: 2026-09-02
+owners: [agent]
+related: [themes, design]
+tags: [theme, colour, accessibility]
+evidence:
+  - path: yss/assets/yss.css
+    contains: "--accent"
+  - path: site/prefabs/theme-playground.yaml
+agent_notes: |
+  One entry per palette. `tokens.light` and `tokens.dark` must carry the same keys, and every key must
+  be a custom property that yss/assets/yss.css actually defines - the playground writes them straight
+  onto the document element, so a typo silently does nothing. Contrast figures in `notes` are body
+  text (fg on bg) and link text (accent on bg); keep them at or above the floor the themes worksheet
+  settles on.
+
+  Emblems must be single characters that render in a plain system font on Windows - ZWJ sequences
+  (the trans flag among them) and anything newer than Emoji 12 come out as tofu, so use a lone older
+  symbol. Test one in the browser console before adding it: a canvas `measureText` width equal to the
+  width of U+FFFF is a missing glyph (that check caught the rock emoji at 24px against 30px for the
+  moai that replaced it).
+private_notes: |
+  The author's own house palette is an out-of-tree theme package in a sibling folder, not a preset in
+  this repository - see [[decisions#adr-013]]. Presets here are the ones the toolchain ships to
+  anybody who installs it.
+
+data:
+  tokens:
+    - {key: bg, label: Page background, role: The paper the site is printed on.}
+    - {key: bg-2, label: Raised surface, role: Cards, header, code blocks' neighbours.}
+    - {key: fg, label: Body text, role: Must clear the contrast floor against bg.}
+    - {key: fg-2, label: Secondary text, role: Summaries, help text, table labels.}
+    - {key: line, label: Borders, role: Card edges, rules, table grid.}
+    - {key: accent, label: Accent, role: Links, buttons, active nav - the colour of the theme.}
+    - {key: accent-2, label: Accent wash, role: Tint behind active nav and hovered links.}
+    - {key: ok, label: Good, role: Passing evidence, done work.}
+    - {key: warn, label: Warning, role: Stale badges, the private target badge.}
+    - {key: bad, label: Bad, role: Failures, must-read warnings.}
+    - {key: muted, label: Muted, role: Timestamps, source paths, the footer.}
+    - {key: code, label: Code background, role: Inline code and pre blocks.}
+
+  palettes:
+    # --- Shipped presets ----------------------------------------------------------------------
+    - id: trans-pride
+      family: preset
+      name: Trans Pride
+      emblem: "⚧"
+      blurb: Flag blue and pink over ink. Dark-first - the light set never came good.
+      mood: [identity, bright, dark-first]
+      caveat: Light mode is documented as not working; use the dark set.
+      notes: |
+        The flag colours are #5BCEFA, #F5A9B8 and #FFFFFF, and dark mode is where they live: on
+        #12171d the blue and the pink both have room to be themselves. Light mode was tried and
+        rejected - deepening the blue to #0b6d9c passes 4.9:1 on paper and still reads as a form at a
+        clinic rather than a flag, because the two colours that carry the flag are exactly the two
+        that vanish on white. The light set below is kept as the record of that attempt, not as a
+        recommendation. The emblem is a lone ⚧ because the flag emoji is a ZWJ sequence and renders
+        as tofu in Chrome and Firefox on Windows.
+      tokens:
+        light: {bg: "#fbfdff", bg-2: "#ffffff", fg: "#16202b", fg-2: "#4d5b6a", line: "#d8e6f0", accent: "#0b6d9c", accent-2: "#e1f3fc", ok: "#2e7d51", warn: "#a06a00", bad: "#a83a5e", muted: "#7b8b99", code: "#eef5fa"}
+        dark:  {bg: "#12171d", bg-2: "#1a2028", fg: "#e8eef4", fg-2: "#adbccb", line: "#2c3846", accent: "#5bcefa", accent-2: "#16303f", ok: "#6fd39d", warn: "#e0a950", bad: "#f5a9b8", muted: "#7d8b99", code: "#1e2630"}
+
+    - id: lavender-warm
+      family: preset
+      name: Lavender & Warm Sand
+      emblem: "🌸"
+      blurb: A purple accent over warm off-white, with terracotta rather than red for failures.
+      mood: [soft, warm, evening]
+      notes: |
+        Cool accent, warm ground - the combination that stops a purple site looking cold. Body text
+        13.9:1, links 6.8:1. The greys are tinted mauve so nothing on the page is a true neutral; that
+        is the whole trick, and it is also why this palette looks wrong the moment a stray grey gets
+        hard-coded somewhere.
+      tokens:
+        light: {bg: "#faf6f2", bg-2: "#fffdfb", fg: "#251f2b", fg-2: "#5f5568", line: "#e6dcdc", accent: "#65418e", accent-2: "#ece2f4", ok: "#4f7942", warn: "#ad6a19", bad: "#b0453f", muted: "#8d8290", code: "#f1eae9"}
+        dark:  {bg: "#1a161d", bg-2: "#221d26", fg: "#ece7ef", fg-2: "#b8aec0", line: "#383043", accent: "#c4a7e7", accent-2: "#322a3f", ok: "#9dc98d", warn: "#dda45c", bad: "#e6867f", muted: "#857b8d", code: "#272130"}
+
+    - id: ink-blue
+      family: preset
+      name: Ink Blue (current default)
+      emblem: "🔷"
+      blurb: What the site ships with today - neutral paper, a plain blue accent, no personality claimed.
+      mood: [neutral, default, safe]
+      notes: |
+        These are the values in yss/assets/yss.css right now, listed so the playground has a baseline
+        to bounce off and so "keep what we have" is a real option in the worksheet rather than an
+        absence. Nothing is wrong with it; it just does not say whose site this is - which is the point
+        for the public target.
+      tokens:
+        light: {bg: "#fafaf8", bg-2: "#ffffff", fg: "#1d1d1b", fg-2: "#5c5c57", line: "#e2e1dc", accent: "#2456a4", accent-2: "#e8eefb", ok: "#2e7d32", warn: "#b26a00", bad: "#c62828", muted: "#8a8a84", code: "#f1f0ec"}
+        dark:  {bg: "#17181a", bg-2: "#202225", fg: "#e8e8e4", fg-2: "#b4b4ae", line: "#33353a", accent: "#8fb3ff", accent-2: "#26304a", ok: "#7bc47f", warn: "#d9a441", bad: "#ef8a8a", muted: "#7b7b76", code: "#26282c"}
+
+    - id: high-contrast
+      family: preset
+      name: High Contrast
+      emblem: "◼"
+      blurb: Pure black on pure white, one dark blue accent, borders you cannot miss.
+      mood: [accessible, stark, utilitarian]
+      notes: |
+        21:1 body text, 10.4:1 links, and borders dark enough to survive a bad monitor at a bad angle.
+        Worth keeping as a switchable option even if it never becomes the default - it is the palette
+        to test against when a new prefab's colours look fine to you and illegible to someone else.
+      tokens:
+        light: {bg: "#ffffff", bg-2: "#ffffff", fg: "#000000", fg-2: "#333333", line: "#5a5a5a", accent: "#0b3d91", accent-2: "#dde6f7", ok: "#1a6b1f", warn: "#8a4b00", bad: "#a41010", muted: "#4a4a4a", code: "#eeeeee"}
+        dark:  {bg: "#000000", bg-2: "#0d0d0d", fg: "#ffffff", fg-2: "#d0d0d0", line: "#9a9a9a", accent: "#7fb2ff", accent-2: "#12233d", ok: "#7ee08a", warn: "#ffbf47", bad: "#ff8f8f", muted: "#b0b0b0", code: "#1a1a1a"}
