@@ -1,21 +1,25 @@
-# Worksheet - schema: doc.worksheet. Pending decisions and blockers waiting on Panda after the 2026-09-02 verdicts.
-# Agents: add a question here whenever work stalls on a human call; never answer one.
+# Worksheet - schema: doc.worksheet. Applied 2026-09-02 and kept as the record; do not re-answer it.
+# Agents: new questions go in docs/open.yaml, never here.
 kind: worksheet
 id: pending
 title: Pending decisions and blockers
 summary: Everything currently waiting on Panda - schema-change approvals, hosting choices, the Musings renderer, the release cut and the site review - with pros and cons per option.
-status: active
+status: archived
 updated: 2026-09-02
 owners: [agent]
-related: [plan, decisions, verdicts]
+related: [plan, decisions, verdicts, open]
 intro: |
-  Each question below is either a decision an agent cannot make or a blocker only you can clear.
-  The **Blocked work** box lists the plan items waiting on each answer. Recommended defaults are
-  pre-selected; open **pros and cons** under an option, or **Compare all options** under a question,
-  before changing one. Press **Build the instruction** and hand the text to an agent.
+  **Applied 2026-09-02 by Panda.** Every question below was answered and recorded in the plan, the
+  decision log ([[decisions#adr-014]], [[decisions#adr-015]], [[decisions#adr-016]]), site.yaml and
+  the demo collection. This worksheet is kept as the record - do not re-answer it; anything still
+  open is on [[open]].
+
+  P.1 was approved, so `build.strict` and per-collection `evidence` settings are now in the site and
+  collection schemas with matching CLI flags. P.9 was answered with one gap, which became the open
+  question [[plan#q-subsite-cards]].
 warn: |
-  🐼❗ P.1 approves a schema change, which the last worksheet forbade agents from doing on their
-  own. Leave it on "defer" if you want the site schema frozen for now.
+  🐼❗ Archived. Answering this page again builds an instruction that has already been applied.
+  Open [[open]] for the questions that are still live.
 
 questions:
   - id: p-flow-overrides
@@ -64,7 +68,7 @@ questions:
     lead: How do Godot and threaded wasm exports run on GitHub Pages without isolation headers?
     help: The private server sends COOP/COEP; Pages cannot. Risk r-headers is open and both prototype tasks wait on this.
     applies_to: "plan r-headers status and mitigation; plan m6-godot, m6-coi"
-    blocks: [plan/m6-godot, plan/m6-coi]
+    blocks: [plan/m6-godot, plan/m6-bandwidth]
     compare: Threadless exports work everywhere but lose multithreading; the service-worker shim keeps threads but adds a reload on first visit and a script that must be kept up to date.
     options:
       - value: no-threads

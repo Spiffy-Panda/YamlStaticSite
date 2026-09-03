@@ -182,8 +182,8 @@ class CollectionTests(TempSiteCase):
         priv = build(self.cfg, "private", run_dynamic=False, loaded=loaded)
         pub = build(self.cfg, "public", run_dynamic=False, loaded=loaded)
         self.assertTrue((priv.out_dir / "demo-musing" / "index.html").exists())
-        self.assertTrue((priv.out_dir / "demo-musing" / "play" / "index.html").exists())  # mount, private only
-        self.assertFalse((pub.out_dir / "demo-musing" / "play").exists())
+        self.assertTrue((priv.out_dir / "demo-musing" / "play" / "index.html").exists())  # mount
+        self.assertTrue((pub.out_dir / "demo-musing" / "play" / "index.html").exists())   # opted in (adr-015)
         self.assertTrue((priv.out_dir / "demo-musing" / "generated-by-hook.txt").exists())  # after_build
         self.assertTrue((pub.out_dir / "demo-musing" / "assets" / "theme.css").exists())
         html = (pub.out_dir / "demo-musing" / "index.html").read_text(encoding="utf-8")
@@ -263,6 +263,88 @@ class WorksheetTests(TempSiteCase):
         for preset in ("ink-blue", "high-contrast", "lavender-warm", "trans-pride"):
             self.assertIn(f'data-pal="{preset}"', html)
         self.assertIn("lab-contrast", html)
+
+
+class FlowOverrideTests(TempSiteCase):
+    """build.strict and per-collection evidence settings (adr-014): CLI > collection.yaml > site.yaml."""
+
+    def set_site(self, block: str) -> Config:
+        path = self.root / "site.yaml"
+        path.write_text(path.read_text(encoding="utf-8") + "\n" + block, encoding="utf-8")
+        return Config.load(self.root)
+
+    def test_build_strict_defaults_to_site_config(self):
+        (self.root / "site" / "pages" / "leak.yaml").write_text(
+            "id: leak\nroute: /leak/\ntitle: Leak\n"
+            "sections: [{id: s, type: markdown, markdown: 'contains SEKRIT here'}]\n",
+            encoding="utf-8")
+        os.environ["YSS_FLAG_STRINGS"] = "SEKRIT"
+
+        cfg = Config.load(self.root)                 # site.yaml has build.strict false
+        self.assertTrue(build(cfg, "public", run_dynamic=False).flags)
+
+        cfg = self.set_site("build:\n  strict: true\n")
+        with self.assertRaises(BuildError) as caught:
+            build(cfg, "public", run_dynamic=False)
+        self.assertIn("strict mode", str(caught.exception))
+
+        # an explicit flag beats the config in both directions
+        self.assertTrue(build(cfg, "public", run_dynamic=False, strict=False).flags)
+
+    def test_collection_evidence_overrides_site_evidence(self):
+        cfg = self.set_site("evidence:\n  git_recency: false\n  run_commands: true\n")
+        self.assertIs(cfg.evidence_for("").get("git_recency"), False)
+        self.assertIs(cfg.evidence_for("demo-musing").get("git_recency"), True)   # collection.yaml wins
+        self.assertIs(cfg.evidence_for("demo-musing").get("run_commands"), True)  # not overridden, site wins
+
+    def test_cli_flag_beats_every_configured_policy(self):
+        cfg = self.set_site("evidence:\n  git_recency: true\n")
+        loaded = load_all(cfg)
+        report = check(cfg, loaded.docs, loaded.registry, git_recency=False)
+        self.assertEqual([c for c in report.claims if c.kind == "git"], [])
+
+    def test_unknown_keys_are_still_rejected(self):
+        """The approved keys are the only new ones; the schemas stay closed."""
+        cfg = self.set_site("build:\n  strict: true\n  bogus: 1\n")
+        errors = load_all(cfg).errors
+        self.assertTrue(any("bogus" in e for e in errors), errors)
+
+
+class MountTargetTests(TempSiteCase):
+    """Mounts are private unless the mount names the public target (adr-015)."""
+
+    def test_demo_playable_opts_in_to_public(self):
+        for target in ("public", "private"):
+            rep = build(self.cfg, target, run_dynamic=False)
+            self.assertTrue((rep.out_dir / "demo-musing" / "play" / "index.html").is_file(), target)
+
+    def test_a_mount_without_targets_is_private_only(self):
+        path = self.root / "examples" / "demo-musing" / "collection.yaml"
+        text = "\n".join(line for line in path.read_text(encoding="utf-8").splitlines()
+                         if not line.lstrip().startswith("targets: [private, public]"))
+        path.write_text(text, encoding="utf-8")
+        cfg = Config.load(self.root)
+        self.assertFalse((build(cfg, "public", run_dynamic=False).out_dir / "demo-musing" / "play").exists())
+        self.assertTrue((build(cfg, "private", run_dynamic=False).out_dir / "demo-musing" / "play").is_dir())
+
+
+class WorksheetLifecycleTests(TempSiteCase):
+    """A worksheet is applied, archived and replaced; the live one is `open` (P.2 keeps both public)."""
+
+    def test_worksheet_pages_are_public_and_the_archived_one_says_so(self):
+        rep = build(self.cfg, "public", run_dynamic=False)
+        for route in ("open", "pending", "verdicts"):
+            self.assertTrue((rep.out_dir / route / "index.html").is_file(), route)
+        pending = (rep.out_dir / "pending" / "index.html").read_text(encoding="utf-8")
+        self.assertIn("Applied 2026-09-02", pending)
+        self.assertIn('href="/YamlStaticSite/open/"', pending)  # points at the live worksheet
+
+    def test_the_live_worksheet_lists_the_open_plan_questions(self):
+        rep = build(self.cfg, "public", run_dynamic=False)
+        html = (rep.out_dir / "open" / "index.html").read_text(encoding="utf-8")
+        self.assertIn("q-subsite-cards", html)
+        self.assertIn("Build the instruction", html)
+
 
 
 if __name__ == "__main__":

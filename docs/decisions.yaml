@@ -217,3 +217,65 @@ entries:
       - A site's own palette is one file copy, and reverting it is deleting that file.
       - Trans-pride is recorded as dark-first - its light set was tried and rejected, and is kept as the record of the attempt.
       - Emblems must be single glyphs older than Emoji 12; ZWJ sequences render as tofu in Chrome and Firefox on Windows.
+
+  - id: adr-014
+    date: 2026-09-02
+    title: Flow policy is config with CLI overrides, not a hard-coded workflow flag
+    status: accepted
+    context: |
+      Strictness lived in one place only - `--strict` typed into the Pages workflow - so an agent
+      could not adjust the flow without editing an audited CI file, and every collection was stuck
+      with the site's evidence policy. The 2026-09-02 verdicts classed new schema keys as flag-only,
+      so the request was recorded rather than applied; P.1 approved it.
+    decision: |
+      `build.strict` in site.yaml sets whether a build fails on flagged strings and stale evidence.
+      `evidence.git_recency` and `evidence.run_commands` may be overridden per collection in
+      collection.yaml. Both are overridden by CLI flags - `build --strict/--no-strict`,
+      `check --git/--no-git`, `check --run-commands/--no-run-commands` - and the resolution order is
+      CLI flag, then collection.yaml, then site.yaml, then the defaults in yss/config.py.
+    consequences:
+      - Policy is readable as data instead of inferred from a workflow file.
+      - A noisy collection can turn git recency off for its own docs without touching the site.
+      - A repository can quietly relax strictness in config; the CI workflow keeps passing --strict so the deploy gate is explicit.
+    alternatives:
+      - Keep the workflow flag as the only switch (no schema churn, but no per-collection policy and no way for an agent to adjust the flow).
+
+  - id: adr-015
+    date: 2026-09-02
+    title: Mounts stay private by default; a public playable opts in per mount
+    status: accepted
+    context: |
+      Mounts copy a built folder - a playable, an export, a data drop - into the output. Making them
+      public by default would put half-finished builds on the public site and would contradict
+      adr-004, where privacy comes from marking rather than from remembering to mark.
+    decision: |
+      A mount with no `targets` is private only. A collection publishes one by listing the public
+      target on that mount. The demo collection's playable does exactly that and is the worked
+      example.
+    consequences:
+      - One extra line per public playable, and nothing reaches the public site by forgetting.
+      - Each musing decides per mount rather than per site.
+      - A public mount's contents go through the redaction scan like every other output file.
+    alternatives:
+      - Public by default with private marked explicitly (less config, but a build in progress can reach Pages).
+
+  - id: adr-016
+    date: 2026-09-02
+    title: Prototypes are exported without threads, and Godot hosting is a late milestone
+    status: accepted
+    context: |
+      Threaded wasm needs COOP/COEP. The private server sends both; GitHub Pages cannot send any
+      headers at all. The coi-serviceworker shim restores isolation with a service worker, at the
+      cost of a reload on first visit and a vendored script to keep current. Separately, a Godot web
+      export is tens of megabytes and Pages bandwidth is metered against the account.
+    decision: |
+      Godot and wasm prototypes are exported without threads, so one export serves both targets and
+      no shim is needed; the coi-serviceworker task is dropped. Prototype hosting moves to the back
+      of the plan, and whether any Godot export carries the public target on its mount is a separate,
+      explicit call about bandwidth cost.
+    consequences:
+      - No multithreaded physics or audio, and larger single-thread frame times.
+      - Nothing in the output may depend on the private server's headers.
+      - The public site cannot serve a Godot export until the bandwidth call is made; private mounts are unaffected.
+    alternatives:
+      - Ship coi-serviceworker beside each export (keeps threads, adds a first-load reload, a vendored script, and a CSP dependency).

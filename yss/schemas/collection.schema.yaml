@@ -31,6 +31,13 @@ properties:
   limits:
     type: object
     additionalProperties: {type: integer}
+  evidence:
+    type: object
+    description: Evidence policy for this collection's docs only; overrides site.yaml `evidence`. CLI flags override both.
+    properties:
+      git_recency: {type: boolean, description: Warn when cited code changed after a doc's `updated` date.}
+      run_commands: {type: boolean, description: Run command evidence for this collection during `yss check`.}
+    additionalProperties: false
   dynamic:
     type: object
     properties:

@@ -15,8 +15,16 @@ python -m yss build                       # both targets, with dynamic sources
 python -m yss build --target public       # one target
 python -m yss build --no-dynamic          # skip runtime collection (fast)
 python -m yss build --strict              # flagged strings and stale evidence fail too
+python -m yss build --no-strict           # never fail on them, whatever site.yaml says
 python -m yss check --run-commands        # evidence including command claims (slow); exit 1 on stale
 ```
+
+**Flow policy is config; flags override it.** `build.strict` in site.yaml decides whether a build
+fails on flagged strings and stale evidence. `evidence.git_recency` and `evidence.run_commands` are
+site-wide and may be overridden per collection in its `collection.yaml`. Resolution order for every
+doc: CLI flag (`--strict/--no-strict`, `--git/--no-git`, `--run-commands/--no-run-commands`), then
+that doc's collection.yaml, then site.yaml, then the defaults in `yss/config.py`. Keep the Pages
+workflow's explicit `--strict` so the deploy gate does not depend on config.
 
 Exit 1 with `file: at path: message` lines on validation errors (schema, vocabulary, limits, dangling
 references), or the page/section/prefab on render errors. A redacting target that contains a
@@ -54,9 +62,16 @@ visibility: public              # private -> the whole collection is absent from
 theme: {accent: "#7a3e9d", css: [assets/theme.css]}
 vocabularies: {risk_status: [open, watching, resolved]}   # this collection's own words
 limits: {summary: 400}
+evidence: {git_recency: true, run_commands: false}         # this collection's evidence policy
 dynamic: {sources: {notes: {provider: hooks:notes, targets: [public, private]}}}
-mounts: [{path: play, at: play/, targets: [private]}]      # copied to /<folder>/play/ in the private build
+mounts: [{path: play, at: play/, targets: [private, public]}]   # copied to /<folder>/play/
 ```
+
+**Mounts are private by default.** A mount with no `targets` exists only in the private build; a
+collection publishes one by naming the public target on that mount, one mount at a time. Never flip
+a whole site to public mounts - a build in progress would land on Pages. The demo collection's
+playable is the worked example. A public mount's files go through the redaction scan like any other
+output, so no absolute paths and nothing personal inside the mounted folder.
 
 ```python
 # <folder>/hooks.py - every function optional; runs in-process with the repo root on sys.path
@@ -105,7 +120,7 @@ python -m yss serve --no-watch --no-build # just serve what is in dist/
 
 - Rebuilds both targets when `site.yaml`, `docs/`, `site/`, `schemas/`, collection folders (and `serve.watch` extras) change; a failed build writes an error page.
 - Private port serves a stale dynamic source immediately and re-collects it in the background (stale-while-revalidate; `ttl` per source). `?refresh=1` (the refresh button) waits for a fresh collection. A missing file is collected synchronously.
-- Both ports send `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` (`serve.coop_coep`), which threaded wasm and Godot 4 web exports need. GitHub Pages cannot; export Godot without threads or add a coi-serviceworker shim beside the export.
+- Both ports send `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` (`serve.coop_coep`). **Export wasm and Godot prototypes without threads** so they need no isolation headers: GitHub Pages cannot send any, and nothing may depend on the private server's. The coi-serviceworker shim was considered and rejected. A Godot web export is also tens of megabytes and Pages bandwidth is metered against the account, so keep such a mount private until that cost has been decided deliberately.
 - Prototypes: put the export in a collection and mount it (`mounts`), or copy it into `site/assets/prototypes/<name>/` and add an `embed` section.
 
 ## GitHub Pages

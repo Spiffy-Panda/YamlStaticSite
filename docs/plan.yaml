@@ -39,8 +39,12 @@ milestones:
     tasks:
       - id: m3-review
         title: Human review of the rendered site for framing gaps
-        status: planned
+        status: done
         owner: panda
+        notes: |
+          Reviewed 2026-09-02. No framing gaps in what is rendered today; the reviewer's caveat is
+          that nothing has run outside this repository yet. One gap named - how a parent site
+          presents its sub-sites is undefined; it became [[#q-subsite-cards]].
         verify: Notes captured as open_questions or new page intros.
       - id: m3-verdicts
         title: Fill the verdicts worksheet and hand the instruction to an agent
@@ -51,18 +55,24 @@ milestones:
   - id: m6-prototypes
     title: Prototype hosting
     status: planned
-    priority: 3
-    summary: Host Godot web exports and wasm builds through collection mounts with the headers they need.
-    done_when: A Godot 4 web export runs inside a collection page on both the private server and GitHub Pages.
+    priority: 5
+    summary: Host wasm and Godot web exports through collection mounts, exported without threads so no isolation headers are needed.
+    done_when: A threadless Godot 4 web export runs inside a collection page on both the private server and GitHub Pages, and the bandwidth cost of hosting it publicly has been decided.
+    notes: |
+      Deliberately late (2026-09-02). A Godot web export is tens of megabytes and Pages bandwidth is
+      metered against the account, so publishing one is a cost decision, not just a build step.
+      Threadless exports are the rule; see [[decisions#adr-016]] and [[#r-headers]].
     tasks:
       - id: m6-godot
-        title: Add a real Godot export as a collection mount and confirm COOP/COEP on the private server
+        title: Add a threadless Godot export as a collection mount and confirm it runs without COOP/COEP
         status: planned
         owner: panda
-      - id: m6-coi
-        title: Ship a coi-serviceworker fallback for GitHub Pages (cannot set headers)
+        notes: Export with threads off; the private server's headers must not be what makes it work.
+      - id: m6-bandwidth
+        title: Decide when a Godot export may carry the public target on its mount, given Pages bandwidth cost
         status: planned
-        owner: agent
+        owner: panda
+        notes: Gates any public Godot mount; private-only mounts are unaffected.
       - id: m6-serve-mounts
         title: Serve-mode mounts (private server maps a URL to a source folder without copying)
         status: planned
@@ -83,6 +93,7 @@ milestones:
         title: Client-side search index over docs.json
         status: planned
         owner: agent
+        notes: Picked as the next hardening item to pick up (P.7, 2026-09-02); the other m7 items stay unranked.
       - id: m7-watchdog
         title: Optional watchdog-based file watching instead of polling
         status: planned
@@ -91,6 +102,12 @@ milestones:
         title: Promote recurring `generic` shapes into real doc kinds
         status: planned
         owner: agent
+      - id: m7-reverify
+        title: "`yss reverify <doc>` - bump `updated` after the human confirms the doc still holds"
+        status: planned
+        owner: agent
+        notes: Chosen over simply accepting the noise (P.8, 2026-09-02); [[#r-evidence-noise]] stays open until it ships.
+        verify: python -m yss reverify --help
       - id: m7-verify-evidence
         title: Optional CI job that runs `yss check --run-commands` so task verify commands are executed
         status: planned
@@ -98,10 +115,16 @@ milestones:
         verify: cat .github/workflows/pages.yml
       - id: m7-flow-overrides
         title: "Config and CLI overrides for the flow: build.strict in site.yaml, --no-strict, evidence.git_recency per collection"
-        status: planned
+        status: done
         owner: agent
-        notes: Requested with the 2026-09-02 verdicts; needs a site schema change, so flagged rather than applied.
+        notes: Approved as P.1 and applied 2026-09-02; see [[decisions#adr-014]].
         verify: python -m yss schema site --yaml
+        evidence:
+          - {path: yss/schemas/site.schema.yaml, contains: "build:"}
+          - {path: yss/schemas/collection.schema.yaml, contains: "Evidence policy for this collection"}
+          - {path: yss/config.py, contains: "def evidence_for"}
+          - {path: yss/cli.py, contains: "--no-strict"}
+          - {path: yss/evidence.py, contains: "def _policy"}
 
   - id: m12-musings
     title: Adopt yss in the Musings repository
@@ -116,9 +139,13 @@ milestones:
         status: planned
         owner: agent
       - id: m12-renderer
-        title: Plug the Musings markdown subset renderer in through markdown.renderer or hooks.py markdown()
+        title: Plug the existing Musings renderer in through markdown.renderer or hooks.py markdown()
         status: planned
         owner: agent
+        notes: |
+          Confirmed as P.5 (2026-09-02). The Musings renderer stays authoritative for the whole
+          migration so no page changes appearance while it moves; retiring it is [[#m12-retire]]'s
+          business, not this task's. Changes inside the Musings repository are out of scope for yss.
       - id: m12-retire
         title: Retire build_site.py once every musing renders through yss
         status: planned
@@ -129,7 +156,10 @@ risks:
     title: A host repo already has a markdown renderer with a documented subset and the two drift
     likelihood: medium
     impact: medium
-    mitigation: markdown.renderer in site.yaml or a collection's hooks.py markdown() makes one renderer authoritative everywhere.
+    mitigation: |
+      markdown.renderer or a collection's hooks.py markdown() makes one renderer authoritative. For
+      the Musings migration that renderer is the existing Musings one (P.5, 2026-09-02), so nothing
+      re-renders differently while both generators are alive; it is retired after the migration.
     status: mitigated
   - id: r-leak
     title: Private or personal data leaks into the public build
@@ -153,16 +183,35 @@ risks:
     title: GitHub Pages cannot send COOP/COEP headers, so threaded wasm fails there
     likelihood: high
     impact: low
-    mitigation: Export Godot without threads or ship the coi-serviceworker shim (m6-coi).
-    status: open
+    mitigation: |
+      Prototypes are exported without threads, so no isolation headers are needed anywhere and one
+      export serves both targets (P.3, 2026-09-02; [[decisions#adr-016]]). The coi-serviceworker
+      shim was considered and dropped. The private server still sends COOP/COEP, but nothing is
+      allowed to depend on it.
+    status: mitigated
   - id: r-evidence-noise
     title: Git recency warns on every doc after a large refactor, and warnings get ignored
     likelihood: medium
     impact: medium
-    mitigation: Warnings never fail a build unless --strict; bump `updated` when a doc is re-verified; evidence page shows only failures by default.
+    mitigation: |
+      Warnings never fail a build unless `--strict`, and the Evidence page shows only failures by
+      default. [[#m7-reverify]] will bump `updated` once the human confirms a doc still holds; this
+      risk stays open until that command ships (P.8, 2026-09-02).
     status: open
 
 open_questions:
+  - id: q-subsite-cards
+    question: How does a parent site present the sub-sites (per-musing collections) it links to, and which of them sit in the hero panel?
+    context: |
+      The gap named in the 2026-09-02 site review. A musings landing page draws a card per musing -
+      emblem, blurb, links to its pages and straight to its prototypes - and some sit in a hero
+      panel. Nothing says what a collection publishes for a parent to draw that card.
+    options:
+      - A card contract in collection.yaml (emblem, blurb, links, hero flag) that the parent renders
+      - The parent page lists its sub-sites by hand and an agent keeps the list current
+      - Both - the contract supplies defaults, the parent page overrides per sub-site
+    owner: panda
+    status: open
   - id: q-md-bridge
     question: Should README.md content be migrated into docs, or stay as an include section on the Reference page?
     context: The Reference page includes README.md verbatim; the same words then exist in two places.

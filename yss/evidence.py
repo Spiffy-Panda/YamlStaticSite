@@ -12,6 +12,9 @@ Claims come from two places:
 
 Git recency: if any path cited by a doc changed after the doc's `updated` date, the doc gets a
 `warn` claim ("possibly stale"). Statuses: ok | stale | warn | unknown | skipped.
+
+Policy (`git_recency`, `run_commands`) resolves per doc: a CLI flag wins, then that doc's
+collection.yaml `evidence` block, then site.yaml `evidence`, then the defaults in config.py.
 """
 from __future__ import annotations
 
@@ -236,7 +239,15 @@ def _git_last_change(cfg: Config, paths: list[str]) -> str | None:
     return proc.stdout.strip() or None
 
 
-def evaluate(cfg: Config, docs: dict[str, dict], claims: list[Claim], run_commands: bool = False, git_recency: bool = True) -> EvidenceReport:
+def _policy(cfg: Config, doc: dict, name: str, override: bool | None, default: bool) -> bool:
+    """Resolve one evidence setting: CLI override wins, then collection.yaml, then site.yaml."""
+    if override is not None:
+        return bool(override)
+    return bool(cfg.evidence_for(doc.get("_collection") or "").get(name, default))
+
+
+def evaluate(cfg: Config, docs: dict[str, dict], claims: list[Claim],
+             run_commands: bool | None = None, git_recency: bool | None = None) -> EvidenceReport:
     extras: dict[int, dict] = {}
     for claim in claims:
         doc = docs.get(claim.doc, {})
@@ -249,24 +260,23 @@ def evaluate(cfg: Config, docs: dict[str, dict], claims: list[Claim], run_comman
         elif claim.kind == "symbol":
             _check_symbol(cfg, claim)
         elif claim.kind == "command":
-            _check_command(cfg, claim, extra, run_commands)
+            _check_command(cfg, claim, extra, _policy(cfg, doc, "run_commands", run_commands, False))
         else:
             claim.status = "unknown"
             claim.detail = f"unknown evidence kind '{claim.kind}'"
     report = EvidenceReport(list(claims))
-    if git_recency:
-        for doc_id, doc in docs.items():
-            updated = doc.get("updated")
-            if not updated:
-                continue
-            cited = sorted({c.target for c in claims if c.doc == doc_id and c.kind in ("path", "contains") and c.status == "ok"})
-            cited = [p for p in cited if not any(ch in p for ch in "*?[")]
-            last = _git_last_change(cfg, cited)
-            if last and str(last) > str(updated):
-                report.claims.append(
-                    Claim(doc_id, None, "updated", "git", ", ".join(cited[:5]) + (" ..." if len(cited) > 5 else ""),
-                          status="warn", detail=f"cited code changed {last}, doc updated {updated}", source=doc.get("_source", ""))
-                )
+    for doc_id, doc in docs.items():
+        updated = doc.get("updated")
+        if not updated or not _policy(cfg, doc, "git_recency", git_recency, True):
+            continue
+        cited = sorted({c.target for c in claims if c.doc == doc_id and c.kind in ("path", "contains") and c.status == "ok"})
+        cited = [p for p in cited if not any(ch in p for ch in "*?[")]
+        last = _git_last_change(cfg, cited)
+        if last and str(last) > str(updated):
+            report.claims.append(
+                Claim(doc_id, None, "updated", "git", ", ".join(cited[:5]) + (" ..." if len(cited) > 5 else ""),
+                      status="warn", detail=f"cited code changed {last}, doc updated {updated}", source=doc.get("_source", ""))
+            )
     return report
 
 
@@ -286,12 +296,10 @@ def _explicit_extra(doc: dict, claim: Claim) -> dict:
 
 
 def check(cfg: Config, docs: dict[str, dict], reg: SchemaRegistry, run_commands: bool | None = None, git_recency: bool | None = None) -> EvidenceReport:
+    """Evaluate every claim. `run_commands`/`git_recency` None means "use the configured policy",
+    which is site.yaml `evidence` overridden by each doc's collection.yaml `evidence`."""
     claims = collect_claims(docs, reg)
-    return evaluate(
-        cfg, docs, claims,
-        run_commands=cfg.evidence.get("run_commands", False) if run_commands is None else run_commands,
-        git_recency=cfg.evidence.get("git_recency", True) if git_recency is None else git_recency,
-    )
+    return evaluate(cfg, docs, claims, run_commands=run_commands, git_recency=git_recency)
 
 
 def inject(docs: dict[str, dict], report: EvidenceReport) -> None:

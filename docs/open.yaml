@@ -1,0 +1,145 @@
+# Worksheet - schema: doc.worksheet. The live one. Opened 2026-09-02 after the pending worksheet was applied.
+# Agents: add a question here whenever work stalls on a human call; never answer one.
+kind: worksheet
+id: open
+title: Open decisions
+summary: What is still waiting on Panda after the 2026-09-02 verdicts - the sub-site card contract, when a Godot export may go public, and which hardening item follows search.
+status: active
+updated: 2026-09-02
+owners: [agent]
+related: [plan, decisions, pending]
+intro: |
+  The previous worksheet ([[pending]]) has been applied and archived. Three questions are left, and
+  two of them are new - they came out of applying it. Recommended defaults are pre-selected; open
+  **pros and cons** under an option before changing one, press **Build the instruction**, and hand
+  the text to an agent in a fresh session.
+
+  Nothing here blocks the toolchain itself. The first question blocks the Musings landing page, the
+  second gates any public Godot export, and the third only orders work already on the plan.
+warn: |
+  🐼❗ O.1 is the only one that can change a schema. Everything else is plan ordering or a hosting
+  call, so an agent can act on it the same day.
+
+questions:
+  - id: o-subsite-cards
+    call: O.1
+    lead: How does a parent site present the sub-sites it links to, and which sit in the hero panel?
+    help: |
+      From your site review. A musings landing page draws a card per musing - emblem, blurb, and
+      links that go both to the musing's own pages and straight to its prototypes - and some musings
+      sit in a hero panel above the rest. yss already discovers collections and can render an index
+      from collection.yaml, but nothing says what a collection must publish for a parent to draw
+      that card, or how a collection asks for the hero slot.
+    applies_to: "plan q-subsite-cards answer; collection schema if a contract is chosen; decisions (new entry)"
+    blocks: [plan/q-subsite-cards]
+    compare: |
+      The contract makes a new musing appear on the landing page by existing, at the cost of two
+      more collection.yaml keys and a card prefab that has to suit every musing. The hand-written
+      list needs no schema at all and lets each card say something different, but an agent has to
+      remember to add one, and a musing that is never added is simply invisible.
+    options:
+      - value: contract
+        text: A card contract in collection.yaml, rendered by the parent
+        recommended: true
+        why: A collection declares its own card - emblem, blurb, links, hero flag - and the landing page draws whatever it finds.
+        prompt: "Add a card contract to the collection schema - links (label, href, kind) and a hero flag beside the existing emblem, summary and order - and render the landing page from it."
+        pros: [A new musing appears by existing, One place per musing to edit, The hero panel is data rather than page markup]
+        cons: [Two more collection schema keys, Every card must fit one prefab, A musing cannot say something the contract has no field for]
+      - value: manual
+        text: The parent page lists its sub-sites by hand
+        why: No schema change; each card is written where the landing page is written, and an agent keeps the list current.
+        prompt: "Keep sub-site cards hand-written on the parent page; an agent adds a card when a musing is migrated. No collection schema change."
+        pros: [No schema change, Each card can be shaped for its musing, Prototype links need no contract]
+        cons: [A migrated musing is invisible until someone adds it, The list drifts from the collections that exist]
+      - value: both
+        text: Contract for defaults, parent page may override
+        why: The contract fills the card in; the landing page overrides any field for a musing that needs it.
+        prompt: "Add the card contract to the collection schema and let the parent page override any field per sub-site."
+        pros: [Nothing is invisible, Special cases still possible]
+        cons: [Two places hold the same fact, More to explain in the skills]
+
+  - id: o-godot-public
+    call: O.2
+    lead: When may a Godot export carry the public target on its mount?
+    help: |
+      Godot hosting is now a late milestone precisely because a web export is tens of megabytes and
+      GitHub Pages bandwidth is metered against your account. Private mounts cost nothing. This asks
+      what has to be true before one goes public.
+    applies_to: "plan m6-bandwidth status and notes; decisions (new entry if a rule is set)"
+    blocks: [plan/m6-bandwidth]
+    options:
+      - value: never-yet
+        text: Not until a real export exists and its size is measured
+        recommended: true
+        why: The call is deferred until there is something to weigh; m6-bandwidth stays open and no rule is written.
+        prompt: "Keep m6-bandwidth open; no Godot export carries the public target until one exists and its size has been measured."
+        pros: [No rule invented ahead of the evidence, Private mounts unaffected]
+        cons: [The question comes back later]
+      - value: size-cap
+        text: A size cap in the plan - under it a mount may go public, over it may not
+        why: A number decides it, so an agent can act without asking again.
+        prompt: "Set a size cap for public prototype mounts, record it in the plan and the decision log, and have the build warn when a public mount exceeds it."
+        pros: [An agent can decide without you, The rule is checkable]
+        cons: [The cap is a guess until real traffic exists, Bandwidth is traffic times size, not size]
+      - value: private-only
+        text: Godot exports stay private-only, indefinitely
+        why: The public site links to the musing but never serves the export.
+        prompt: "Godot exports are private-only; the public site links to the musing and says the prototype runs locally."
+        pros: [Zero bandwidth risk, No decision to revisit]
+        cons: [Nobody else can play it, The public site advertises something it cannot show]
+
+  - id: o-hardening-next
+    call: O.3
+    lead: Which hardening item follows client-side search?
+    kind: check
+    required: false
+    help: Search is picked. The rest of milestone m7 is unranked; tick anything that should follow it, or leave it empty and it stays unranked.
+    applies_to: "plan m7 task notes"
+    options:
+      - value: reverify
+        text: "`yss reverify <doc>`"
+        why: Already planned as m7-reverify; ticking it says do it next.
+        pros: [Clears git-recency noise after a refactor, Keeps r-evidence-noise from being ignored]
+        cons: [Easy to rubber-stamp a doc that did change]
+      - value: watchdog
+        text: watchdog-based file watching
+        why: Faster rebuilds on large repos.
+        pros: [Instant rebuilds]
+        cons: ["A fifth dependency, even if optional"]
+      - value: kinds
+        text: Promote generic shapes into real doc kinds
+        why: Only worth it once a shape repeats.
+        pros: [Stricter validation]
+        cons: [More schemas to maintain]
+      - value: run-commands
+        text: CI job that runs command evidence
+        why: Task verify commands get executed, not just recorded.
+        pros: [Verify strings become real checks]
+        cons: [Slower CI, Commands must be safe unattended]
+
+prompt:
+  task: Apply the open decisions below to the yss docs and configuration
+  background: |
+    Repository YamlStaticSite. Docs are YAML under docs/ validated by `python -m yss validate` and
+    `python -m yss check`. Plan in docs/plan.yaml, decisions in docs/decisions.yaml, defaults in
+    site.yaml, per-collection config in <collection>/collection.yaml. Load the `yss` skill first.
+  steps:
+    - For each decision, update the named plan item, risk or open question; add a decision entry where a verdict sets a rule.
+    - O.1 chooses how sub-site cards are produced; a contract answer means a collection schema change plus a card prefab and a rendered landing page.
+    - O.2 records the rule for public prototype mounts; mounts stay private by default either way (adr-015).
+    - Archive this worksheet (status archived, applied note in the intro) and start a new one for anything still open.
+    - Run validate, check, build --target all --no-dynamic and the tests; commit with the verdict block in the message body.
+  do_not_touch:
+    - .yss/local.yaml and anything under dist/.
+    - Accepted decisions - supersede, never edit.
+    - Archived worksheets (docs/verdicts.yaml, docs/pending.yaml).
+  flag_only:
+    - Schema changes beyond what O.1 approves.
+    - Anything that would need changes in the Musings repository itself.
+  rules:
+    - Project knowledge goes in docs/*.yaml, never in new markdown files.
+    - Validate and check after every edit; fix every reported file and path.
+    - Mark anything not for the public site as visibility private or private_notes.
+    - No absolute paths in anything that reaches dist/.
+decided_by: true
+extra: true

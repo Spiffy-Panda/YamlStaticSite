@@ -9,9 +9,15 @@ updated: 2026-09-02
 releases:
   - version: 0.2.0
     date: 2026-09-02
-    status: unreleased
-    summary: Docs that prove themselves, data-driven rules, item-level references, collections with hooks, and worksheets.
+    status: released
+    summary: Docs that prove themselves, data-driven rules, item-level references, collections with hooks, worksheets, and flow policy as config.
     changes:
+      - type: added
+        text: "`build.strict` in site.yaml and per-collection `evidence` settings in collection.yaml, with `--strict/--no-strict`, `--git/--no-git` and `--run-commands/--no-run-commands` overriding them (adr-014)."
+      - type: changed
+        text: "Mounts are private unless a mount lists the public target; the demo collection's playable opts in as the worked example (adr-015)."
+      - type: changed
+        text: "Prototypes are exported without threads, so no isolation headers are needed; the coi-serviceworker task is dropped and prototype hosting moves to the back of the plan (adr-016)."
       - type: added
         text: "`theme.css` in site.yaml: stylesheets linked after the base one on every page, so a theme package overrides tokens without replacing the stylesheet."
       - type: added

@@ -46,9 +46,8 @@ sections:
 
   - id: play
     type: embed
-    heading: Playable (private)
-    visibility: private
+    heading: Playable
     kind: iframe
     src: play/index.html
     height: 240
-    caption: Mounted from examples/demo-musing/play in the private build only.
+    caption: Mounted from the collection's play/ folder. Mounts are private unless collection.yaml lists the public target; this one opts in.

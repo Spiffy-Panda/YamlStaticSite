@@ -34,13 +34,14 @@ and length limits are data in site.yaml (overridable per collection), not hard-c
 
 ```bash
 python -m yss validate                       # schema, vocabulary, limit and reference checks; do this after every edit
-python -m yss check [-v] [--run-commands]    # evidence: cited paths, symbols, commands, git recency; exit 1 on stale
+python -m yss check [-v] [--run-commands|--no-run-commands] [--git|--no-git]   # evidence; exit 1 on stale
 python -m yss refs plan#m3-pilot             # who references a doc or item
 python -m yss ls [docs|pages|prefabs|kinds|dynamic|collections]
 python -m yss schema doc.plan --yaml         # print any schema (doc.<kind>, page, prefab, collection, site)
 python -m yss query plan.milestones --where status=active --fields id,title   # read data like a page does
 python -m yss new doc <kind> <id>            # scaffold from schema; also: new page <id> [--doc <id>], new prefab <name>
-python -m yss build --target private --no-dynamic   # fast render check; --target all for both; --strict fails on stale
+python -m yss build --target private --no-dynamic   # fast render check; --target all for both
+#   --strict / --no-strict override site.yaml build.strict (stale evidence and flagged strings fail)
 python -m yss serve                          # private :8800, public preview :8801, rebuilds on change
 python -m yss scan                           # forbidden/flagged strings in the source tree
 python -m yss pages-setup --dry-run          # GitHub secrets + Pages source via gh (see yss-publish)

@@ -119,7 +119,7 @@ def cmd_check(args) -> int:
     docs = loaded.docs
     if args.doc:
         docs = {k: v for k, v in docs.items() if k in args.doc or v.get("_local_id") in args.doc}
-    report = evidence_check(cfg, docs, loaded.registry, run_commands=args.run_commands, git_recency=not args.no_git)
+    report = evidence_check(cfg, docs, loaded.registry, run_commands=args.run_commands, git_recency=args.git)
     if args.json:
         print(json.dumps({"claims": [c.as_dict() for c in report.claims], "summary": report.summary()}, indent=2))
     else:
@@ -362,7 +362,10 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("build", help="build one or all targets into dist/<target>")
     p.add_argument("--target", "-t", default="all", help="public | private | all (default)")
     p.add_argument("--out", help="output directory (single target only)")
-    p.add_argument("--strict", action="store_true", help="fail on flagged strings and stale evidence too")
+    p.add_argument("--strict", dest="strict", action="store_true", default=None,
+                   help="fail on flagged strings and stale evidence too (default: site.yaml build.strict)")
+    p.add_argument("--no-strict", dest="strict", action="store_false",
+                   help="never fail on flagged strings or stale evidence, whatever site.yaml says")
     p.add_argument("--no-dynamic", action="store_true", help="skip dynamic data sources")
     p.set_defaults(func=cmd_build)
 
@@ -383,8 +386,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("check", help="evaluate evidence claims (paths, globs, symbols, git recency; commands with --run-commands)")
     p.add_argument("doc", nargs="*", help="limit to these doc ids")
-    p.add_argument("--run-commands", action="store_true", help="also run command evidence (slow)")
-    p.add_argument("--no-git", action="store_true", help="skip git recency warnings")
+    p.add_argument("--run-commands", dest="run_commands", action="store_true", default=None,
+                   help="also run command evidence (slow); default: site.yaml / collection.yaml evidence.run_commands")
+    p.add_argument("--no-run-commands", dest="run_commands", action="store_false",
+                   help="never run command evidence, whatever the config says")
+    p.add_argument("--git", dest="git", action="store_true", default=None,
+                   help="force git recency warnings on; default: site.yaml / collection.yaml evidence.git_recency")
+    p.add_argument("--no-git", dest="git", action="store_false", help="skip git recency warnings")
     p.add_argument("--strict", action="store_true", help="warnings fail too")
     p.add_argument("--verbose", "-v", action="store_true", help="list passing claims as well")
     p.add_argument("--json", action="store_true")

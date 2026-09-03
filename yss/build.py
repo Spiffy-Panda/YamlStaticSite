@@ -119,12 +119,14 @@ def build(
     cfg: Config,
     target: str,
     out_dir: Path | None = None,
-    strict: bool = False,
+    strict: bool | None = None,
     run_dynamic: bool = True,
     loaded: Loaded | None = None,
     check_evidence: bool = True,
 ) -> BuildReport:
     cfg.target(target)  # raises on unknown target
+    if strict is None:  # --strict/--no-strict override site.yaml build.strict
+        strict = bool(cfg.build.get("strict", False))
     loaded = loaded or load_all(cfg)
     if loaded.errors:
         raise BuildError("validation failed:\n  " + "\n  ".join(loaded.errors))

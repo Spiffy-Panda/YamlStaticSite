@@ -70,8 +70,17 @@ properties:
     type: object
     additionalProperties: {type: integer}
     description: "Max lengths by name: title, summary, line, markdown (characters). 0 disables a limit."
+  build:
+    type: object
+    description: Defaults for `yss build`. CLI flags override these; --strict / --no-strict override `strict`.
+    properties:
+      strict:
+        type: boolean
+        description: Fail the build on flagged strings and stale evidence. Default false; the CI public build sets it here rather than on the command line.
+    additionalProperties: false
   evidence:
     type: object
+    description: Defaults for `yss check` and the build's evidence pass. A collection.yaml `evidence` block overrides these for its own docs; CLI flags override both.
     properties:
       git_recency: {type: boolean, description: Warn when cited code changed after a doc's `updated` date.}
       run_commands: {type: boolean, description: Run command evidence during `yss check` by default.}

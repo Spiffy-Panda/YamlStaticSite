@@ -42,6 +42,7 @@ DEFAULTS: dict[str, Any] = {
         "release_status": ["released", "unreleased", "yanked"],
     },
     "limits": {"title": 120, "summary": 300, "line": 240, "markdown": 2400},
+    "build": {"strict": False},
     "evidence": {"git_recency": True, "run_commands": False},
     "markdown": {"renderer": None},
     "hooks": None,
@@ -155,6 +156,9 @@ class Collection:
 
     def limits(self, cfg: "Config") -> dict:
         return deep_merge(cfg.limits, self.data.get("limits") or {})
+
+    def evidence(self, cfg: "Config") -> dict:
+        return deep_merge(cfg.evidence, self.data.get("evidence") or {})
 
     def summary(self) -> dict:
         """JSON-able description used by the $collections virtual root."""
@@ -288,8 +292,21 @@ class Config:
         return self.data["limits"]
 
     @property
+    def build(self) -> dict:
+        return self.data["build"]
+
+    @property
     def evidence(self) -> dict:
         return self.data["evidence"]
+
+    def evidence_for(self, collection_id: str | None = "") -> dict:
+        """Evidence policy for one collection's docs: site.yaml `evidence` plus its own override."""
+        if not collection_id:
+            return dict(self.evidence)
+        for c in self.collections():
+            if c.id == collection_id:
+                return c.evidence(self)
+        return dict(self.evidence)
 
     @property
     def mounts(self) -> list[dict]:

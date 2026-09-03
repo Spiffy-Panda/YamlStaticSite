@@ -1,0 +1,41 @@
+# Page - schema: page. Presents docs/open.yaml, the live worksheet.
+id: open
+route: /open/
+title: Open
+summary: The decisions still waiting on Panda, as a worksheet with pros and cons per option. Answer, build the instruction, hand it to an agent.
+visibility: public          # worksheets stay on the public site (P.2, 2026-09-02)
+nav: {label: Open, order: 45}
+docs: [open, plan]
+sections:
+  - id: worksheet
+    type: prefab
+    prefab: worksheet
+    args:
+      title: {from: open.title}
+      intro: {from: open.intro}
+      warn: {from: open.warn}
+      questions: {from: open.questions}
+      prompt: {from: open.prompt}
+      decided_by: true
+      extra: true
+
+  - id: waiting
+    type: prefab
+    heading: Plan questions still open
+    intro: Every question in [[plan]] that nobody has answered yet, whether or not a worksheet question above covers it.
+    prefab: table
+    args:
+      rows:
+        from: plan.open_questions
+        where: {status: open}
+      columns:
+        - {key: id, label: Id}
+        - {key: question, label: Question, md: true}
+        - {key: owner, label: Owner}
+
+  - id: previous
+    type: markdown
+    heading: Previous worksheets
+    markdown: |
+      - [[pending]] - applied 2026-09-02; kept as the record.
+      - [[verdicts]] - applied 2026-09-02; kept as the record.

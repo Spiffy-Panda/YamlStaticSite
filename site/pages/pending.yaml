@@ -1,9 +1,10 @@
-# Page - schema: page. Presents docs/pending.yaml as a worksheet.
+# Page - schema: page. Presents docs/pending.yaml, applied 2026-09-02 and kept as the record.
 id: pending
 route: /pending/
 title: Pending
-summary: Decisions and blockers waiting on Panda, as a worksheet with pros and cons per option. Answer, build the instruction, hand it to an agent.
-nav: {label: Pending, order: 46}
+summary: Applied 2026-09-02 and kept as the record. The live worksheet is on the Open page.
+visibility: public          # worksheets stay on the public site (P.2, 2026-09-02)
+nav: {label: Pending, order: 47}
 docs: [pending, plan]
 sections:
   - id: worksheet
@@ -20,8 +21,8 @@ sections:
 
   - id: waiting
     type: prefab
-    heading: Plan tasks owned by panda
-    intro: Every open task in [[plan]] whose owner is you, whether or not a question above covers it.
+    heading: Plan milestones as they stand now
+    intro: What the milestones in [[plan]] look like after this worksheet was applied.
     prefab: table
     args:
       rows:
@@ -31,6 +32,7 @@ sections:
 
   - id: previous
     type: markdown
-    heading: Previous worksheets
+    heading: Other worksheets
     markdown: |
+      - [[open]] - the live one; answer that instead.
       - [[verdicts]] - applied 2026-09-02; kept as the record.

@@ -2,8 +2,9 @@
 id: verdicts
 route: /verdicts/
 title: Verdicts
-summary: Applied 2026-09-02 and kept as the record. New decisions are on the Pending page.
-nav: {label: Verdicts, order: 47}
+summary: Applied 2026-09-02 and kept as the record. The live worksheet is on the Open page.
+visibility: public          # worksheets stay on the public site (P.2, 2026-09-02)
+nav: {label: Verdicts, order: 48}
 docs: [verdicts, plan]
 sections:
   - id: worksheet

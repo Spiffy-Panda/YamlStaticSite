@@ -41,12 +41,13 @@ roots:
 modules:
   - id: config
     path: yss/config.py
-    purpose: site.yaml over defaults; collections discovered from root globs; targets, base URLs, vocabularies, limits, mounts, dynamic sources, redaction lists.
+    purpose: site.yaml over defaults; collections discovered from root globs; targets, base URLs, vocabularies, limits, build and evidence policy, mounts, dynamic sources, redaction lists.
     language: python
     status: active
     exports:
       - {name: Config, kind: class, signature: "Config.load(root=None)", description: Finds site.yaml upwards from cwd.}
-      - {name: Collection, kind: class, signature: "Collection(id, root, docs_dir, pages_dir, ...)", description: "id '' is the site root; vocab(cfg) and limits(cfg) merge overrides."}
+      - {name: Collection, kind: class, signature: "Collection(id, root, docs_dir, pages_dir, ...)", description: "id '' is the site root; vocab(cfg), limits(cfg) and evidence(cfg) merge overrides."}
+      - {name: Config.evidence_for, kind: function, signature: "(collection_id='') -> dict", description: "site.yaml evidence overridden by that collection's own block."}
       - {name: Config.collections, kind: function, signature: "() -> [Collection]"}
       - {name: Config.redaction_lists, kind: function, signature: "(target) -> (forbidden, flags)"}
       - {name: DEFAULTS, kind: constant, description: Includes the default vocabularies and limits.}
@@ -79,12 +80,12 @@ modules:
     tests: [tests/test_yss.py]
   - id: evidence
     path: yss/evidence.py
-    purpose: Collect and evaluate evidence claims; git recency; inject `_evidence` freshness; format reports.
+    purpose: Collect and evaluate evidence claims; git recency; inject `_evidence` freshness; format reports. Policy resolves per doc - CLI flag, then collection.yaml, then site.yaml.
     language: python
     status: active
     depends_on: [config, loader]
     exports:
-      - {name: check, kind: function, signature: "(cfg, docs, reg, run_commands=None, git_recency=None) -> EvidenceReport"}
+      - {name: check, kind: function, signature: "(cfg, docs, reg, run_commands=None, git_recency=None) -> EvidenceReport", description: "None means use the configured policy for each doc's collection."}
       - {name: inject, kind: function, signature: "(docs, report) -> None"}
       - {name: Claim, kind: class}
     tests: [tests/test_yss.py]
@@ -188,7 +189,7 @@ modules:
       - {name: setup, kind: function, signature: "(cfg, repo=None, dry_run=False, secrets=True, pages=True, run_workflow=False) -> [messages]"}
   - id: cli
     path: yss/cli.py
-    purpose: argparse front end for every command.
+    purpose: argparse front end for every command; paired flags (--strict/--no-strict, --git/--no-git, --run-commands/--no-run-commands) default to None so config decides.
     language: python
     status: active
     depends_on: [build, server, scaffold, dynamic, evidence, skillpack, ghpages]
