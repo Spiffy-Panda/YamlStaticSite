@@ -21,6 +21,62 @@ sections:
       2. **Pages** (`site/pages/*.yaml`) decide what to show, in what order, with what framing.
       3. **Prefabs** (`yss/prefabs/*.yaml`, `site/prefabs/*.yaml`) are the reusable UI pieces the pages fill from lists in the docs.
 
+  - id: waiting
+    type: markdown
+    heading: Waiting on you
+    jinja: true
+    markdown: |
+      Everything below is read live from the plan and the worksheets; nothing here is typed by hand.
+      These are the plan tasks whose owner is `panda` and whose status is not `done` - the calls and
+      the hands-on work no agent can take off you.
+
+      {% set rows = [] %}{% for m in docs.plan.milestones if m.status != 'done' %}{% for t in m.tasks or [] if t.owner == 'panda' and t.status not in ('done', 'dropped') %}{% set _ = rows.append('- **' ~ t.title ~ '** — `' ~ t.status ~ '` · [' ~ m.title ~ '](' ~ url('/plan/') ~ '#' ~ t.id ~ ')') %}{% endfor %}{% endfor %}{{ rows | join('\n') }}
+
+      A task marked `blocked` is waiting on another one, not on a decision; the decisions live in the
+      worksheets below.
+
+  - id: worksheets
+    type: prefab
+    heading: Worksheets still open
+    intro: |
+      A worksheet is a list of calls only you can make. Open one, read the recommended default and
+      the pros and cons under each option, then press **Build the instruction** and hand the text to
+      an agent in a fresh session. Nothing is saved by the page - the instruction is the product, and
+      the resulting doc edit is the record. A worksheet drops off this list when its status becomes
+      `archived`.
+    prefab: card-grid
+    args:
+      items:
+        from: $docs
+        where: {kind: worksheet, status: active}
+        sort: id
+        map:
+          badge: status
+          body: summary
+          href: "{{ doc_url(id) }}"
+          meta: "{{ questions | length }} calls to make"
+      columns: 2
+      empty: No worksheet is waiting on a verdict.
+
+  - id: musings-blockers
+    type: prefab
+    heading: What is blocking the Musings repository
+    intro: |
+      Adopting yss in the Musings repository ([[plan#m12-musings]]) is the largest open milestone,
+      and it is held up by two route problems found in the issue sweep, both now tasks below.
+      A collection takes its id from its folder name
+      ([issue 2](https://github.com/Spiffy-Panda/YamlStaticSite/issues/2)), so a musing whose folder
+      and published slug differ cannot keep its URL; and every collection mounts directly under the
+      site root ([issue 4](https://github.com/Spiffy-Panda/YamlStaticSite/issues/4)), so nothing can
+      sit under a `/musings/` prefix. Migrating the first musing before both land would change live
+      URLs, which is why [[plan#m12-first]] now depends on them. Wanted alongside, but not blocking:
+      `yss new collection` ([issue 1](https://github.com/Spiffy-Panda/YamlStaticSite/issues/1)),
+      which would scaffold the collection each migration hand-builds today.
+    prefab: task-list
+    args:
+      milestones: {from: plan.milestones, where: {id: m12-musings}}
+      show_verify: true
+
   - id: docs
     type: prefab
     heading: Structured docs in this repo
