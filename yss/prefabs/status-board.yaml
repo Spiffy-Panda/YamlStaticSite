@@ -10,19 +10,33 @@ template: |
   {% for g in groups %}{% set _ = by_key.update({g.key: g['items']}) %}{% endfor %}
   {% set keys = (order or []) + (groups | map(attribute='key') | reject('in', order or []) | list) %}
   {% if keys %}
-  <div class="status-board">
-    {% for key in keys %}
-    <div class="board-col tone-{{ key | slug }}">
-      <div class="board-col-head">{{ prefab('badge', text=key) }} <span class="board-count">{{ (by_key.get(key) or []) | length }}</span></div>
-      {% for it in by_key.get(key) or [] %}{{ prefab('card', it) }}{% endfor %}
+  <div class="status-board-wrap">
+    <div class="status-board">
+      {% for key in keys %}
+      <div class="board-col tone-{{ key | slug }}">
+        <div class="board-col-head">{{ prefab('badge', text=key) }} <span class="board-count">{{ (by_key.get(key) or []) | length }}</span></div>
+        {% if by_key.get(key) %}<div class="board-col-cards">{% for it in by_key.get(key) %}{{ prefab('card', it) }}{% endfor %}</div>{% endif %}
+      </div>
+      {% endfor %}
     </div>
-    {% endfor %}
   </div>
   {% else %}<p class="empty">{{ empty }}</p>{% endif %}
 css: |
-  .status-board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(230px, 1fr); gap: .8rem; overflow-x: auto; padding-bottom: .5rem; }
-  .board-col { background: var(--code); border-radius: var(--radius); padding: .6rem; display: flex; flex-direction: column; gap: .6rem; border-top: 3px solid var(--tone, var(--line)); }
+  /* Narrow first: one full-width row per status, cards in a grid inside it. A status with no cards
+     then costs one line instead of an empty column, and nothing is squeezed. The board only turns
+     into scrolling kanban columns when its own width can hold them - a container query, because the
+     board is often beside a table of contents and is much narrower than the viewport. */
+  .status-board-wrap { container-type: inline-size; }
+  .status-board { display: grid; gap: .8rem; padding-bottom: .5rem; }
+  .board-col { background: var(--code); border-radius: var(--radius); padding: .6rem; display: flex; flex-direction: column; gap: .6rem; border-top: 3px solid var(--tone, var(--line)); min-width: 0; }
   .board-col-head { display: flex; justify-content: space-between; align-items: center; }
+  .board-col-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: .6rem; align-items: start; }
   .board-count { color: var(--muted); font-size: .8rem; }
+  /* A card in a board column is too narrow to keep its badge beside the title. */
+  .board-col .card-head { flex-direction: column; align-items: flex-start; gap: .3rem; }
+  @container (min-width: 1000px) {
+    .status-board { grid-auto-flow: column; grid-auto-columns: minmax(230px, 1fr); overflow-x: auto; }
+    .board-col-cards { grid-template-columns: minmax(0, 1fr); }
+  }
 examples:
   - args: {groups: [{key: active, items: [{title: Build}]}, {key: planned, items: []}], order: [active, planned, done]}

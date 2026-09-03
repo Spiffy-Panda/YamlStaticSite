@@ -24,7 +24,10 @@ sections:
   - id: board
     type: prefab
     heading: Milestone board
-    intro: One column per status. Cards link to the detailed task list below.
+    intro: |
+      One column per status. Cards link to the detailed task list below. The owner line names
+      whoever still has an unfinished task in that milestone - a milestone has no owner of its own,
+      it is owned by whoever its open work belongs to.
     prefab: status-board
     args:
       groups:
@@ -34,7 +37,7 @@ sections:
           badge: status
           body: summary
           href: "#{{ id }}"
-          meta: "{{ 'P' ~ priority if priority else '' }}{{ ' · target ' ~ target_date if target_date else '' }}"
+          meta: "{% set who = (tasks or []) | selectattr('owner') | rejectattr('status', 'equalto', 'done') | map(attribute='owner') | unique | list %}{{ 'P' ~ priority if priority else '' }}{{ ' · target ' ~ target_date if target_date else '' }}{{ ' · @' ~ who | join(', @') if who else '' }}"
         group_by: status
       order: [active, blocked, planned, done, dropped]
 
