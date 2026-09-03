@@ -4,7 +4,7 @@
 kind: plan
 id: plan
 title: YamlStaticSite plan
-summary: Forward plan for the yss toolchain. Shipped work lives in the changelog and docs/_archive/; this file holds only what is open.
+summary: Forward plan for the yss toolchain. Shipped work lives in the changelog and docs/_archive/; this file holds only what is open, including the eleven GitHub issues triaged on 2026-09-02.
 status: active
 updated: 2026-09-02
 owners: [panda, agent]
@@ -93,6 +93,17 @@ milestones:
         title: Dynamic sections that download and upload JSON (prototype state)
         status: planned
         owner: agent
+      - id: m6-mount-filters
+        title: include/exclude patterns on a mount so a folder can publish some files and not others
+        status: planned
+        owner: agent
+        notes: |
+          A mount copies a whole folder unfiltered and the schema is closed, so publishing a
+          folder's top-level pages means publishing everything beside them - sources, notes and all.
+          Relevant the moment a real export folder is mounted by [[#m6-godot]]. Issue 3.
+        verify: python -m yss build --target all --no-dynamic
+        links:
+          - {label: 'Issue #3', href: 'https://github.com/Spiffy-Panda/YamlStaticSite/issues/3', kind: issue}
 
   - id: m7-hardening
     title: Hardening and ergonomics
@@ -107,6 +118,17 @@ milestones:
         notes: |
           First in the m7 order (P.7, 2026-09-02). O.3 then ranked the rest - reverify, watchdog,
           kinds, run-commands - so the whole milestone is wanted and nothing in it was dropped.
+      - id: m7-new-collection
+        title: "`yss new collection <id>` - the one structural unit with no scaffold"
+        status: planned
+        owner: agent
+        notes: |
+          `yss new` scaffolds doc, page and prefab; a collection - the unit with the most moving
+          parts, collection.yaml plus docs, pages and hooks - is still assembled by hand. Wanted
+          before [[#m12-first]] makes the first real one. Issue 1.
+        verify: python -m yss new collection --help
+        links:
+          - {label: 'Issue #1', href: 'https://github.com/Spiffy-Panda/YamlStaticSite/issues/1', kind: issue}
       - id: m7-watchdog
         title: Optional watchdog-based file watching instead of polling
         status: planned
@@ -144,6 +166,115 @@ milestones:
           - {path: yss/cli.py, contains: "--no-strict"}
           - {path: yss/evidence.py, contains: "def _policy"}
 
+  - id: m8-defects
+    title: Defects found in the issue sweep
+    status: planned
+    priority: 1
+    summary: Four correctness bugs filed as GitHub issues - a schema parse bug, a prefab crash, references that render as dead links, and a scan nobody can read.
+    done_when: Each task here is done and its issue is closed by the commit that fixed it.
+    notes: |
+      Triaged from GitHub issues on 2026-09-02. Everything here is behaviour that is already wrong
+      rather than a missing feature; the capability gaps from the same sweep are [[#m9-authoring]],
+      and the collection-shaped ones went to [[#m12-musings]] and [[#m6-prototypes]].
+    links:
+      - {label: Open issues, href: 'https://github.com/Spiffy-Panda/YamlStaticSite/issues', kind: issue}
+    tasks:
+      - id: m8-schema-quoting
+        title: Quote the eight schema descriptions written unquoted inside flow mappings
+        status: planned
+        owner: agent
+        notes: |
+          Commas inside the prose split the flow mapping, so each description silently truncates and
+          injects a junk key. Visible in `yss schema doc.plan --yaml`, where `options` grows a
+          `so a verdict can pick one.` key and `owner` grows `human` and `ci)`. Issue 5.
+        verify: python -m yss schema doc.plan --yaml
+        links:
+          - {label: 'Issue #5', href: 'https://github.com/Spiffy-Panda/YamlStaticSite/issues/5', kind: issue}
+        evidence:
+          - {glob: yss/schemas/*.schema.yaml, min: 5}
+      - id: m8-timeline-items
+        title: Fix the timeline prefab crash when an entry omits the optional bullet list
+        status: planned
+        owner: agent
+        notes: |
+          The Jinja guard reads `entry.items`, which resolves to the dict `items` method when the key
+          is absent, so the truthiness test passes and the loop explodes. Every prefab guarding an
+          optional key by attribute has the same hazard. Issue 9.
+        verify: python -m yss build --target all --no-dynamic
+        links:
+          - {label: 'Issue #9', href: 'https://github.com/Spiffy-Panda/YamlStaticSite/issues/9', kind: issue}
+        evidence:
+          - {path: yss/prefabs/timeline.yaml}
+      - id: m8-ref-anchors
+        title: "Make a validated `[[doc#item]]` reference prove the target renders an anchor"
+        status: planned
+        owner: agent
+        notes: |
+          References are checked against the data, not the rendering, so a link that passes
+          `yss validate` still dies in the page when the presenting prefab emits no id. Either every
+          item-presenting prefab anchors its items or the checker learns which routes anchor what.
+          Issue 11.
+        verify: python -m yss validate
+        links:
+          - {label: 'Issue #11', href: 'https://github.com/Spiffy-Panda/YamlStaticSite/issues/11', kind: issue}
+      - id: m8-scan-ignore
+        title: Give yss scan an ignore mechanism so gitignored build scratch stops drowning the output
+        status: planned
+        owner: agent
+        notes: |
+          The walk has a hard-coded skip list and no way to extend it; 479 hits from gitignored
+          scratch make the one tool that guards against leaks unreadable, which is a safety problem
+          rather than a cosmetic one. Issue 6.
+        verify: python -m yss scan
+        links:
+          - {label: 'Issue #6', href: 'https://github.com/Spiffy-Panda/YamlStaticSite/issues/6', kind: issue}
+
+  - id: m9-authoring
+    title: Authoring expressiveness gaps
+    status: planned
+    priority: 3
+    summary: Three things authors cannot say today - an item's own status, a subject grouping with prose, and a card's tone or eyebrow without a badge.
+    done_when: A doc can state per-item status and subject groups, and the card prefab covers the hub page's visual grammar without hand-written HTML.
+    notes: |
+      Triaged from GitHub issues on 2026-09-02. Each is a shape the data cannot express, so authors
+      either lose information or route around the prefabs; the outright bugs from the same sweep are
+      [[#m8-defects]]. All three touch schemas, so they want a decision entry when they land.
+    tasks:
+      - id: m9-item-status
+        title: Add an optional status to item_base so any doc item can say live, decided or superseded
+        status: planned
+        owner: agent
+        notes: |
+          Only plan milestones, tasks, risks and questions carry a status today; a design component
+          or a constraint has nowhere to record that it is superseded. The vocabulary is data
+          ([[decisions#adr-011]]), so the question is which vocabulary an item defaults to. Issue 7.
+        verify: python -m yss schema doc.design --yaml
+        links:
+          - {label: 'Issue #7', href: 'https://github.com/Spiffy-Panda/YamlStaticSite/issues/7', kind: issue}
+      - id: m9-groups
+        title: A subject-grouping tier so authored headings and blurbs have somewhere to live
+        status: planned
+        owner: agent
+        notes: |
+          Items group by schema type, and a page binding's `group_by` recovers only bare keys - the
+          prose that introduces a group has no home in the doc and no way to reach the page. Issue 8.
+        verify: python -m yss build --target all --no-dynamic
+        links:
+          - {label: 'Issue #8', href: 'https://github.com/Spiffy-Panda/YamlStaticSite/issues/8', kind: issue}
+      - id: m9-card-slots
+        title: Card prefab - tone without a badge, a kicker slot, and a loud failure for unknown tones
+        status: planned
+        owner: agent
+        notes: |
+          Moving a hand-designed hub page onto `card-grid` kept every word and lost the visual
+          grammar: one subtitle slot, no eyebrow, tone only reachable by printing a badge, and an
+          unknown tone falls through silently instead of failing. Issue 10.
+        verify: python -m yss build --target all --no-dynamic
+        links:
+          - {label: 'Issue #10', href: 'https://github.com/Spiffy-Panda/YamlStaticSite/issues/10', kind: issue}
+        evidence:
+          - {path: yss/prefabs/card.yaml}
+
   - id: m12-musings
     title: Adopt yss in the Musings repository
     status: planned
@@ -152,10 +283,34 @@ milestones:
     summary: Migrate one musing at a time through collections; the old site generator is retired last (see decision adr-010).
     done_when: Every musing is a collection, build_site.py is deleted, and the audited Pages workflow builds with yss.
     tasks:
+      - id: m12-collection-id
+        title: Let collection.yaml set the collection id so an existing URL slug survives the move
+        status: planned
+        owner: agent
+        notes: |
+          The id is taken from the folder name, so a musing whose folder and published slug differ
+          cannot keep its URL. A migration that changes live URLs is a migration that breaks links,
+          which makes this a prerequisite rather than an ergonomic. Issue 2.
+        verify: python -m yss ls collections
+        links:
+          - {label: 'Issue #2', href: 'https://github.com/Spiffy-Panda/YamlStaticSite/issues/2', kind: issue}
+      - id: m12-route-prefix
+        title: A URL prefix for collections so they can sit under /musings/ instead of the site root
+        status: planned
+        owner: agent
+        notes: |
+          Every collection mounts at `/<id>/`, directly under the root. The Musings site groups its
+          musings under a path, so the route prefix has to be configurable before the second musing
+          lands beside the first. Issue 4.
+        verify: python -m yss build --target all --no-dynamic
+        links:
+          - {label: 'Issue #4', href: 'https://github.com/Spiffy-Panda/YamlStaticSite/issues/4', kind: issue}
       - id: m12-first
         title: Migrate the space cargo cannon musing first and compare the rendered result
         status: planned
         owner: agent
+        depends_on: [m12-collection-id, m12-route-prefix]
+        notes: The first migration is what proves the two route changes above; it should not start before them.
       - id: m12-renderer
         title: Plug the existing Musings renderer in through markdown.renderer or hooks.py markdown()
         status: planned
