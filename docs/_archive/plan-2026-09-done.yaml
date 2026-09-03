@@ -56,3 +56,16 @@ milestones:
     status: done
     summary: "collections[].root globs, collection.yaml, hooks.py contract, mounts, themes, pluggable markdown, collection-index prefab, $collections root."
     tasks: [m11-paths, m11-theme, m11-mounts, m11-markdown, m11-landing, m11-migration-guide]
+  - id: m8-defects
+    title: Defects found in the issue sweep
+    status: done
+    archived: 2026-09-03
+    summary: Four correctness bugs filed as GitHub issues - schema descriptions corrupted by unquoted flow mappings (gh-5), the timeline prefab's dict.items shadow (gh-9), references validated against data rather than rendering (gh-11), and a scan nobody could read (gh-6).
+    tasks: [m8-schema-quoting, m8-timeline-items, m8-ref-anchors, m8-scan-ignore]
+  - id: m9-authoring
+    title: Authoring expressiveness gaps
+    status: done
+    archived: 2026-09-03
+    summary: Three things authors could not say - an item's own status (gh-7), a subject grouping with authored prose (gh-8), and a card's tone or eyebrow without a badge (gh-10).
+    tasks: [m9-item-status, m9-groups, m9-card-slots]
+

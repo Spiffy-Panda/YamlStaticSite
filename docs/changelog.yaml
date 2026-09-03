@@ -68,6 +68,8 @@ releases:
         text: "`{{ fail('...') }}` in a prefab template raises a RenderError naming the prefab, replacing the trick of forcing an UndefinedError; `card` and `card-grid` take a `level` so titles nest under a `group-sections` heading."
       - type: fixed
         text: "A collection's card links and `collection_url()` were built from its id rather than its route, so they pointed at the wrong place once a collection sat under a route prefix."
+      - type: changed
+        text: "Milestones m8-defects and m9-authoring closed and moved to docs/_archive/; every issue in the 2026-09-02 sweep is fixed and closed."
   - version: 0.2.0
     date: 2026-09-02
     status: released
