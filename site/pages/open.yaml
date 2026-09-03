@@ -21,7 +21,7 @@ sections:
   - id: waiting
     type: prefab
     heading: Plan questions still open
-    intro: Every question in [[plan]] that nobody has answered yet. None of them belong to this worksheet - its own are all applied above; the live ones are on [[next]].
+    intro: Every question in [[plan]] that nobody has answered yet. None of them belong to this worksheet - its own are all applied above; the live ones are on [[later]].
     prefab: table
     args:
       rows:
@@ -37,6 +37,7 @@ sections:
     type: markdown
     heading: Other worksheets
     markdown: |
-      - [[next]] - the live one; answer that instead.
+      - [[later]] - the live one; answer that instead.
+      - [[next]] - applied 2026-09-03; the record.
       - [[pending]] - applied 2026-09-02; the record.
       - [[verdicts]] - applied 2026-09-02; the record.

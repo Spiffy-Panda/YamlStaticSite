@@ -4,7 +4,7 @@ id: changelog
 title: Changelog
 summary: Releases of the yss toolchain.
 status: active
-updated: 2026-09-02
+updated: 2026-09-03
 
 releases:
   - version: 0.3.0
@@ -22,6 +22,14 @@ releases:
         text: "A worksheet question may carry a `resolution` (summary, chose, applied, by, recorded_in); the worksheet prefab then renders it as a record - the summary replaces the choices and the options move into a foldout with the taken one marked (adr-018)."
       - type: changed
         text: "A worksheet whose questions are all resolved renders without form controls or a Build button, and its blocked-work box becomes the work it released."
+      - type: changed
+        text: "Link kinds are one vocabulary, `link_kind` (repo, issue, pr, doc, page, play, external, file), resolved from site.yaml for both the doc envelope's `links.kind` and a collection's card contract; `play` is now a doc link kind too (adr-020)."
+      - type: added
+        text: "`links.href` in collection.yaml carries `x-evidence: route`: a relative card link is a claim that a real route exists, implemented by plan item m7-card-link-routes (adr-021)."
+      - type: changed
+        text: "An agent may repoint `blocks` and `recorded_in` on an archived worksheet when the item they name has been archived, leaving a dated reference note; the pilot milestone m3-pilot moved to docs/_archive/plan-2026-09-done.yaml under that allowance (adr-019)."
+      - type: changed
+        text: "The `next` worksheet was applied and kept as the record; the live worksheet is now `later`."
   - version: 0.2.0
     date: 2026-09-02
     status: released

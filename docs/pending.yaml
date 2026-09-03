@@ -267,12 +267,16 @@ questions:
     resolution:
       applied: 2026-09-02
       by: Panda
-      recorded_in: [plan/m3-review, plan/q-subsite-cards]
+      recorded_in: [plan/q-subsite-cards]
       summary: |
         No framing gaps in what the site renders today, with one caveat the reviewer stated plainly:
         nothing had yet run outside this repository. One gap was named - how a parent site presents
         the sub-sites it links to - and it became the open question `q-subsite-cards`, answered later
         as O.1 on [[open]].
+
+        Reference note (2026-09-03): the task this question released, `plan/m3-review`, moved to
+        docs/_archive/ with the pilot milestone, so it was dropped from `recorded_in` and `blocks`
+        under [[decisions#adr-019]]. Nothing else about the question was changed.
     call: P.9
     lead: Site review - what framing gaps did you find?
     kind: text
@@ -280,7 +284,6 @@ questions:
     placeholder: pages or sections that need more explanation, or "no gaps"
     help: Task m3-review is the last open item of the pilot milestone and only you can do it.
     applies_to: "plan m3-review status; new page intros or open_questions"
-    blocks: [plan/m3-review]
 
 prompt:
   task: Apply the pending decisions below to the yss docs and configuration

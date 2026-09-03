@@ -2,7 +2,7 @@
 # Milestones that were completed and committed. The changelog is the authoritative record of what
 # shipped; this file only preserves the task breakdown for humans. Agents: do not read this as the
 # current plan; the current plan is docs/plan.yaml.
-archived: 2026-09-02
+archived: 2026-09-02          # m3-pilot was added 2026-09-03 (adr-019)
 milestones:
   - id: m1-core
     title: Core toolchain
@@ -14,6 +14,18 @@ milestones:
     status: done
     summary: Runtime JSON sources with a uniform envelope, built-in providers, and a dev server that serves the private and public builds on separate ports.
     tasks: [m2-envelope, m2-providers, m2-server, m2-client]
+  - id: m3-pilot
+    title: Pilot on this repository
+    status: done
+    archived: 2026-09-03
+    summary: This repo's own docs, pages and a demo collection exercised every feature; the human review and both worksheets closed the loop.
+    tasks: [m3-review, m3-verdicts]
+    notes: |
+      Closed 2026-09-02, archived 2026-09-03 once adr-019 allowed the reference fields of the
+      archived worksheet `pending` to be repointed. The original done_when said "applied without a
+      schema change"; P.1 and O.1 then approved schema changes deliberately, which is the worksheet
+      loop working rather than failing, so the bar was restated as "both worksheets filled and
+      applied, and the review captured as answered questions" before it closed.
   - id: m4-skills
     title: Agent skill suite
     status: done

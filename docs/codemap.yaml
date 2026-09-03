@@ -219,7 +219,7 @@ entrypoints:
     description: Prove cited paths, symbols and commands; exit 1 on stale claims.
   - id: e-refs
     name: References
-    command: python -m yss refs plan#m3-pilot
+    command: python -m yss refs plan#m7-search
     module: cli
     description: Inbound references to a doc or item.
   - id: e-build

@@ -4,7 +4,7 @@ id: glossary
 title: Glossary
 summary: The words the toolchain and its skills use.
 status: active
-updated: 2026-09-02
+updated: 2026-09-03
 
 terms:
   - term: structured doc
@@ -54,7 +54,7 @@ terms:
   - term: annotation
     definition: "A schema key starting with `x-` that the loader or checker acts on: x-vocab, x-limit, x-ref, x-evidence."
   - term: vocabulary
-    definition: A named list of allowed status words (work_status, record_status, risk_status...) defined in site.yaml and overridable per collection.
+    definition: A named list of allowed words (work_status, record_status, risk_status, link_kind...) defined in site.yaml and overridable per collection; a schema field points at one with x-vocab rather than spelling out an enum.
   - term: collection
     aliases: [musing]
     definition: A folder with its own docs, pages, prefabs, schemas, assets, `collection.yaml` and optional `hooks.py`, discovered from a glob in site.yaml. Ids are prefixed by the folder name; routes by `/<folder>/`.

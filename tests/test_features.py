@@ -90,7 +90,7 @@ class ReferenceTests(TempSiteCase):
         self.assertTrue(any("docs/x.yaml" in e and "no item 'nope'" in e for e in loaded.errors), loaded.errors)
 
     def test_cross_doc_item_reference(self):
-        self.write_doc("x.yaml", "kind: plan\ntitle: X\nmilestones:\n  - {id: a, title: A, status: planned, depends_on: [plan/m3-pilot]}\n  - {id: b, title: B, status: planned, depends_on: [plan/missing]}\n")
+        self.write_doc("x.yaml", "kind: plan\ntitle: X\nmilestones:\n  - {id: a, title: A, status: planned, depends_on: [plan/m7-hardening]}\n  - {id: b, title: B, status: planned, depends_on: [plan/missing]}\n")
         loaded = load_all(self.cfg)
         self.assertFalse(any("milestones/0/depends_on" in e for e in loaded.errors), loaded.errors)
         self.assertTrue(any("milestones/1/depends_on" in e and "no item 'missing'" in e for e in loaded.errors), loaded.errors)
@@ -108,10 +108,10 @@ class ReferenceTests(TempSiteCase):
         loaded = load_all(self.cfg)
         self.assertEqual(loaded.errors, [])
         renderer = Renderer(self.cfg, "private", loaded.docs, loaded.pages, loaded.prefabs)
-        html = str(renderer.md("Read [[plan#m3-pilot]] and [[design]] and [[plan#m3-pilot|the pilot]]."))
-        self.assertIn('href="/plan/#m3-pilot"', html)
-        self.assertIn(">Pilot on this repository<", html)
-        self.assertIn(">the pilot<", html)
+        html = str(renderer.md("Read [[plan#m7-hardening]] and [[design]] and [[plan#m7-hardening|the milestone]]."))
+        self.assertIn('href="/plan/#m7-hardening"', html)
+        self.assertIn(">Hardening and ergonomics<", html)
+        self.assertIn(">the milestone<", html)
         self.assertIn('href="/design/"', html)
 
 
@@ -233,16 +233,16 @@ class WorksheetTests(TempSiteCase):
         loaded = load_all(self.cfg)
         self.assertEqual(loaded.errors, [])
         rep = build(self.cfg, "public", run_dynamic=False, loaded=loaded)
-        html = (rep.out_dir / "next" / "index.html").read_text(encoding="utf-8")
-        self.assertIn('data-q="n-archive-pilot"', html)
-        self.assertIn('value="stop-checking" data-prompt="Skip x-ref', html)
+        html = (rep.out_dir / "later" / "index.html").read_text(encoding="utf-8")
+        self.assertIn('data-q="l-route-check-home"', html)
+        self.assertIn('value="check-loads-routes" data-prompt="Implement m7-card-link-routes inside', html)
         self.assertIn("checked", html)  # recommended default pre-selected
         self.assertIn("Build the instruction", html)
         self.assertIn('class="ws-config"', html)
         self.assertIn("RULES", (rep.out_dir / "assets" / "prefabs.js").read_text(encoding="utf-8"))
         self.assertIn('class="ws-procon"', html)      # pros/cons foldout per option
         self.assertIn('class="ws-compare"', html)     # compare-all foldout per question
-        self.assertIn('href="/YamlStaticSite/plan/#m3-pilot"', html)  # blocks link resolved
+        self.assertIn('href="/YamlStaticSite/plan/#m7-card-link-routes"', html)  # blocks link resolved
         self.assertIn("Blocked work waiting on this worksheet", html)
 
     def test_site_theme_css_is_linked_after_the_base_stylesheet(self):
@@ -328,19 +328,20 @@ class MountTargetTests(TempSiteCase):
 
 
 class WorksheetLifecycleTests(TempSiteCase):
-    """A worksheet is applied and becomes its own record; the live one is `next` (P.2 keeps them all public)."""
+    """A worksheet is applied and becomes its own record; the live one is `later` (P.2 keeps them all public)."""
 
     def test_worksheet_pages_are_public_and_the_applied_ones_are_records(self):
         rep = build(self.cfg, "public", run_dynamic=False)
-        for route in ("open", "pending", "verdicts", "next"):
+        for route in ("open", "pending", "verdicts", "next", "later"):
             self.assertTrue((rep.out_dir / route / "index.html").is_file(), route)
-        for route in ("open", "pending", "verdicts"):
+        for route, applied in (("open", "2026-09-02"), ("pending", "2026-09-02"),
+                               ("verdicts", "2026-09-02"), ("next", "2026-09-03")):
             html = (rep.out_dir / route / "index.html").read_text(encoding="utf-8")
             self.assertIn('class="ws-record"', html, route)          # the record banner
-            self.assertIn("applied 2026-09-02", html, route)
+            self.assertIn(f"pplied {applied}", html, route)
             self.assertNotIn("Build the instruction", html, route)   # nothing left to answer
             self.assertNotIn('class="ws-config"', html, route)
-            self.assertIn('href="/YamlStaticSite/next/"', html, route)  # points at the live worksheet
+            self.assertIn('href="/YamlStaticSite/later/"', html, route)  # points at the live worksheet
 
     def test_an_applied_question_shows_what_addressed_it_and_keeps_the_choices(self):
         """adr-018: the summary replaces the choices; the options move into a foldout, taken one marked."""
@@ -366,11 +367,51 @@ class WorksheetLifecycleTests(TempSiteCase):
 
     def test_the_live_worksheet_still_asks(self):
         rep = build(self.cfg, "public", run_dynamic=False)
-        html = (rep.out_dir / "next" / "index.html").read_text(encoding="utf-8")
+        html = (rep.out_dir / "later" / "index.html").read_text(encoding="utf-8")
         self.assertIn("Build the instruction", html)
         self.assertNotIn('data-resolved="1"', html)
         self.assertNotIn('class="ws-record"', html)
 
+
+
+class LinkVocabularyTests(TempSiteCase):
+    """adr-020: one `link_kind` vocabulary serves the doc envelope and the card contract."""
+
+    def test_play_is_a_doc_link_kind_and_an_unknown_kind_fails(self):
+        self.write_doc("lk.yaml", "kind: generic\ntitle: LK\nlinks: [{href: 'play/', kind: play}]\ndata: {}\n")
+        self.assertEqual(load_all(self.cfg).errors, [])
+        self.write_doc("lk.yaml", "kind: generic\ntitle: LK\nlinks: [{href: 'x', kind: nope}]\ndata: {}\n")
+        self.assertTrue(any("docs/lk.yaml" in e and "kind" in e for e in load_all(self.cfg).errors))
+
+    def test_a_collection_card_link_uses_the_same_list(self):
+        path = self.root / "examples" / "demo-musing" / "collection.yaml"
+        path.write_text(path.read_text(encoding="utf-8").replace("kind: play", "kind: nope", 1), encoding="utf-8")
+        self.assertTrue(any("collection.yaml" in e and "kind" in e for e in load_all(Config.load(self.root)).errors))
+
+    def test_the_vocabulary_is_data(self):
+        reg = load_all(self.cfg).registry
+        link = reg.resolved("collection", self.cfg.vocabularies, self.cfg.limits)
+        kinds = link["properties"]["links"]["items"]["properties"]["kind"]["enum"]
+        self.assertEqual(kinds, self.cfg.vocabularies["link_kind"])
+        self.assertIn("play", kinds)
+
+
+class ArchivedPilotTests(TempSiteCase):
+    """adr-019: the pilot milestone archived, and the archived worksheet's references still resolve."""
+
+    def test_the_pilot_milestone_is_out_of_the_plan_and_in_the_archive(self):
+        loaded = load_all(self.cfg)
+        self.assertEqual(loaded.errors, [])
+        ids = [m["id"] for m in loaded.docs["plan"]["milestones"]]
+        self.assertNotIn("m3-pilot", ids)
+        archived = (self.root / "docs" / "_archive" / "plan-2026-09-done.yaml").read_text(encoding="utf-8")
+        self.assertIn("id: m3-pilot", archived)
+
+    def test_a_card_href_is_annotated_as_route_evidence(self):
+        """adr-021: the contract is recorded now; m7-card-link-routes implements the check."""
+        reg = load_all(self.cfg).registry
+        href = reg.get("collection")["properties"]["links"]["items"]["properties"]["href"]
+        self.assertEqual(href.get("x-evidence"), "route")
 
 
 class CardContractTests(TempSiteCase):

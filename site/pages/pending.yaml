@@ -33,6 +33,7 @@ sections:
     type: markdown
     heading: Other worksheets
     markdown: |
-      - [[next]] - the live one; answer that instead.
+      - [[later]] - the live one; answer that instead.
+      - [[next]] - applied 2026-09-03; the record.
       - [[open]] - applied 2026-09-02; the record.
       - [[verdicts]] - applied 2026-09-02; the record.

@@ -30,12 +30,15 @@ properties:
       required: [label, href]
       properties:
         label: {type: string, x-limit: line}
-        href: {type: string, description: Relative to the collection route, or an absolute URL.}
+        href:
+          type: string
+          x-evidence: route
+          description: Relative to the collection route, or an absolute URL. A relative href must resolve to a real route (adr-021).
         kind:
           type: string
-          enum: [page, play, doc, external, repo, file]
+          x-vocab: link_kind
           default: page
-          description: "`play` renders as a prototype button; everything else as a text link."
+          description: "The shared link vocabulary (adr-020); `play` renders as a prototype button, everything else as a text link."
       additionalProperties: false
   visibility: {type: string, enum: [public, private], default: public}
   status: {type: string, x-vocab: lifecycle}

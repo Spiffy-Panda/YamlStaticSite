@@ -24,7 +24,12 @@ targets:
 build:
   strict: false                       # local builds warn; CI passes --strict for the public deploy (adr-014)
 
-# vocabularies and limits use the yss defaults (python -m yss ls kinds); a collection.yaml can override them
+# limits and the status vocabularies use the yss defaults (python -m yss ls kinds); a collection.yaml
+# can override any of them. link_kind is spelled out here because one list now serves both the doc
+# envelope's `links` and a collection's card contract (adr-020).
+vocabularies:
+  link_kind: [repo, issue, pr, doc, page, play, external, file]
+
 evidence:
   git_recency: true                   # warn when cited code changed after a doc's `updated` date
   run_commands: false                 # `yss check --run-commands` runs command claims on demand

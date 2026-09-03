@@ -40,6 +40,7 @@ DEFAULTS: dict[str, Any] = {
         "risk_status": ["open", "mitigated", "accepted", "closed"],
         "question_status": ["open", "answered", "deferred"],
         "release_status": ["released", "unreleased", "yanked"],
+        "link_kind": ["repo", "issue", "pr", "doc", "page", "play", "external", "file"],
     },
     "limits": {"title": 120, "summary": 300, "line": 240, "markdown": 2400},
     "build": {"strict": False},

@@ -5,7 +5,7 @@ id: decisions
 title: Decision log
 summary: Why the toolchain is shaped the way it is.
 status: active
-updated: 2026-09-02
+updated: 2026-09-03
 related: [design]
 
 entries:
@@ -333,3 +333,76 @@ entries:
     alternatives:
       - Leave the prose in each intro (nothing to build, but every worksheet repeats it and nothing keeps it true).
       - Drop applied worksheets from the site entirely (no confusion, but the record of what was asked and rejected goes with them).
+
+  - id: adr-019
+    date: 2026-09-03
+    title: An archived worksheet's reference fields may be repointed when their target is archived
+    status: accepted
+    context: |
+      The pilot milestone closed on 2026-09-02 and could not be archived. adr-012 says a done and
+      committed milestone moves to docs/_archive/, but the archived worksheet [[pending]] still
+      named `plan/m3-review` in `blocks` and `recorded_in`, both of which are x-ref checked, so
+      removing the milestone failed validation. The standing instruction not to touch archived
+      worksheets made the two rules deadlock, and adr-018 had already crossed the line once by
+      filling in resolutions on those same worksheets.
+    decision: |
+      An agent may edit `blocks` and `recorded_in` on a worksheet whose status is archived, and only
+      when the item they name has itself been archived: the reference is dropped and a dated
+      reference note is added under the question saying where the item went. Nothing else on an
+      archived worksheet may change - not a lead, an option, a help text or a resolution's account
+      of what was decided. Reference checking is unchanged; no schema and no checker gives way.
+    consequences:
+      - The archive rule works again; m3-pilot moved to docs/_archive/plan-2026-09-done.yaml on 2026-09-03.
+      - Every reference in every loaded doc still resolves, so `yss refs` and the rendered links stay honest.
+      - An archived worksheet is a record of what was asked and answered, not of which live items were once pending; the reference note carries that difference.
+      - The exception is narrow and dated, so a future edit that goes beyond it is visible as a rule break rather than as precedent.
+    alternatives:
+      - Skip x-ref validation of `blocks` on archived worksheets (the recommended option; leaves the record untouched but lets an archived worksheet point at items that no longer exist).
+      - Leave done milestones in the plan until nothing references them (no rule changes, but the plan stops holding open work only).
+
+  - id: adr-020
+    date: 2026-09-03
+    title: One link vocabulary for doc links and collection card links
+    status: accepted
+    context: |
+      The doc envelope's `links.kind` had been `repo | issue | pr | doc | page | external | file`
+      since adr-002. The card contract added by [[#adr-017]] wrote its own, nearly identical list -
+      `page | play | doc | external | repo | file` - so `play` existed in one place only and an
+      author had to know which kind of link they were writing. Two hard-coded enums also contradict
+      [[#adr-011]], which says word lists are data.
+    decision: |
+      Link kinds are the named vocabulary `link_kind` (repo, issue, pr, doc, page, play, external,
+      file). Both the doc envelope's `links.kind` and the collection card contract's `links.kind`
+      carry `x-vocab: link_kind` instead of an enum, so the list resolves from site.yaml and a
+      collection may override it like any other vocabulary. The default ships in yss/config.py and
+      this repository spells it out in site.yaml.
+    consequences:
+      - This changes the doc envelope, which every doc kind folds in, so every kind gains `play` as a link kind; existing docs still validate because the list only grew.
+      - A collection can narrow or extend link kinds for its own docs and its own card in collection.yaml.
+      - One list to learn and one place to change it; the card contract stops being a special case.
+    alternatives:
+      - Keep the two lists separate and document the difference in the yss-publish skill (no envelope change, but two similar lists to remember and no `play` on doc links).
+
+  - id: adr-021
+    date: 2026-09-03
+    title: A card link to a collection page is checked evidence
+    status: accepted
+    context: |
+      A card link's href was not verified. A link to a page that was renamed, or to a route that
+      never existed, renders as a dead link on a parent site's landing page - exactly the kind of
+      claim `yss check` exists to catch. Links into a mount the target does not carry are already
+      dropped ([[#adr-017]]), so the gap is links that are simply wrong.
+    decision: |
+      `links.href` in collection.yaml carries `x-evidence: route`: a relative href must resolve to a
+      real route in the built site. Mount contents and external hrefs are deliberately not checked -
+      a mount folder may be produced by a hook and absent at check time, and fetching external URLs
+      would put the network in the middle of `yss check`. Routes exist only after pages load, so the
+      check runs late in the pipeline; the annotation records the contract now and
+      [[plan#m7-card-link-routes]] implements it.
+    consequences:
+      - A renamed or deleted collection page fails the check instead of shipping a dead link.
+      - Nothing new to author - the href already exists; only its correctness became checkable.
+      - The evidence checker gains a claim kind that needs the route table, so it cannot run on docs alone the way path and symbol claims do.
+    alternatives:
+      - Check mount hrefs as well (catches a deleted export, but the folder may be built by a hook and absent at check time).
+      - Fetch external hrefs (finds link rot, at the cost of network access, flakiness and offline failures).

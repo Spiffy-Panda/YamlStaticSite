@@ -4,9 +4,9 @@
 kind: plan
 id: plan
 title: YamlStaticSite plan
-summary: Forward plan for the yss toolchain. Shipped work lives in the changelog and docs/_archive/; this file holds only what is open, including the eleven GitHub issues triaged on 2026-09-02.
+summary: Forward plan for the yss toolchain. Shipped work lives in the changelog and docs/_archive/; this file holds only what is open, including the eleven GitHub issues triaged on 2026-09-02. The pilot milestone was archived on 2026-09-03.
 status: active
-updated: 2026-09-02
+updated: 2026-09-03
 owners: [panda, agent]
 tags: [toolchain, docs, static-site]
 related: [design, codemap, decisions, verdicts, pending]
@@ -30,34 +30,6 @@ non_goals:
   - Supporting XML or XSLT pipelines (rejected after earlier repos, see the decision log).
 
 milestones:
-  - id: m3-pilot
-    title: Pilot on this repository
-    status: done
-    priority: 1
-    summary: This repo's own docs, pages and a demo collection exercise every feature; a human review closes the loop.
-    done_when: Both worksheets have been filled and applied, and the review is captured as answered questions.
-    notes: |
-      Closed 2026-09-02, both tasks done. The original done_when said "applied without a schema
-      change"; P.1 and O.1 then approved schema changes deliberately, which is the worksheet loop
-      working rather than failing, so the bar is restated above. Not archived yet - moving it to
-      docs/_archive/ breaks the `blocks` reference in the archived worksheet [[pending]] and the
-      `yss refs plan#m3-pilot` example in [[codemap]]; see [[next#n-archive-pilot]].
-    tasks:
-      - id: m3-review
-        title: Human review of the rendered site for framing gaps
-        status: done
-        owner: panda
-        notes: |
-          Reviewed 2026-09-02. No framing gaps in what is rendered today; the reviewer's caveat is
-          that nothing has run outside this repository yet. One gap named - how a parent site
-          presents its sub-sites is undefined; it became [[#q-subsite-cards]].
-        verify: Notes captured as open_questions or new page intros.
-      - id: m3-verdicts
-        title: Fill the verdicts worksheet and hand the instruction to an agent
-        status: done
-        owner: panda
-        verify: python -m yss query plan.open_questions --where status=answered
-
   - id: m6-prototypes
     title: Prototype hosting
     status: planned
@@ -129,6 +101,19 @@ milestones:
         verify: python -m yss new collection --help
         links:
           - {label: 'Issue #1', href: 'https://github.com/Spiffy-Panda/YamlStaticSite/issues/1', kind: issue}
+      - id: m7-card-link-routes
+        title: Check that a relative card link in collection.yaml resolves to a real route
+        status: planned
+        owner: agent
+        notes: |
+          Approved as N.3 (2026-09-03; [[decisions#adr-021]]). `links.href` already carries
+          `x-evidence: route`, but the evidence checker only walks docs and only knows path, glob,
+          symbol and command claims, so nothing reads that annotation yet. Routes exist only after
+          pages load, so the claim has to be evaluated with the route table in hand rather than
+          from a doc alone. Mount contents and external hrefs stay unchecked on purpose.
+        verify: python -m yss check -v
+        evidence:
+          - {path: yss/schemas/collection.schema.yaml, contains: "x-evidence: route"}
       - id: m7-watchdog
         title: Optional watchdog-based file watching instead of polling
         status: planned
@@ -279,7 +264,6 @@ milestones:
     title: Adopt yss in the Musings repository
     status: planned
     priority: 2
-    depends_on: [m3-pilot]
     summary: Migrate one musing at a time through collections; the old site generator is retired last (see decision adr-010).
     done_when: Every musing is a collection, build_site.py is deleted, and the audited Pages workflow builds with yss.
     tasks:

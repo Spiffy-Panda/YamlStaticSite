@@ -1,10 +1,10 @@
-# Page - schema: page. Presents docs/next.yaml, the live worksheet.
+# Page - schema: page. Presents docs/next.yaml, applied 2026-09-03 and kept as the record.
 id: next
 route: /next/
-title: Next
-summary: The decisions still waiting on Panda, as a worksheet with pros and cons per option. Answer, build the instruction, hand it to an agent.
+title: Next decisions (record)
+summary: A worksheet that has been applied, kept as the record of what was asked and what it turned into. Nothing here is still to answer; the live worksheet is Later.
 visibility: public          # worksheets stay on the public site (P.2, 2026-09-02)
-nav: {label: Next, order: 44}
+nav: {label: Next (record), order: 44}
 docs: [next, plan]
 sections:
   - id: worksheet
@@ -13,7 +13,6 @@ sections:
     args:
       title: {from: next.title}
       intro: {from: next.intro}
-      warn: {from: next.warn}
       questions: {from: next.questions}
       prompt: {from: next.prompt}
       decided_by: true
@@ -21,23 +20,20 @@ sections:
 
   - id: waiting
     type: prefab
-    heading: Plan questions still open
-    intro: Every question in [[plan]] that nobody has answered yet, whether or not a worksheet question above covers it.
+    heading: Plan milestones as they stand now
+    intro: What the milestones in [[plan]] look like after this worksheet was applied - the pilot milestone is no longer among them.
     prefab: table
     args:
       rows:
-        from: plan.open_questions
-        where: {status: open}
-      columns:
-        - {key: id, label: Id}
-        - {key: question, label: Question, md: true}
-        - {key: owner, label: Owner}
-      empty: Every question in the plan has been answered.
+        from: plan.milestones
+        map: {milestone: id}
+      columns: [{key: milestone, label: Milestone}, {key: status, label: Status}, {key: title, label: Title}]
 
   - id: previous
     type: markdown
-    heading: Previous worksheets
+    heading: Other worksheets
     markdown: |
-      - [[open]] - applied 2026-09-02; kept as the record.
-      - [[pending]] - applied 2026-09-02; kept as the record.
-      - [[verdicts]] - applied 2026-09-02; kept as the record.
+      - [[later]] - the live one; answer that instead.
+      - [[open]] - applied 2026-09-02; the record.
+      - [[pending]] - applied 2026-09-02; the record.
+      - [[verdicts]] - applied 2026-09-02; the record.

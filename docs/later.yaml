@@ -1,0 +1,142 @@
+# Worksheet - schema: doc.worksheet. The live one. Opened 2026-09-03 after the next worksheet was applied.
+# Agents: add a question here whenever work stalls on a human call; never answer one.
+kind: worksheet
+id: later
+title: Later decisions
+summary: What is waiting on Panda after the next worksheet was applied - where the new card-link route check runs, whether mount hrefs get checked once a real export exists, and how far the archived-doc editing allowance reaches.
+status: active
+updated: 2026-09-03
+owners: [agent]
+related: [plan, decisions, next]
+intro: |
+  The previous worksheet ([[next]]) has been applied and archived. All three questions here came out
+  of applying it, and none of them blocks work that is already moving. Recommended defaults are
+  pre-selected; open **pros and cons** under an option before changing one, press **Build the
+  instruction**, and hand the text to an agent in a fresh session.
+
+  L.1 is the one that has to be answered before [[plan#m7-card-link-routes]] can be written. L.2 and
+  L.3 are both about how far a rule reaches, and both can wait.
+warn: |
+  🐼❗ L.1 decides where a check with a late dependency lives. Answer it before anyone starts
+  m7-card-link-routes, or the work lands in whichever file the agent happened to open first.
+
+questions:
+  - id: l-route-check-home
+    call: L.1
+    lead: Where does the card-link route check run, given routes only exist after pages load?
+    help: |
+      [[decisions#adr-021]] made a relative card href in collection.yaml checked evidence, but the
+      evidence checker walks docs and knows path, glob, symbol and command claims only. Routes are
+      computed while pages load, so this claim cannot be evaluated the way the others are. Every
+      other claim kind answers "is this still true about the repo?" from the repo alone; this one
+      needs the built route table, which is why it needs a call rather than a guess.
+    applies_to: "plan m7-card-link-routes notes; decisions (new entry if the checker gains a route table)"
+    blocks: [plan/m7-card-link-routes]
+    compare: |
+      The trade is between one place to look and one time to run. Evidence lives in `yss check` and
+      the Evidence page, which is where anyone would look for a dead-link report; the route table
+      lives in the build, which is the only thing that already knows every route. Doing it in both
+      places is honest about that split but means two code paths for one claim.
+    options:
+      - value: check-loads-routes
+        text: "`yss check` loads pages and computes routes, then evaluates the claim like any other"
+        recommended: true
+        why: One report, one command, and the Evidence page keeps showing every claim in one list.
+        prompt: "Implement m7-card-link-routes inside `yss check`: load pages, compute the route table, and evaluate route claims alongside path, glob, symbol and command claims."
+        pros: [One place to look for a stale claim, The Evidence page and provider get it for free, "`check` already loads docs, so loading pages is a small step"]
+        cons: ["`yss check` gets slower and starts depending on pages", A page error now breaks an evidence run]
+      - value: build-enforces
+        text: The build validates card links while rendering, and --strict makes it fail
+        why: The build already holds every route, so the check costs nothing extra there.
+        prompt: "Implement m7-card-link-routes in the build: validate relative card hrefs against the route table while rendering, warn by default and fail under --strict."
+        pros: [No new work in check, Uses the route table that already exists, Catches it before anything is published]
+        cons: ["`yss check` still reports the card link as unknown", Two homes for evidence depending on the claim kind]
+      - value: both
+        text: Both - check computes routes for the report, the build enforces
+        why: The report is complete and the gate is where publishing happens.
+        prompt: "Implement m7-card-link-routes in both places: `yss check` computes routes for the report and the build enforces the same claim under --strict."
+        pros: [Complete report and a real publishing gate]
+        cons: [Two code paths for one claim, Twice the surface to keep in step]
+
+  - id: l-mount-href-check
+    call: L.2
+    lead: Should a card link into a mount be checked once a real export exists?
+    help: |
+      N.3 left the mount option unticked because a mount folder may be produced by a hook and be
+      absent at check time. That reasoning is about today, when the only mount is the demo
+      collection's playable. [[plan#m6-godot]] will produce a real export folder, and at that point
+      a deleted or renamed export is exactly the failure the check would catch. This asks whether to
+      revisit it then or leave mounts unchecked for good.
+    applies_to: "plan m6-godot notes; decisions adr-021 (supersede if mounts become checkable)"
+    options:
+      - value: revisit-at-export
+        text: Revisit when the first real export lands
+        recommended: true
+        why: Keeps the option open without writing a check against a folder nobody has built yet.
+        prompt: "Add a note to m6-godot that mount href checking is reconsidered once a real export exists; leave adr-021 as it stands."
+        pros: [No speculative work, The decision gets made against a real folder]
+        cons: [Someone has to remember, One more thing hanging off m6-godot]
+      - value: check-when-present
+        text: Check a mount href whenever the folder is present, skip it when it is not
+        why: Catches a renamed export without failing on a folder a hook has not built.
+        prompt: "Extend the route evidence check to mount hrefs, reporting skipped rather than stale when the mounted folder is absent."
+        pros: [Catches a deleted export as soon as anyone checks locally, "`skipped` is already a claim status"]
+        cons: [A claim that quietly skips is a claim nobody trusts, CI and a laptop disagree about the same repo]
+      - value: never
+        text: Leave mount contents unchecked for good
+        why: Mounts are built artefacts; the build already drops links into a mount the target does not carry.
+        prompt: "Record that mount contents are never evidence; adr-017's drop-the-link behaviour is the whole guarantee."
+        pros: [One rule and no exceptions, Nothing depends on build order]
+        cons: [A renamed export inside a mounted folder is never caught]
+
+  - id: l-archived-edit-scope
+    call: L.3
+    lead: Does the archived-doc editing allowance stay worksheet-only?
+    help: |
+      [[decisions#adr-019]] lets an agent repoint `blocks` and `recorded_in` on an archived
+      worksheet when the item they name has been archived. Archived worksheets are not the only
+      docs that go quiet - a deprecated design component or a superseded decision can end up naming
+      an archived plan item too. This asks whether the allowance is about worksheets or about
+      references to archived items generally.
+    applies_to: "decisions adr-019 (supersede if the allowance widens); yss-doc skill archive rule"
+    options:
+      - value: worksheet-only
+        text: Keep it to archived worksheets
+        recommended: true
+        why: The allowance was written against a real deadlock; widening it without one is guessing.
+        prompt: "Leave adr-019 as written; the allowance covers archived worksheets only, and a wider case gets its own decision."
+        pros: [Narrow and dated, so a wider edit reads as a rule break, No rule written for a case nobody has hit]
+        cons: [The same deadlock elsewhere needs another verdict]
+      - value: any-archived-target
+        text: Any doc may drop a reference to an item that has been archived
+        why: The rule becomes about the target's state rather than about which doc happens to hold the reference.
+        prompt: "Supersede adr-019 with a general rule: any doc may drop a reference whose target has been archived, leaving a dated note; nothing else about the referring item changes."
+        pros: [One rule instead of a growing list of exceptions, The archive rule never deadlocks again]
+        cons: [A broad editing licence granted before it is needed, Harder to spot an edit that went further than allowed]
+
+prompt:
+  task: Apply the later decisions below to the yss docs and configuration
+  background: |
+    Repository YamlStaticSite. Docs are YAML under docs/ validated by `python -m yss validate` and
+    `python -m yss check`. Plan in docs/plan.yaml, decisions in docs/decisions.yaml, defaults in
+    site.yaml, per-collection config in <collection>/collection.yaml. Load the `yss` skill first.
+  steps:
+    - For each decision, update the named plan item, risk or open question; add a decision entry where a verdict sets a rule.
+    - L.1 decides where m7-card-link-routes is implemented; write the task's notes and verify to match before any code.
+    - L.2 and L.3 both narrow or widen an accepted decision; supersede adr-021 or adr-019 rather than editing them.
+    - Archive this worksheet (status archived, a resolution per question) and start a new one for anything still open.
+    - Run validate, check, build --target all --no-dynamic and the tests; commit with the verdict block in the message body.
+  do_not_touch:
+    - .yss/local.yaml and anything under dist/.
+    - Accepted decisions - supersede, never edit.
+    - Archived worksheets (verdicts, pending, open, next) beyond what adr-019 allows.
+  flag_only:
+    - Schema changes beyond what these verdicts approve.
+    - Anything that would need changes in the Musings repository itself.
+  rules:
+    - Project knowledge goes in docs/*.yaml, never in new markdown files.
+    - Validate and check after every edit; fix every reported file and path.
+    - Mark anything not for the public site as visibility private or private_notes.
+    - No absolute paths in anything that reaches dist/.
+decided_by: true
+extra: true

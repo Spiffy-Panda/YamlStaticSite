@@ -78,7 +78,7 @@ $defs:
     properties:
       label: {type: string}
       href: {type: string}
-      kind: {type: string, enum: [repo, issue, pr, doc, page, external, file]}
+      kind: {type: string, x-vocab: link_kind, description: "One shared link vocabulary with the collection card contract (adr-020); `play` is a prototype link."}
     additionalProperties: false
   evidence_item:
     description: "One checkable claim. Exactly one of path, glob, symbol, command."

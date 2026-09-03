@@ -1,27 +1,38 @@
-# Worksheet - schema: doc.worksheet. The live one. Opened 2026-09-02 after the open worksheet was applied.
-# Agents: add a question here whenever work stalls on a human call; never answer one.
+# Worksheet - schema: doc.worksheet. Applied 2026-09-03 and kept as the record; do not re-answer it.
+# Agents: new questions go in docs/later.yaml, never here.
 kind: worksheet
 id: next
 title: Next decisions
-summary: What is waiting on Panda after the open worksheet was applied - archiving the closed pilot milestone, two link vocabularies that now disagree, and whether card links should be checked evidence.
-status: active
-updated: 2026-09-02
+summary: The worksheet that archived the closed pilot milestone, merged the two link vocabularies into one, and made a card link to a collection page into checked evidence. Applied 2026-09-03; kept as the record.
+status: archived
+updated: 2026-09-03
 owners: [agent]
-related: [plan, decisions, open]
+related: [plan, decisions, open, later]
 intro: |
-  The previous worksheet ([[open]]) has been applied and archived. All three questions here came
-  out of applying it, and none of them blocks work that is already moving. Recommended defaults are
-  pre-selected; open **pros and cons** under an option before changing one, press **Build the
-  instruction**, and hand the text to an agent in a fresh session.
+  Applied on 2026-09-03. All three questions were answered by Panda and each one's outcome is
+  written under it; the choices are kept in the foldouts so the rejected options stay readable.
+  What it did: N.1 let an agent repoint the reference fields of an archived worksheet when their
+  target is archived, which finally let the pilot milestone move to `docs/_archive/`; N.2 collapsed
+  the doc envelope's link kinds and the collection card contract's link kinds into one `link_kind`
+  vocabulary with `play` in it; N.3 made a relative card href checked evidence against the route
+  table. The verdicts are [[decisions#adr-019]], [[decisions#adr-020]] and [[decisions#adr-021]].
 
-  N.1 is a housekeeping conflict an agent could not resolve alone. N.2 and N.3 are both about the
-  card contract now that it exists and is rendering.
-warn: |
-  🐼❗ N.1 exists because the archive rule and the "never edit an archived worksheet" rule collide.
-  Answer it before the next big plan cleanup, or the same collision comes back.
+  The live worksheet is now [[later]]; answer that one instead.
 
 questions:
   - id: n-archive-pilot
+    resolution:
+      applied: 2026-09-03
+      by: Panda
+      chose: [allow-edit]
+      recorded_in: [decisions/adr-019]
+      summary: |
+        Not the recommended option. Rather than teaching the checker to look away, an agent may now
+        repoint `blocks` and `recorded_in` on an archived worksheet, and only when the item they
+        name has itself been archived, leaving a dated reference note under the question. Every
+        reference in every loaded doc therefore still resolves. `plan/m3-review` was dropped from
+        P.9 on [[pending]] under that allowance, and `m3-pilot` moved to
+        docs/_archive/plan-2026-09-done.yaml with its two tasks on the same day.
     call: N.1
     lead: The pilot milestone is done - may an agent edit archived worksheets to archive it?
     help: |
@@ -37,7 +48,6 @@ questions:
       adds what happened without changing what was asked. It does not answer this call: `blocks` is
       still reference-checked, and m3-pilot still cannot move.
     applies_to: "plan m3-pilot (archive move); docs/_archive/plan-2026-09-done.yaml; whichever rule you relax"
-    blocks: [plan/m3-pilot]
     compare: |
       Archived worksheets are a record of what was asked and answered, and their `blocks` lists are
       part of that record. Either the record is allowed to drift as the plan moves on, or the
@@ -65,6 +75,17 @@ questions:
         cons: [The plan stops holding open work only, A done milestone can linger indefinitely]
 
   - id: n-link-kinds
+    resolution:
+      applied: 2026-09-03
+      by: Panda
+      chose: [merge]
+      recorded_in: [decisions/adr-020]
+      summary: |
+        Merged. `link_kind` (repo, issue, pr, doc, page, play, external, file) is a vocabulary like
+        every other one - shipped in yss/config.py, spelled out in site.yaml, overridable per
+        collection - and both the doc envelope's `links.kind` and the card contract's `links.kind`
+        now carry `x-vocab: link_kind` instead of an enum. This did change the doc envelope, so
+        every kind gained `play`; nothing stopped validating, because the list only grew.
     call: N.2
     lead: Two link vocabularies now disagree - should they be one?
     help: |
@@ -89,6 +110,18 @@ questions:
         cons: [Two similar lists to remember, "`play` unavailable to doc links"]
 
   - id: n-link-evidence
+    resolution:
+      applied: 2026-09-03
+      by: Panda
+      chose: [routes]
+      recorded_in: [decisions/adr-021, plan/m7-card-link-routes]
+      summary: |
+        Routes only. `links.href` in collection.yaml carries `x-evidence: route`, so a relative card
+        href is a claim that a real route exists. Mounts and external fetching were both left
+        unticked and stay unchecked - a mount folder may be built by a hook and absent at check
+        time, and fetching URLs would put the network inside `yss check`. The annotation records the
+        contract; the checker cannot read it yet, because it walks docs and knows nothing of the
+        route table, so [[plan#m7-card-link-routes]] carries the work.
     call: N.3
     lead: Should a card link be checked evidence?
     kind: check
