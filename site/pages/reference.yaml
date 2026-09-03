@@ -3,7 +3,7 @@ id: reference
 route: /reference/
 title: Reference
 summary: Every prefab with its parameters and a rendered example, the schema files, and the README. For anyone authoring pages.
-nav: {label: Reference, order: 80}
+nav: {label: Reference, order: 80, group: content}
 sections:
   - id: prefabs
     type: prefab

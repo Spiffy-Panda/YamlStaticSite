@@ -71,3 +71,7 @@ terms:
     see_also: [verdict]
   - term: verdict
     definition: The human's answer to a worksheet question, carried in the built instruction and applied to the docs by an agent, then written back onto the question as its `resolution`.
+  - term: nav group
+    definition: The category a page declares for the top bar (`nav.group`, from the `nav_group` vocabulary). What the group is called, what order it sits in and whether it hides behind a disclosure is site.yaml's `nav.groups`; whether a page appears at all is derived from the docs it presents.
+    see_also: [worksheet]
+

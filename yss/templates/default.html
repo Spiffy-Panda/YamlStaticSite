@@ -17,12 +17,29 @@
     <a class="brand" href="{{ url('/') }}">{{ site.name }}</a>
     <button class="nav-toggle" aria-expanded="false" aria-controls="site-nav">Menu</button>
     <nav id="site-nav" class="site-nav">
-      {% for item in nav %}
-      <a href="{{ item.href }}" class="{% if item.route == current_route %}active{% endif %} {% if item.visibility == 'private' %}private{% endif %}">{{ item.label }}</a>
+      {% macro navlink(item) %}
+      <a href="{{ item.href }}" class="{% if item.route == current_route %}active{% endif %} {% if item.visibility == 'private' %}private{% endif %}">{{ item.label }}{% if item.waiting %} <span class="nav-count" title="calls waiting on you">{{ item.waiting }}</span>{% endif %}</a>
+      {% endmacro %}
+      {% for g in nav_groups %}
+      {% if g.menu %}
+      <details class="nav-group nav-group-{{ g.id }} nav-menu">
+        <summary>{{ g.label or g.id }}{% if g.waiting %} <span class="nav-count">{{ g.waiting }}</span>{% endif %}</summary>
+        <div class="nav-menu-items">{% for item in g['items'] %}{{ navlink(item) }}{% endfor %}</div>
+      </details>
+      {% else %}
+      <span class="nav-group nav-group-{{ g.id }}">
+        {% if g.label %}<span class="nav-group-label">{{ g.label }}</span>{% endif %}
+        {% for item in g['items'] %}{{ navlink(item) }}{% endfor %}
+      </span>
+      {% endif %}
       {% endfor %}
-      {% for c in collections %}
-      <a href="{{ c.href }}" class="nav-collection {% if collection and collection.id == c.id %}active{% endif %} {% if c.visibility == 'private' %}private{% endif %}">{% if c.emblem and c.emblem|length <= 4 %}{{ c.emblem }} {% endif %}{{ c.title }}</a>
-      {% endfor %}
+      {% if collections %}
+      <span class="nav-group nav-group-collections">
+        {% for c in collections %}
+        <a href="{{ c.href }}" class="nav-collection {% if collection and collection.id == c.id %}active{% endif %} {% if c.visibility == 'private' %}private{% endif %}">{% if c.emblem and c.emblem|length <= 4 %}{{ c.emblem }} {% endif %}{{ c.title }}</a>
+        {% endfor %}
+      </span>
+      {% endif %}
     </nav>
     <span class="target-badge" title="build target">{{ target }}</span>
   </div>

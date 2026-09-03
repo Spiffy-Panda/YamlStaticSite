@@ -4,7 +4,7 @@ route: /pending/
 title: Pending decisions (record)
 summary: A worksheet that has been applied, kept as the record of what was asked and what it turned into. Nothing here is still to answer; the live worksheet is Next.
 visibility: public          # worksheets stay on the public site (P.2, 2026-09-02)
-nav: {label: Pending (record), order: 47}
+nav: {label: Pending, order: 47, group: decide}
 docs: [pending, plan]
 sections:
   - id: worksheet

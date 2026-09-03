@@ -3,7 +3,7 @@ id: design
 route: /design/
 title: Design
 summary: Architecture of the toolchain - principles, components, interfaces and flows - from design.yaml. Read this before changing yss/.
-nav: {label: Design, order: 20}
+nav: {label: Design, order: 20, group: content}
 docs: [design]
 sections:
   - id: overview
@@ -24,18 +24,23 @@ sections:
   - id: components
     type: prefab
     heading: Components
-    intro: Each card names the code that implements the component and what it depends on.
-    prefab: card-grid
+    intro: |
+      Grouped by subject rather than by type: the four headings and paragraphs below are the
+      `groups:` declared in design.yaml itself, resolved by `group_by: group`, so the same framing
+      would appear on any other page that groups this doc. Each card names the code that implements
+      the component and what it depends on.
+    prefab: group-sections
     args:
-      items:
+      groups:
         from: design.components
+        group_by: group
         map:
           title: name
           badge: kind
           body: responsibility
           subtitle: "{{ 'depends on ' ~ (depends_on | join(', ')) if depends_on else '' }}"
           meta: "{{ (code or []) | join(' · ') }}"
-      columns: 3
+      item_args: {columns: 3}
 
   - id: interfaces
     type: prefab
@@ -63,7 +68,7 @@ sections:
     args:
       items:
         from: design.constraints
-        map: {text: "{{ text }} _({{ source }})_"}
+        map: {text: "{{ text }} _({{ source }})_", badge: status}
 
   - id: alternatives
     type: prefab

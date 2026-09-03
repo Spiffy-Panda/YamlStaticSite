@@ -44,7 +44,7 @@ properties:
             the choices stop being offered, the summary takes their place, and the options move into
             a foldout underneath. A question without one is still live.
           properties:
-            summary: {type: string, x-limit: markdown, description: What addressed it, written in the past tense.}
+            summary: {type: string, x-limit: markdown, description: "What addressed it, written in the past tense."}
             chose:
               type: array
               items: {type: string}

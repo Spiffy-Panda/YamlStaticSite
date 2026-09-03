@@ -62,6 +62,18 @@ properties:
     type: string
     x-limit: markdown
     description: Guidance for agents editing this doc (conventions, what not to touch, how to verify).
+  groups:
+    type: array
+    items: {$ref: "#/$defs/group"}
+    description: |
+      Optional *subject* axis for this doc, orthogonal to the type arrays. A doc's items are grouped
+      by schema type (principles, components, constraints, milestones, risks...), which is rarely the
+      axis a reader navigates by. Declare subjects here once - each with the heading and the
+      paragraph that introduce it - and let items opt in with `group: <id>`. A page binding with
+      `group_by: group` then gets the whole authored group on every bucket, not a bare key, so one
+      heading and one blurb written here reach every page that groups by them. Declaration order is
+      display order. Groups are ordinary list items: their ids are indexed, so `[[doc#group-id]]`
+      links to them and `visibility: private` hides one from public builds.
 patternProperties:
   "^x-": {}
 $defs:
@@ -99,6 +111,22 @@ $defs:
       - {required: [symbol]}
       - {required: [command]}
     additionalProperties: false
+  group:
+    description: |
+      One authored subject group: the heading a reader navigates by and the prose that says what the
+      items under it are collectively about. Facts about the grouping live here, in the doc, not in a
+      page, so the doc stays self-describing and two pages presenting it cannot disagree.
+    type: object
+    allOf: [{$ref: "#/$defs/item_base"}]
+    required: [id, title]
+    properties:
+      id: {$ref: "#/$defs/slug"}
+      title: {type: string, x-limit: title, description: The heading shown above the group's items.}
+      blurb:
+        type: string
+        x-limit: markdown
+        description: Markdown. One paragraph telling a reader what the items in this group are collectively about.
+    unevaluatedProperties: false
   item_base:
     description: Fields any list item may carry in addition to its own.
     type: object
@@ -109,3 +137,23 @@ $defs:
       links: {type: array, items: {$ref: "#/$defs/link"}}
       notes: {type: string, x-limit: markdown, description: Markdown notes shown to humans.}
       evidence: {type: array, items: {$ref: "#/$defs/evidence_item"}}
+      group:
+        $ref: "#/$defs/slug"
+        x-ref: item
+        description: >-
+          Id of an entry in this doc's `groups:` - the subject this item belongs to. Optional and
+          safe to add to any kind: it is a free slug validated as an ordinary item reference, so a
+          typo fails validation, and unlike `status` it carries no vocabulary that a kind-specific
+          declaration could intersect with (see the note on `status` below). Items with no `group`
+          are unaffected, and a doc with no `groups:` behaves exactly as it did before.
+      status:
+        type: string
+        description: >-
+          Generic per-item status for kinds that don't already define their own status vocabulary
+          (e.g. design principles, constraints, interfaces, flows, alternatives use the `claim_status`
+          vocabulary: live, decided, open, superseded). Left unconstrained here on purpose: a JSON
+          Schema `allOf` composes by intersection, so giving this field its own `enum` would also
+          apply to items that already carry a kind-specific status (plan milestones/tasks: work_status;
+          risks: risk_status; questions: question_status; design components / codemap modules:
+          work_status; decision entries: record_status) and make their existing values fail. Kinds
+          that want enum-checked values declare `status` themselves with the vocabulary that fits.

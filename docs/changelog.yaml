@@ -30,6 +30,44 @@ releases:
         text: "An agent may repoint `blocks` and `recorded_in` on an archived worksheet when the item they name has been archived, leaving a dated reference note; the pilot milestone m3-pilot moved to docs/_archive/plan-2026-09-done.yaml under that allowance (adr-019)."
       - type: changed
         text: "The `next` worksheet was applied and kept as the record; the live worksheet is now `later`."
+      - type: added
+        text: "Nav groups: a page declares `nav.group` from the `nav_group` vocabulary (content, decide, meta) and site.yaml's `nav.groups` names, orders and optionally hides each group behind a disclosure (adr-022)."
+      - type: added
+        text: "The nav derives what it cannot be told: a page whose docs are all archived leaves the bar, and a page presenting a worksheet shows how many questions still have no resolution."
+      - type: fixed
+        text: "Eight schema descriptions were unquoted scalars inside flow mappings, so a comma in the prose truncated the description and injected a junk key into the rendered schema (gh-5)."
+      - type: fixed
+        text: "The timeline prefab crashed on an entry with no `items`: Jinja's subscript and attribute lookups fall back to each other, so both forms reached the `dict.items` method (gh-9)."
+      - type: added
+        text: "`yss new collection <id>` scaffolds collection.yaml, docs/plan.yaml and pages/index.yaml under the site's collection root (gh-1)."
+      - type: fixed
+        text: "The `new` subcommand's own `--root` flag was clobbering the top-level `--root`; the collection scaffolder's flag is `--collections-root`."
+      - type: added
+        text: "The card prefab takes `tone` (a tint without printing a badge) and `kicker` (an eyebrow above the title), and rejects an unknown tone instead of rendering it untoned (gh-10)."
+      - type: added
+        text: "`yss scan` honours .gitignore by default, takes repeatable `--ignore` globs and `--no-gitignore`, and reports what it skipped as well as what it found (gh-6). The public build's own output scan is unchanged and still scans everything it emits."
+      - type: added
+        text: "A collection can set its own `id` in collection.yaml instead of inheriting its folder name, so a musing keeps its published slug when it migrates; a clash fails to load naming both folders (gh-2)."
+      - type: added
+        text: "`at:` on a site.yaml collections entry routes every collection in that group under a URL prefix, e.g. /musings/ (gh-4)."
+      - type: added
+        text: "Mounts take `include` and `exclude` globs, matched relative to the mount path with pathlib semantics; exclude always wins and a mount with neither still copies the whole tree (gh-3)."
+      - type: added
+        text: "`redaction.scan_ignore` in site.yaml - a standing ignore list for `yss scan`, on top of .gitignore and the default skip list."
+      - type: added
+        text: "Any doc item may carry `status`. It is unconstrained on `item_base` on purpose - an allOf enum would also bind items that already have their own status vocabulary - and kinds that want checked values declare it themselves; design claims use the new `claim_status` vocabulary (gh-7)."
+      - type: fixed
+        text: "`yss new doc` wrote a placeholder its own validator rejected: the scaffolder merged a shared base's properties OVER the kind's own, so a kind-specific `status` lost to the open one it inherits."
+      - type: added
+        text: "A subject-grouping tier: a doc declares `groups: [{id, title, blurb}]`, an item names one with `group:`, and a binding's `group_by: group` hands a page the authored title and blurb in declaration order instead of a bare key (gh-8). New `group-sections` prefab renders them."
+      - type: added
+        text: "A rendered `[[doc#item]]` reference is checked against the HTML it produced: prefabs anchor addressable items, the renderer records every link and every emitted anchor, and a reference that did not land is a build warning that `--strict` makes fatal (gh-11, adr-023)."
+      - type: fixed
+        text: "Ten dead in-page links in this repository - three from prefabs that emitted no anchor, seven from answered plan questions the plan page filtered off itself, which now has an answered-questions section."
+      - type: added
+        text: "`{{ fail('...') }}` in a prefab template raises a RenderError naming the prefab, replacing the trick of forcing an UndefinedError; `card` and `card-grid` take a `level` so titles nest under a `group-sections` heading."
+      - type: fixed
+        text: "A collection's card links and `collection_url()` were built from its id rather than its route, so they pointed at the wrong place once a collection sat under a route prefix."
   - version: 0.2.0
     date: 2026-09-02
     status: released

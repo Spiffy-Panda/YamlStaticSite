@@ -4,7 +4,7 @@ route: /verdicts/
 title: Pilot verdicts (record)
 summary: A worksheet that has been applied, kept as the record of what was asked and what it turned into. Nothing here is still to answer; the live worksheet is Next.
 visibility: public          # worksheets stay on the public site (P.2, 2026-09-02)
-nav: {label: Verdicts (record), order: 48}
+nav: {label: Verdicts, order: 48, group: decide}
 docs: [verdicts, plan]
 sections:
   - id: worksheet

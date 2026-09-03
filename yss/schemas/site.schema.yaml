@@ -52,6 +52,14 @@ properties:
             assets: {type: string, default: assets}
             config: {type: string, default: collection.yaml}
             hooks: {type: string, default: hooks.py}
+            at:
+              type: string
+              default: ""
+              description: |
+                URL prefix every collection this glob matches routes under, e.g. "musings/" ->
+                /musings/<id>/ instead of /<id>/. Empty (default) leaves routing unchanged. Set on
+                the glob group (not per collection) so a repo with several sibling collections
+                namespaces all of them in one place.
           additionalProperties: false
   targets:
     type: object
@@ -100,6 +108,14 @@ properties:
         path: {type: string}
         at: {type: string}
         targets: {type: array, items: {type: string}}
+        include:
+          type: array
+          items: {type: string}
+          description: "Glob patterns relative to `path`; absent means every file (today's behaviour). `*.html` is top-level only, `**/*.html` is recursive."
+        exclude:
+          type: array
+          items: {type: string}
+          description: "Glob patterns removed after `include`; always wins over it. A trailing `/` drops a whole folder; `**` matches any depth."
       additionalProperties: false
   dynamic:
     type: object
@@ -137,4 +153,8 @@ properties:
       env_forbidden: {type: string}
       env_flag: {type: string}
       forbid_root_path: {type: boolean}
+      scan_ignore:
+        type: array
+        items: {type: string}
+        description: "Globs `yss scan` skips in the source tree, on top of .gitignore and the default skip list. Relative to the scanned root; `--ignore` adds more, `--no-gitignore` turns off the gitignore part. The public build's own output scan ignores nothing."
     additionalProperties: false

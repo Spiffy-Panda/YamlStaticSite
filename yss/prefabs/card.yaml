@@ -1,19 +1,29 @@
 name: card
-description: A single card - title, optional badge, subtitle, markdown body, meta lines and tags. Feed it from a list with `map` to rename doc fields onto these params.
+description: A single card - title, optional kicker, badge, subtitle, markdown body, meta lines and tags. `tone` tints the card independently of `badge`; when `badge` is set and `tone` is not, the tone is still derived from the badge text (unchanged behaviour). Feed it from a list with `map` to rename doc fields onto these params.
 category: item
 params:
   title: {type: string, required: true}
+  kicker: {type: string, description: "Small eyebrow line rendered above the title (e.g. a category or two-part heading's lead)."}
   subtitle: {type: string}
   body: {type: markdown, description: Markdown body text.}
-  badge: {type: string, description: Status text; also sets the card's tone.}
+  badge: {type: string, description: "Status text; also sets the card's tone when `tone` is not given."}
+  tone: {type: string, description: "Tint the card without printing a badge: one of ok, warn, bad, muted, accent (the same closed set badge's own `tone` override accepts). Takes precedence over a tone derived from `badge`. An unrecognised value fails the build."}
   href: {type: string, description: Makes the title a link.}
   meta: {type: any, description: "A string, or a list of strings / {label, value} mappings, shown as small lines under the body."}
   tags: {type: list}
   id: {type: string, description: Anchor id so other pages can link to this card.}
+  level: {type: integer, default: 3, description: "Heading level for the card title. Drop it to 4 when the cards sit under a heading of their own, as `group-sections` does, so the document outline nests properly."}
+  _known_tones:
+    type: list
+    default: [ok, warn, bad, muted, accent]
+    description: "Internal: the closed vocabulary `tone` is checked against, kept as data (see adr-011) rather than hard-coded in the template. Mirrors badge's own tone override list; page authors should not pass this."
 template: |
-  <article class="card {% if badge %}tone-{{ badge | slug }}{% endif %}"{% if id %} id="{{ id }}"{% endif %}>
+  {% if tone and tone not in _known_tones %}{{ fail("param 'tone' must be one of " ~ (_known_tones | join(', ')) ~ " (got '" ~ tone ~ "')") }}{% endif %}
+  {% set _tone_class = 'tone-' ~ tone if tone else ('tone-' ~ (badge | slug) if badge else '') %}
+  <article class="card {{ _tone_class }}"{% if id %} id="{{ id }}"{% endif %}>
+    {% if kicker %}<div class="card-kicker">{{ kicker }}</div>{% endif %}
     <div class="card-head">
-      <h3 class="card-title">{% if href %}<a href="{{ href }}">{{ title }}</a>{% else %}{{ title }}{% endif %}</h3>
+      <h{{ level }} class="card-title">{% if href %}<a href="{{ href }}">{{ title }}</a>{% else %}{{ title }}{% endif %}</h{{ level }}>
       {% if badge %}{{ prefab('badge', text=badge) }}{% endif %}
       {% if _evidence and _evidence.status in ['stale', 'warn'] %}{{ prefab('badge', text=_evidence.status) }}{% endif %}
     </div>
@@ -31,6 +41,7 @@ template: |
 css: |
   .card { background: var(--bg-2); border: 1px solid var(--line); border-left: 4px solid var(--tone, var(--line)); border-radius: var(--radius);
     padding: .8rem 1rem; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: .35rem; min-width: 0; }
+  .card-kicker { color: var(--tone, var(--muted)); font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
   .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: .5rem; }
   .card-title { margin: 0; font-size: 1.05rem; line-height: 1.3; }
   .card-title a { text-decoration: none; }
@@ -41,3 +52,7 @@ css: |
   .meta-label { font-weight: 600; }
 examples:
   - args: {title: Build pipeline, badge: active, body: "Validates, renders and **scans** the output.", meta: [{label: owner, value: agent}], tags: [python]}
+  - note: tone set directly, no badge shown
+    args: {title: Frozen exhibit, kicker: "archive · read-only", tone: muted, subtitle: "Kept for reference; not maintained.", body: "This musing is closed out."}
+  - note: kicker above the title, alongside a badge
+    args: {title: Live prototype, kicker: "current · what the build is", badge: active, body: "Start here - the only one that is right."}

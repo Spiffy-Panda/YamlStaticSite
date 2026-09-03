@@ -62,7 +62,7 @@ properties:
         question: {type: string, x-limit: summary}
         context: {type: string, x-limit: summary}
         owner: {type: string}
-        options: {type: array, items: {type: string, x-limit: line}, description: Candidate answers, so a verdict can pick one.}
+        options: {type: array, items: {type: string, x-limit: line}, description: "Candidate answers, so a verdict can pick one."}
         status: {type: string, x-vocab: question_status, default: open}
         answer: {type: string, x-limit: summary}
       unevaluatedProperties: false
@@ -75,7 +75,7 @@ $defs:
       id: {$ref: "#/$defs/slug"}
       title: {type: string, x-limit: title}
       status: {type: string, x-vocab: work_status}
-      owner: {type: string, description: Handle or role (agent, human, ci).}
+      owner: {type: string, description: "Handle or role (agent, human, ci)."}
       estimate: {type: string, description: Free-form size (S/M/L or hours).}
       depends_on: {type: array, items: {$ref: "#/$defs/slug"}, x-ref: item}
       done_when: {type: string, x-limit: line}

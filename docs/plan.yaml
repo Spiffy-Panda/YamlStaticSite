@@ -67,16 +67,17 @@ milestones:
         owner: agent
       - id: m6-mount-filters
         title: include/exclude patterns on a mount so a folder can publish some files and not others
-        status: planned
+        status: done
         owner: agent
         notes: |
-          A mount copies a whole folder unfiltered and the schema is closed, so publishing a
-          folder's top-level pages means publishing everything beside them - sources, notes and all.
-          Relevant the moment a real export folder is mounted by [[#m6-godot]]. Issue 3.
+          Shipped 2026-09-03. `include` restricts, `exclude` removes and always wins, patterns are
+          matched relative to the mount path with pathlib glob semantics (`*.html` top level,
+          `**/*.html` recursive, a trailing `/` naming a whole subtree). A mount with neither key
+          still copies the whole tree byte for byte. Issue 3.
         verify: python -m yss build --target all --no-dynamic
-        links:
-          - {label: 'Issue #3', href: 'https://github.com/Spiffy-Panda/YamlStaticSite/issues/3', kind: issue}
-
+        evidence:
+          - {path: tests/test_gh02_03_04.py}
+          - {path: yss/schemas/collection.schema.yaml, contains: exclude}
   - id: m7-hardening
     title: Hardening and ergonomics
     status: planned
@@ -92,15 +93,29 @@ milestones:
           kinds, run-commands - so the whole milestone is wanted and nothing in it was dropped.
       - id: m7-new-collection
         title: "`yss new collection <id>` - the one structural unit with no scaffold"
-        status: planned
+        status: done
         owner: agent
-        notes: |
-          `yss new` scaffolds doc, page and prefab; a collection - the unit with the most moving
-          parts, collection.yaml plus docs, pages and hooks - is still assembled by hand. Wanted
-          before [[#m12-first]] makes the first real one. Issue 1.
         verify: python -m yss new collection --help
         links:
           - {label: 'Issue #1', href: 'https://github.com/Spiffy-Panda/YamlStaticSite/issues/1', kind: issue}
+        notes: |
+          Shipped 2026-09-03. `yss new collection <id>` scaffolds collection.yaml, docs/plan.yaml and
+          pages/index.yaml under the site's configured collection root, and fails clearly when that
+          root is missing or ambiguous. Building it also surfaced an argparse bug: the subparser flag
+          was clobbering the top-level `--root`, so the flag is `--collections-root`. Issue 1.
+        evidence:
+          - {path: tests/test_gh01.py}
+          - {symbol: yss.scaffold:new_collection}
+
+      - id: m7-group-ref-mode
+        title: "`x-ref: group` so an item's `group:` can only name a declared group"
+        status: planned
+        owner: agent
+        notes: |
+          `group:` is validated with `x-ref: item`, which proves the id exists somewhere in the doc -
+          so `group: c-config`, naming a component, passes. Constraining it needs a new ref mode in
+          the loader. Surfaced by [[#m9-groups]] (2026-09-03) and deliberately left open.
+        verify: python -m yss validate
       - id: m7-card-link-routes
         title: Check that a relative card link in collection.yaml resolves to a real route
         status: planned
@@ -166,53 +181,73 @@ milestones:
     tasks:
       - id: m8-schema-quoting
         title: Quote the eight schema descriptions written unquoted inside flow mappings
-        status: planned
+        status: done
         owner: agent
-        notes: |
-          Commas inside the prose split the flow mapping, so each description silently truncates and
-          injects a junk key. Visible in `yss schema doc.plan --yaml`, where `options` grows a
-          `so a verdict can pick one.` key and `owner` grows `human` and `ci)`. Issue 5.
         verify: python -m yss schema doc.plan --yaml
         links:
           - {label: 'Issue #5', href: 'https://github.com/Spiffy-Panda/YamlStaticSite/issues/5', kind: issue}
         evidence:
           - {glob: yss/schemas/*.schema.yaml, min: 5}
+        notes: |
+          Fixed 2026-09-03. Eight descriptions across six schema files were unquoted scalars inside
+          flow mappings; each is quoted now, and the regression test walks every schema the registry
+          knows and fails on any key that maps to null and reads like prose. Issue 5.
+        evidence:
+          - {path: tests/test_gh05.py}
+          - {path: yss/schemas/doc.plan.schema.yaml, contains: "Candidate answers, so a verdict can pick one."}
+
       - id: m8-timeline-items
         title: Fix the timeline prefab crash when an entry omits the optional bullet list
-        status: planned
+        status: done
         owner: agent
-        notes: |
-          The Jinja guard reads `entry.items`, which resolves to the dict `items` method when the key
-          is absent, so the truthiness test passes and the loop explodes. Every prefab guarding an
-          optional key by attribute has the same hazard. Issue 9.
         verify: python -m yss build --target all --no-dynamic
         links:
           - {label: 'Issue #9', href: 'https://github.com/Spiffy-Panda/YamlStaticSite/issues/9', kind: issue}
         evidence:
           - {path: yss/prefabs/timeline.yaml}
+        notes: |
+          Fixed 2026-09-03. Both the subscript and the attribute form fall back to each other in Jinja,
+          so `it['items']` was reaching `dict.items` exactly as `it.items` would; the guard is
+          `it.get('items')` now, with a comment saying why, and the sweep found no other prefab where
+          an optional key collides with a dict method. Issue 9.
+        evidence:
+          - {path: tests/test_gh09.py}
+          - {path: yss/prefabs/timeline.yaml, contains: "it.get('items')"}
+
       - id: m8-ref-anchors
         title: "Make a validated `[[doc#item]]` reference prove the target renders an anchor"
-        status: planned
+        status: done
         owner: agent
         notes: |
-          References are checked against the data, not the rendering, so a link that passes
-          `yss validate` still dies in the page when the presenting prefab emits no id. Either every
-          item-presenting prefab anchors its items or the checker learns which routes anchor what.
-          Issue 11.
-        verify: python -m yss validate
-        links:
-          - {label: 'Issue #11', href: 'https://github.com/Spiffy-Panda/YamlStaticSite/issues/11', kind: issue}
+          Shipped 2026-09-03 as both halves of the problem ([[decisions#adr-023]]). Tables, timeline
+          entries, bullet items, glossary terms and changelog releases now anchor an item that has an
+          id, and the renderer checks its own output: every reference it turns into a link and every
+          anchor each page emits are recorded, and the ones that did not land are reported with the
+          reference, the page, the route that should have carried the anchor and where it was
+          written. A warning by default, fatal under `--strict`, which is how stale evidence is
+          already treated. It found ten real dead links here - three from prefabs that emitted no
+          anchor, seven from answered questions the plan page filtered away, which is why that page
+          now has an answered-questions section. Issue 11.
+        verify: python -m yss build --target all --no-dynamic
+        evidence:
+          - {path: tests/test_gh11.py}
+          - {path: yss/render.py, contains: def dead_refs}
+          - {path: yss/prefabs/table.yaml, contains: "id="}
       - id: m8-scan-ignore
         title: Give yss scan an ignore mechanism so gitignored build scratch stops drowning the output
-        status: planned
+        status: done
         owner: agent
         notes: |
-          The walk has a hard-coded skip list and no way to extend it; 479 hits from gitignored
-          scratch make the one tool that guards against leaks unreadable, which is a safety problem
-          rather than a cosmetic one. Issue 6.
+          Fixed 2026-09-03. `yss scan` honours .gitignore by default (a dependency-free matcher that
+          supports negation, anchoring, directory patterns and `**`, and is a no-op outside a git
+          checkout), takes repeatable `--ignore` globs and `--no-gitignore`, and now reports what it
+          skipped as well as what it found - an unreadable safety tool was the actual problem. The
+          public build's own output scan is untouched and still scans everything it emits. Issue 6.
         verify: python -m yss scan
-        links:
-          - {label: 'Issue #6', href: 'https://github.com/Spiffy-Panda/YamlStaticSite/issues/6', kind: issue}
+        evidence:
+          - {path: tests/test_gh06.py}
+          - {path: yss/visibility.py, contains: build_gitignore_matcher}
+          - {path: yss/cli.py, contains: "--no-gitignore"}
 
   - id: m9-authoring
     title: Authoring expressiveness gaps
@@ -227,39 +262,51 @@ milestones:
     tasks:
       - id: m9-item-status
         title: Add an optional status to item_base so any doc item can say live, decided or superseded
-        status: planned
+        status: done
         owner: agent
         notes: |
-          Only plan milestones, tasks, risks and questions carry a status today; a design component
-          or a constraint has nowhere to record that it is superseded. The vocabulary is data
-          ([[decisions#adr-011]]), so the question is which vocabulary an item defaults to. Issue 7.
+          Shipped 2026-09-03 with a trap worth recording. `item_base.status` is deliberately an
+          UNCONSTRAINED string: a JSON Schema `allOf` composes by intersection, so an enum there
+          would also apply to every item that already carries a kind-specific status - plan
+          milestones and tasks, risks, questions, decision entries - and their existing values
+          would start failing. Kinds that want checked values declare `status` themselves; design
+          principles, interfaces, flows, constraints and alternatives now use the new
+          `claim_status` vocabulary (live, decided, open, superseded). Two constraints in
+          [[design]] carry `status: live` as the worked example. Issue 7.
         verify: python -m yss schema doc.design --yaml
-        links:
-          - {label: 'Issue #7', href: 'https://github.com/Spiffy-Panda/YamlStaticSite/issues/7', kind: issue}
+        evidence:
+          - {path: tests/test_gh07.py}
+          - {path: yss/config.py, contains: claim_status}
+          - {path: yss/schemas/doc.envelope.schema.yaml, contains: "Generic per-item status"}
       - id: m9-groups
         title: A subject-grouping tier so authored headings and blurbs have somewhere to live
-        status: planned
+        status: done
         owner: agent
         notes: |
-          Items group by schema type, and a page binding's `group_by` recovers only bare keys - the
-          prose that introduces a group has no home in the doc and no way to reach the page. Issue 8.
+          Shipped 2026-09-03. A doc declares `groups: [{id, title, blurb}]` on the envelope, so every
+          kind gets the tier; an item names one with `group:`, and a binding's `group_by: group`
+          joins them so a page receives the authored title and blurb instead of a bare key, in
+          declaration order. The blurb is written once and reaches every array that groups by it.
+          Rendered by the new `group-sections` prefab; [[design]]'s components now carry four real
+          subject groups. Issue 8.
         verify: python -m yss build --target all --no-dynamic
-        links:
-          - {label: 'Issue #8', href: 'https://github.com/Spiffy-Panda/YamlStaticSite/issues/8', kind: issue}
+        evidence:
+          - {path: tests/test_gh08.py}
+          - {path: yss/prefabs/group-sections.yaml}
+          - {path: yss/binding.py, contains: def group_items}
       - id: m9-card-slots
         title: Card prefab - tone without a badge, a kicker slot, and a loud failure for unknown tones
-        status: planned
+        status: done
         owner: agent
         notes: |
-          Moving a hand-designed hub page onto `card-grid` kept every word and lost the visual
-          grammar: one subtitle slot, no eyebrow, tone only reachable by printing a badge, and an
-          unknown tone falls through silently instead of failing. Issue 10.
+          Shipped 2026-09-03. `tone` tints a card without printing a badge, `kicker` adds an eyebrow
+          above the title, and a tone outside the known set now fails the build naming the prefab and
+          the value instead of rendering untoned. A card that sets `badge` and no `tone` behaves
+          exactly as before, so nothing already on the site changed. Issue 10.
         verify: python -m yss build --target all --no-dynamic
-        links:
-          - {label: 'Issue #10', href: 'https://github.com/Spiffy-Panda/YamlStaticSite/issues/10', kind: issue}
         evidence:
-          - {path: yss/prefabs/card.yaml}
-
+          - {path: tests/test_gh10.py}
+          - {path: yss/prefabs/card.yaml, contains: kicker}
   - id: m12-musings
     title: Adopt yss in the Musings repository
     status: planned
@@ -269,26 +316,30 @@ milestones:
     tasks:
       - id: m12-collection-id
         title: Let collection.yaml set the collection id so an existing URL slug survives the move
-        status: planned
+        status: done
         owner: agent
         notes: |
-          The id is taken from the folder name, so a musing whose folder and published slug differ
-          cannot keep its URL. A migration that changes live URLs is a migration that breaks links,
-          which makes this a prerequisite rather than an ergonomic. Issue 2.
+          Shipped 2026-09-03. `collection.yaml: id:` overrides the folder name; it is slug-checked,
+          and two collections claiming the same id fail to load with both folder names in the
+          message. Everything keyed off the id follows - doc-id prefix, page ids, routes and
+          `[[doc#item]]` resolution - because nothing hardcoded the folder name. Issue 2.
         verify: python -m yss ls collections
-        links:
-          - {label: 'Issue #2', href: 'https://github.com/Spiffy-Panda/YamlStaticSite/issues/2', kind: issue}
+        evidence:
+          - {path: tests/test_gh02_03_04.py}
+          - {path: yss/schemas/collection.schema.yaml, contains: "id:"}
       - id: m12-route-prefix
         title: A URL prefix for collections so they can sit under /musings/ instead of the site root
-        status: planned
+        status: done
         owner: agent
         notes: |
-          Every collection mounts at `/<id>/`, directly under the root. The Musings site groups its
-          musings under a path, so the route prefix has to be configurable before the second musing
-          lands beside the first. Issue 4.
+          Shipped 2026-09-03 as `at:` on the site.yaml `collections[]` entry rather than per
+          collection, because the need is a property of the group - nine sibling musings under
+          `/musings/` is one line, not nine. Defaults to empty, so a collection that does not use
+          it routes exactly as before. Mount output moved to the same prefix as its pages. Issue 4.
         verify: python -m yss build --target all --no-dynamic
-        links:
-          - {label: 'Issue #4', href: 'https://github.com/Spiffy-Panda/YamlStaticSite/issues/4', kind: issue}
+        evidence:
+          - {path: tests/test_gh02_03_04.py}
+          - {path: yss/config.py, contains: route_prefix}
       - id: m12-first
         title: Migrate the space cargo cannon musing first and compare the rendered result
         status: planned

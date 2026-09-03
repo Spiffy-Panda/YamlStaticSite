@@ -3,7 +3,7 @@ id: evidence
 route: /evidence/
 title: Evidence
 summary: Every claim the docs make about paths, symbols and commands, checked at build time. Stale means the doc is wrong about the code.
-nav: {label: Evidence, order: 52}
+nav: {label: Evidence, order: 52, group: meta}
 sections:
   - id: how
     type: markdown

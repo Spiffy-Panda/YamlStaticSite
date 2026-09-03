@@ -4,7 +4,7 @@ route: /later/
 title: Later
 summary: The decisions still waiting on Panda, as a worksheet with pros and cons per option. Answer, build the instruction, hand it to an agent.
 visibility: public          # worksheets stay on the public site (P.2, 2026-09-02)
-nav: {label: Later, order: 43}
+nav: {label: Later, order: 43, group: decide}
 docs: [later, plan]
 sections:
   - id: worksheet

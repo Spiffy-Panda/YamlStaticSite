@@ -3,7 +3,7 @@ id: themes
 route: /themes/
 title: Colour & theme
 summary: Play with the palettes on the live page, then answer the worksheet to fix a default.
-nav: {label: Themes, order: 46}
+nav: {label: Themes, order: 46, group: decide}
 docs: [palettes, themes]
 sections:
   - id: playground

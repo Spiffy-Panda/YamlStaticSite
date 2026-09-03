@@ -2,13 +2,13 @@ name: timeline
 description: Vertical timeline of dated entries (releases, milestones with target dates, decisions). Items need `title`; `date`, `badge`, `subtitle`, `body` (markdown) and `items` (bullet strings) are optional.
 category: list
 params:
-  items: {type: list, required: true, item: {title: required, date: optional, badge: status, subtitle: optional, body: markdown, items: "list of bullet strings", href: link}}
+  items: {type: list, required: true, item: {id: "optional - emitted as the entry's anchor", title: required, date: optional, badge: status, subtitle: optional, body: markdown, items: "list of bullet strings", href: link}}
   empty: {type: string, default: Nothing yet.}
 template: |
   {% if items %}
   <ol class="timeline">
   {% for it in items %}
-    <li class="timeline-item {% if it.badge %}tone-{{ it.badge | slug }}{% endif %}">
+    <li class="timeline-item {% if it.badge %}tone-{{ it.badge | slug }}{% endif %}"{% if it is mapping and it.get('id') %} id="{{ it.get('id') }}"{% endif %}>
       <div class="timeline-date">{{ it.date or '' }}</div>
       <div class="timeline-content">
         <div class="timeline-head">
@@ -17,7 +17,9 @@ template: |
         </div>
         {% if it.subtitle %}<div class="timeline-sub">{{ it.subtitle }}</div>{% endif %}
         {% if it.body %}<div class="prose">{{ it.body | md }}</div>{% endif %}
-        {% if it['items'] %}<ul>{% for b in it['items'] %}<li>{{ b | md_inline }}</li>{% endfor %}</ul>{% endif %}
+        {# NOTE: 'items' collides with dict.items() - it['items']/it.items both fall back to the
+           builtin method (truthy) when the key is absent, so use it.get('items') to test presence. #}
+        {% if it.get('items') %}<ul>{% for b in it.get('items') %}<li>{{ b | md_inline }}</li>{% endfor %}</ul>{% endif %}
       </div>
     </li>
   {% endfor %}

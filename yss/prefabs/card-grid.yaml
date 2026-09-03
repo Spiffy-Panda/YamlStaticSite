@@ -2,13 +2,14 @@ name: card-grid
 description: Responsive grid of cards. Each item is passed to the `card` prefab, so map list fields onto title/subtitle/body/badge/href/meta/tags.
 category: list
 params:
+  level: {type: integer, default: 3, description: "Heading level for every card title in the grid. Lower it when the grid sits under a heading of its own; `group-sections` does this for you."}
   items: {type: list, required: true, item: {title: required, subtitle: optional, body: markdown, badge: status text, href: link, meta: list, tags: list}}
   columns: {type: integer, default: 3, description: Max columns on wide screens (1-4).}
   empty: {type: string, default: Nothing to show.}
 template: |
   {% if items %}
   <div class="card-grid cols-{{ columns }}">
-    {% for it in items %}{{ prefab('card', it) }}{% endfor %}
+    {% for it in items %}{{ prefab('card', it, level=level) }}{% endfor %}
   </div>
   {% else %}<p class="empty">{{ empty }}</p>{% endif %}
 css: |

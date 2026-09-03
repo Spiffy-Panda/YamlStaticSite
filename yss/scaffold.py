@@ -91,13 +91,19 @@ def _deref(schema: dict, defs: dict) -> dict:
         schema = merged
         seen += 1
     if isinstance(schema, dict) and "allOf" in schema:
+        # Shared bases first, the schema's own declarations last: a kind that declares `status`
+        # with its own vocabulary must win over the open `status` it inherits from item_base,
+        # or the scaffold writes a placeholder its own validator rejects. Same order as
+        # _merged_properties, which is what everything downstream assumes.
         merged = {k: v for k, v in schema.items() if k != "allOf"}
-        props = dict(merged.get("properties") or {})
-        required = list(merged.get("required") or [])
+        props: dict = {}
+        required: list = []
         for part in schema["allOf"]:
             part = _deref(part, defs)
             props.update(part.get("properties") or {})
             required += part.get("required") or []
+        props.update(merged.get("properties") or {})
+        required += merged.get("required") or []
         merged["properties"] = props
         merged["required"] = required
         schema = merged
@@ -176,6 +182,113 @@ def new_prefab(cfg: Config, reg: SchemaRegistry, name: str, force: bool = False)
     path = cfg.path("prefabs") / f"{name}.yaml"
     _write(path, _header(reg.get("prefab"), "prefab") + dump_yaml(prefab), force)
     return path
+
+
+def new_collection(
+    cfg: Config,
+    reg: SchemaRegistry,
+    collection_id: str,
+    title: str | None = None,
+    root: str | None = None,
+    force: bool = False,
+) -> list[Path]:
+    specs = cfg.data.get("collections") or []
+    patterns = [(s if isinstance(s, dict) else {"root": s}).get("root") for s in specs]
+    patterns = [p for p in patterns if p]
+    if not patterns:
+        raise ScaffoldError(
+            "site.yaml has no 'collections:' root glob (e.g. `collections: [{root: musings/*}]`); "
+            "add one before scaffolding a collection"
+        )
+    if root:
+        if root not in patterns:
+            raise ScaffoldError(f"--root '{root}' is not one of site.yaml's collections[].root patterns ({', '.join(patterns)})")
+        pattern = root
+    elif len(patterns) == 1:
+        pattern = patterns[0]
+    else:
+        raise ScaffoldError(
+            f"site.yaml declares multiple collections[].root patterns ({', '.join(patterns)}); pass --root to choose one"
+        )
+    if not pattern.endswith("/*"):
+        raise ScaffoldError(f"collections[].root '{pattern}' is not a '<dir>/*' glob; the scaffolder only supports that shape")
+    base_dir = cfg.root / pattern[: -len("/*")]
+    dest = base_dir / collection_id
+
+    title = title or collection_id.replace("-", " ").replace("_", " ").title()
+    written: list[Path] = []
+
+    schema = reg.get("collection")
+    collection_data = {
+        "title": title,
+        "summary": "TODO one paragraph about this collection.",
+        "emblem": "TODO emoji, or a path under this collection's assets/",
+        "order": 100,
+    }
+    collection_comment = (
+        _header(schema, "collection")
+        + "#\n"
+        + "# The card contract (uncomment and adjust to show this collection on its parent page):\n"
+        + "# hero: false\n"
+        + "# links:\n"
+        + '#   - {label: Overview, href: "", kind: page}\n'
+        + '#   - {label: The playable, href: "play/index.html", kind: play}\n'
+        + "#\n"
+        + "# mounts:\n"
+        + "#   - {path: play, at: play/, targets: [private]}\n"
+        + "#\n"
+        + "# Anything unique to this collection - extra generated docs, dynamic providers, custom\n"
+        + "# markdown, build hooks - goes in a hooks.py next to this file, not upstream in yss.\n"
+        + "# See the collection schema (`python -m yss schema collection --yaml`) and the yss-publish skill.\n"
+    )
+    collection_path = dest / "collection.yaml"
+    _write(collection_path, collection_comment + dump_yaml(collection_data), force)
+    written.append(collection_path)
+
+    plan_schema = reg.resolved("doc.plan", cfg.vocabularies, cfg.limits)
+    plan_data = skeleton(plan_schema, required_only=True)
+    plan_envelope = {
+        "kind": "plan",
+        "id": "plan",
+        "title": f"{title} plan",
+        "summary": "TODO one-paragraph summary",
+        "visibility": "public",
+        "status": "active",
+        "updated": date.today().isoformat(),
+        "tags": [],
+    }
+    plan_body = {k: v for k, v in plan_data.items() if k not in plan_envelope}
+    if not plan_body.get("milestones"):
+        plan_body["milestones"] = [{"id": "m1-todo", "title": "TODO first milestone", "status": "planned"}]
+    plan_doc = {**plan_envelope, **plan_body}
+    plan_path = dest / "docs" / "plan.yaml"
+    _write(plan_path, _header(plan_schema, "doc.plan") + dump_yaml(plan_doc), force)
+    written.append(plan_path)
+
+    index_page = {
+        "id": "index",
+        "route": "/",
+        "title": title,
+        "summary": "TODO what this collection is about.",
+        "visibility": "public",
+        "nav": {"label": title, "order": 1},
+        "docs": ["plan"],
+        "sections": [
+            {"id": "intro", "type": "markdown", "markdown": "TODO framing text for the human reader.\n"},
+            {
+                "id": "tasks",
+                "type": "prefab",
+                "heading": "Plan",
+                "prefab": "task-list",
+                "args": {"milestones": {"from": "plan.milestones"}},
+            },
+        ],
+    }
+    index_path = dest / "pages" / "index.yaml"
+    _write(index_path, _header(reg.get("page"), "page") + dump_yaml(index_page), force)
+    written.append(index_path)
+
+    return written
 
 
 def init_site(root: Path, name: str, force: bool = False) -> list[Path]:

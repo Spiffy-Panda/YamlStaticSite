@@ -47,6 +47,20 @@ pre code { background: none; padding: 0; }
 .site-nav a { text-decoration: none; color: var(--fg-2); padding: .35rem .6rem; border-radius: 6px; }
 .site-nav a:hover { background: var(--accent-2); color: var(--accent); }
 .site-nav a.active { color: var(--accent); background: var(--accent-2); }
+/* Groups. The bar is a row of clusters, not a row of links: a labelled cluster says what kind of
+   destination its links are, and a `menu: true` group hides behind a disclosure (no JavaScript).
+   Which groups exist, what they are called and which are menus is site.yaml's business. */
+.nav-group { display: inline-flex; align-items: center; gap: .25rem; flex-wrap: wrap; }
+.nav-group + .nav-group { margin-left: .5rem; padding-left: .65rem; border-left: 1px solid var(--line); }
+.nav-group-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); padding-right: .1rem; }
+.nav-count { display: inline-block; min-width: 1.15em; padding: 0 .3em; border-radius: 999px; background: var(--accent); color: #fff; font-size: .7rem; line-height: 1.5; text-align: center; }
+.nav-menu { position: relative; }
+.nav-menu > summary { cursor: pointer; list-style: none; color: var(--fg-2); padding: .35rem .6rem; border-radius: 6px; font-size: .7rem; text-transform: uppercase; letter-spacing: .07em; }
+.nav-menu > summary::-webkit-details-marker { display: none; }
+.nav-menu > summary::after { content: " \25be"; }
+.nav-menu > summary:hover { background: var(--accent-2); color: var(--accent); }
+.nav-menu[open] > summary { color: var(--accent); }
+.nav-menu-items { position: absolute; z-index: 20; top: 100%; left: 0; display: flex; flex-direction: column; min-width: 10rem; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: .3rem; box-shadow: var(--shadow); }
 .site-nav a.private::after { content: " 🔒"; font-size: .8em; }
 .nav-toggle { display: none; }
 .target-badge { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; padding: .15rem .5rem; border: 1px solid var(--line); border-radius: 999px; color: var(--fg-2); }
@@ -54,6 +68,12 @@ pre code { background: none; padding: 0; }
 @media (max-width: 720px) {
   .nav-toggle { display: inline-block; margin-left: auto; }
   .site-nav { display: none; width: 100%; flex-direction: column; }
+  /* Stacked menu: a cluster becomes a block with its label as a heading, and a menu group is
+     spelled out rather than hidden - there is room for it here. */
+  .nav-group { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
+  .nav-group + .nav-group { margin: .4rem 0 0; padding: .4rem 0 0; border-left: 0; border-top: 1px solid var(--line); }
+  .nav-menu-items { position: static; border: 0; padding: 0; box-shadow: none; background: none; }
+  .nav-menu > summary { padding-left: 0; }
   .site-nav.open { display: flex; }
 }
 

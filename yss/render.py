@@ -9,6 +9,7 @@ from __future__ import annotations
 import copy
 import importlib
 import json
+import re
 from pathlib import Path
 from typing import Any, Callable
 
@@ -19,10 +20,12 @@ from markupsafe import Markup, escape
 from .binding import BindError, is_binding, resolve_binding
 from .config import PKG_DIR, Collection, Config
 from .hooks import call, load_hooks
-from .loader import CODE_SPAN_RE, find_inline_refs, index_ids, resolve_doc_id
+from .loader import CODE_SPAN_RE, find_inline_refs, index_ids, iter_strings, resolve_doc_id
 from .visibility import slugify
 
 _md = MarkdownIt("commonmark", {"html": True}).enable("table").enable("strikethrough")
+
+ANCHOR_RE = re.compile(r'\sid="([^"]*)"')
 
 PARAM_TYPES = {
     "string": (str,),
@@ -91,6 +94,10 @@ class Renderer:
         self.current_doc: str | None = None
         self.site_renderer = load_renderer((cfg.data.get("markdown") or {}).get("renderer"))
         self._item_index: dict[str, dict] = {}
+        self.current_page: dict | None = None
+        self._rendered_refs: list[dict] = []
+        self._page_anchors: dict[str, set[str]] = {}
+        self._ref_sources: dict[str, list[str]] | None = None
         self.ctx = {
             "docs": docs,
             "pages": pages,
@@ -113,6 +120,7 @@ class Renderer:
         self.env.filters["md_inline"] = self.md_inline
         self.env.filters["slug"] = slugify
         self.env.globals.update(
+            fail=self._fail,
             prefab=self.prefab,
             url=self.url,
             doc_url=self.doc_url,
@@ -127,6 +135,16 @@ class Renderer:
         self._doc_pages = self._index_doc_pages()
 
     # --- helpers ---------------------------------------------------------
+    @staticmethod
+    def _fail(message: str) -> str:
+        """`{{ fail('...') }}` - a prefab rejecting its own arguments.
+
+        Jinja has no raise, and the workaround (forcing an UndefinedError with a bogus lookup)
+        buries the reason in a message about dict attributes. prefab() already turns a
+        TemplateError into a RenderError naming the prefab, so raising one here is enough.
+        """
+        raise jinja2.TemplateError(message)
+
     def url(self, path: str) -> str:
         path = str(path or "")
         if path.startswith(("http://", "https://", "mailto:", "#", "data:")):
@@ -138,7 +156,7 @@ class Renderer:
         if path.startswith(("http://", "https://", "/", "#", "data:")):
             return self.url(path)
         if self.current_collection and not self.current_collection.is_root:
-            return self.url(f"{self.current_collection.id}/{path}")
+            return self.url(f"{self.current_collection.route_prefix.strip('/')}/{path}")
         return self.url(path)
 
     def _mounted_prefixes(self, c: Collection) -> set[str]:
@@ -165,7 +183,7 @@ class Renderer:
                 head = href.lstrip("/").split("/")[0]
                 if head in declared and head not in carried:
                     continue
-                href = self.url(f"{c.id}/{href.lstrip('/')}")
+                href = self.url(f"{c.route_prefix.strip('/')}/{href.lstrip('/')}")
             else:
                 href = self.url(href)
             links.append(dict(link, href=href, kind=link.get("kind") or "page"))
@@ -205,14 +223,48 @@ class Renderer:
         base = self.doc_url(doc_ref) if doc_ref else (self.doc_url(self.current_doc) if self.current_doc else "")
         if not base:
             return ""
-        return f"{base}#{item}" if item else base
+        if not item:
+            return base
+        cid = self.current_collection.id if self.current_collection else None
+        doc_id = (resolve_doc_id(doc_ref, cid, self.docs) if doc_ref else self.current_doc) or doc_ref
+        self.note_ref(doc_id, item, base)
+        return f"{base}#{item}"
+
+    def _page_state(self, page: dict) -> dict:
+        """What the docs a page presents say about it, for the nav to read.
+
+        Nothing here is declared on the page: a page is finished because the docs it presents are
+        archived, and a worksheet is still asking because some of its questions have no
+        `resolution` yet (adr-009 - state is derived, never hand-set). `waiting` is the number of
+        calls a reader would have to make if they opened it.
+        """
+        ids = [d for d in (page.get("docs") or []) if d in self.docs]
+        docs = [self.docs[d] for d in ids]
+        if not docs:
+            return {"archived": False, "waiting": 0}
+        # The first doc a page lists is its subject; the rest are supporting data it also binds.
+        # A page is finished when its subject is archived, not when everything it touches is.
+        waiting = sum(
+            1
+            for doc in docs
+            if doc.get("kind") == "worksheet"
+            for q in (doc.get("questions") or [])
+            if not q.get("resolution")
+        )
+        return {"archived": docs[0].get("status") == "archived", "waiting": waiting}
 
     def _nav(self) -> list[dict]:
+        groups = [g["id"] for g in (self.cfg.nav.get("groups") or [])]
+        default_group = groups[0] if groups else None
         items = []
         for page in self.pages:
             nav = page.get("nav") or {}
             if nav.get("hidden"):
                 continue
+            state = self._page_state(page)
+            if state["archived"]:
+                continue  # a page whose docs are all archived is a record, not a destination
+            group = nav.get("group") or default_group
             items.append(
                 {
                     "id": page["id"],
@@ -220,13 +272,25 @@ class Renderer:
                     "href": self.url(page["route"]),
                     "route": page["route"],
                     "order": nav.get("order", 100),
-                    "group": nav.get("group"),
+                    "group": group if group in groups else default_group,
+                    "waiting": state["waiting"],
                     "collection": page.get("_collection", ""),
                     "visibility": page.get("visibility", "public"),
                 }
             )
         items.sort(key=lambda n: (n["order"], n["label"]))
         return items
+
+    def _nav_groups(self, items: list[dict]) -> list[dict]:
+        """The nav as the template wants it: ordered groups, each with its visible items."""
+        out = []
+        for spec in self.cfg.nav.get("groups") or []:
+            members = [n for n in items if n["group"] == spec["id"]]
+            if members:
+                out.append({**spec, "items": members, "waiting": sum(n["waiting"] for n in members)})
+        if not out and items:
+            out.append({"id": "", "label": "", "items": items, "waiting": 0})
+        return out
 
     def render_str(self, source: str, ctx: dict) -> str:
         return self.env.from_string(source).render(**ctx)
@@ -280,7 +344,10 @@ class Renderer:
             else:
                 shown = label or title
             route = self._doc_pages.get(doc_id)  # exact global id: never re-resolved against the collection
-            href = (self.url(route) + (f"#{item}" if item else "")) if route else ""
+            base = self.url(route) if route else ""
+            if base and item:
+                self.note_ref(doc_id, item, base)
+            href = (base + (f"#{item}" if item else "")) if base else ""
             text = text.replace(raw, f"[{shown}]({href})" if href else shown)
         return text
 
@@ -472,6 +539,7 @@ class Renderer:
         self.ctx["collection"] = cid or None
         primary = (page.get("docs") or [None])[0]
         self.current_doc = resolve_doc_id(primary, cid, self.docs) if primary else None
+        self.current_page = page
         try:
             sections = []
             for index, sec in enumerate(page.get("sections") or []):
@@ -495,11 +563,12 @@ class Renderer:
             doc_ids = [resolve_doc_id(d, cid, self.docs) or d for d in page.get("docs") or []]
             freshness = [self.docs[d].get("_evidence", {}).get("status", "ok") for d in doc_ids if d in self.docs]
             sub_nav = [n for n in self.nav if n["collection"] == cid] if cid else []
-            return template.render(
+            html = template.render(
                 page=page,
                 sections=sections,
                 toc=toc,
                 nav=[n for n in self.nav if not n["collection"]],
+                nav_groups=self._nav_groups([n for n in self.nav if not n["collection"]]),
                 sub_nav=sub_nav,
                 collection=next((c for c in self.ctx["collections"] if c["id"] == cid), None) if cid else None,
                 theme=theme,
@@ -511,10 +580,98 @@ class Renderer:
                 page_docs=[{"id": d, "json": self.url(f"data/docs/{d}.json")} for d in doc_ids],
                 freshness="stale" if "stale" in freshness else ("warn" if "warn" in freshness else "ok"),
             )
+            self._page_anchors[self.url(page["route"])] = set(ANCHOR_RE.findall(html))
+            return html
         finally:
             self.current_collection = None
             self.current_doc = None
+            self.current_page = None
             self.ctx["collection"] = None
+
+    # --- rendered references (gh-11) -------------------------------------
+    def note_ref(self, doc_id: str | None, item: str, target_url: str) -> None:
+        """Remember that this page emitted a link to `target_url#item`.
+
+        Called from the two places that turn a reference into an href - `[[doc#item]]` expansion
+        and `ref_url()` - so every reference a reader can click is recorded with the page it was
+        clicked from. `dead_refs()` then asks whether the anchor was ever emitted.
+        """
+        if not item or not target_url or self.current_page is None:
+            return
+        self._rendered_refs.append(
+            {
+                "doc": doc_id or "",
+                "item": item,
+                "target": target_url,
+                "page": self.current_page.get("route", ""),
+                "source": self.current_page.get("_source", ""),
+            }
+        )
+
+    def _ref_source_index(self) -> dict[str, list[str]]:
+        """`{"plan#r-x": ["docs/pending.yaml at questions/2/help", ...]}` - where each reference is written."""
+        if self._ref_sources is not None:
+            return self._ref_sources
+        index: dict[str, list[str]] = {}
+
+        def scan(obj: dict, where: str, cid: str | None, own_doc: str | None) -> None:
+            for path, text in iter_strings(obj):
+                if "[[" not in text:
+                    continue
+                for _raw, doc_ref, item, _label in find_inline_refs(text):
+                    if not item:
+                        continue
+                    target = resolve_doc_id(doc_ref, cid, self.docs) if doc_ref else own_doc
+                    if target:
+                        index.setdefault(f"{target}#{item}", []).append(f"{where} at {path}")
+
+        def scan_item_refs(obj: dict, where: str, cid: str | None) -> None:
+            """`x-ref: item` fields spell the same reference as `doc/item`; index those too."""
+            for path, text in iter_strings(obj):
+                if "/" not in text or len(text) > 120 or " " in text:
+                    continue
+                doc_ref, _, item = text.rpartition("/")
+                target = resolve_doc_id(doc_ref, cid, self.docs)
+                if target and item:
+                    index.setdefault(f"{target}#{item}", []).append(f"{where} at {path}")
+
+        for doc_id, doc in self.docs.items():
+            scan(doc, doc.get("_source", doc_id), doc.get("_collection"), doc_id)
+            scan_item_refs(doc, doc.get("_source", doc_id), doc.get("_collection"))
+        for page in self.pages:
+            primary = (page.get("docs") or [None])[0]
+            cid = page.get("_collection")
+            own = resolve_doc_id(primary, cid, self.docs) if primary else None
+            scan(page, page.get("_source", page["id"]), cid, own)
+        self._ref_sources = index
+        return index
+
+    def dead_refs(self) -> list[str]:
+        """Every reference this build rendered as a link to an anchor no page actually emitted.
+
+        `check_refs` proves the *item* exists in the data; this proves the *anchor* exists in the
+        rendering, which is where a reader meets it. Call it after every page has been rendered.
+        A reference is dead either because the prefab presenting the item emits no `id`, or
+        because the section that would present it filters the item out.
+        """
+        sources = self._ref_source_index()
+        seen: set[tuple[str, str, str]] = set()
+        out: list[str] = []
+        for ref in self._rendered_refs:
+            anchors = self._page_anchors.get(ref["target"])
+            if anchors is None or ref["item"] in anchors:
+                continue  # target page not in this build, or the anchor is there
+            key = (ref["doc"], ref["item"], ref["page"])
+            if key in seen:
+                continue
+            seen.add(key)
+            written = sorted(set(sources.get(f"{ref['doc']}#{ref['item']}") or [])) or [ref["source"] or "?"]
+            out.append(
+                f"dead reference [[{ref['doc']}#{ref['item']}]] on page {ref['page']}: "
+                f"{ref['target']} emits no anchor '{ref['item']}' "
+                f"(written in {'; '.join(written[:3])})"
+            )
+        return sorted(out)
 
 
 def route_to_path(out_dir: Path, route: str) -> Path:

@@ -72,3 +72,5 @@ serve:
 redaction:
   local_file: .yss/local.yaml         # gitignored; holds forbidden_strings / flag_strings
   forbid_root_path: true              # the absolute checkout path must never appear in output
+  scan_ignore: []                     # globs `yss scan` skips on top of .gitignore and its default
+                                      # skip list; the public build's output scan still sees everything

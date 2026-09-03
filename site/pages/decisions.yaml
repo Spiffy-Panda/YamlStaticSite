@@ -3,7 +3,7 @@ id: decisions
 route: /decisions/
 title: Decisions
 summary: The decision log, newest last. Each entry is an anchor (for example #adr-004) so other pages can cite it.
-nav: {label: Decisions, order: 40}
+nav: {label: Decisions, order: 40, group: content}
 docs: [decisions]
 sections:
   - id: intro

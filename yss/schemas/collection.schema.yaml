@@ -10,6 +10,14 @@ description: |
 type: object
 additionalProperties: false
 properties:
+  id:
+    type: string
+    pattern: "^[a-z0-9][a-z0-9_-]*$"
+    description: |
+      Overrides the folder name as this collection's id (and so its doc-id prefix and its last URL
+      segment). Use it when a folder's name and its already-published URL slug have diverged - a
+      case-only rename, or a folder renamed after the site was live. Must be unique across every
+      collection (folder name or override); a clash fails the build naming both folders.
   title: {type: string, x-limit: title}
   summary: {type: string, x-limit: summary}
   emblem: {type: string, description: "Emoji or a path under the collection's assets/ (e.g. assets/emblem.svg)."}
@@ -46,7 +54,7 @@ properties:
   theme:
     type: object
     properties:
-      css: {type: array, items: {type: string}, description: Stylesheets under the collection's assets/, applied to every page in it.}
+      css: {type: array, items: {type: string}, description: "Stylesheets under the collection's assets/, applied to every page in it."}
       accent: {type: string, description: CSS colour for the --accent variable on this collection's pages.}
       background: {type: string}
     additionalProperties: false
@@ -88,9 +96,25 @@ properties:
       type: object
       required: [path, at]
       properties:
-        path: {type: string, description: Folder relative to the collection root (a built playable, exports, data).}
+        path: {type: string, description: "Folder relative to the collection root (a built playable, exports, data)."}
         at: {type: string, description: "URL path under the collection, e.g. play/ -> /<collection>/play/"}
         targets: {type: array, items: {type: string}, description: "Defaults to [private]."}
+        include:
+          type: array
+          items: {type: string}
+          description: |
+            Glob patterns, matched against each file's path relative to `path`. Absent (the
+            default) means every file, matching today's whole-tree copy. `*.html` matches only the
+            mount's top-level files; `**/*.html` matches recursively - the two are deliberately
+            distinguishable. A file must match at least one pattern to be copied.
+        exclude:
+          type: array
+          items: {type: string}
+          description: |
+            Glob patterns removed from whatever `include` selected (or from everything, when
+            `include` is absent); exclude always wins over include. A pattern ending in `/` names a
+            folder and drops it whole (`prototype/`, `_*/`); `**` matches any depth
+            (`**/README.md` anywhere in the tree).
       additionalProperties: false
   agent_notes: {type: string}
 patternProperties:

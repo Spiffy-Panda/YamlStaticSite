@@ -2,11 +2,11 @@ name: changelog-list
 description: Releases with changes grouped by type. Bind `releases` from `changelog.releases`.
 category: list
 params:
-  releases: {type: list, required: true, item: {version: required, date: optional, status: optional, summary: optional, changes: "list of {type, text, refs}"}}
+  releases: {type: list, required: true, item: {id: "optional item id - emitted as an anchor so [[changelog#id]] resolves", version: required, date: optional, status: optional, summary: optional, changes: "list of {type, text, refs}"}}
 template: |
   <div class="changelog">
   {% for r in releases %}
-    <section class="release tone-{{ (r.status or 'released') | slug }}" id="v{{ r.version | slug }}">
+    <section class="release tone-{{ (r.status or 'released') | slug }}" id="v{{ r.version | slug }}">{% if r.id %}<span class="anchor-id" id="{{ r.id }}"></span>{% endif %}
       <h3 class="release-head">{{ r.version }} {% if r.date %}<span class="release-date">{{ r.date }}</span>{% endif %} {{ prefab('badge', text=r.status or 'released') }}</h3>
       {% if r.summary %}<p class="release-summary">{{ r.summary | md_inline }}</p>{% endif %}
       {% for group in r.changes | groupby('type') %}
@@ -18,6 +18,7 @@ template: |
   </div>
 css: |
   .release { border-top: 1px solid var(--line); padding-top: .6rem; margin-top: .6rem; }
+  .release .anchor-id { display: inline-block; width: 0; height: 0; overflow: hidden; }
   .release-head { margin: 0; display: flex; gap: .6rem; align-items: center; }
   .release-date { color: var(--muted); font-size: .85rem; font-weight: 400; }
   .change-type { margin: .5rem 0 .1rem; font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: var(--fg-2); }

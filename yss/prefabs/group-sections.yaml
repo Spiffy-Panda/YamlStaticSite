@@ -1,0 +1,51 @@
+name: group-sections
+description: "Authored subject groups: a heading and a blurb from the doc's `groups:`, then that group's items rendered by another prefab. Bind `groups` with `group_by: group` - the binding resolves each key to the whole authored group, so `title` and `blurb` arrive with the bucket. Falls back to the bare key when a group was never declared."
+category: layout
+params:
+  groups:
+    type: list
+    required: true
+    description: "[{key, items, title?, blurb?}] as produced by a binding with `group_by`."
+    item: {key: required, items: required, title: optional heading, blurb: optional markdown paragraph}
+  item_prefab:
+    type: string
+    default: card-grid
+    description: Prefab that renders each group's items. It receives `items` plus everything in `item_args`.
+  item_args:
+    type: object
+    description: "Extra args passed to the item prefab, e.g. {columns: 2} for card-grid."
+  level:
+    type: integer
+    default: 3
+    description: Heading level for the group titles (2-5); keep it below the section heading.
+  empty: {type: string, default: Nothing to show.}
+template: |
+  {% if groups %}
+  <div class="group-sections">
+    {% for g in groups %}
+    {% set label = g.title or g.key or 'Ungrouped' %}
+    <section class="group-section" id="group-{{ label | slug }}">
+      <h{{ level }} class="group-section-title">{{ label }}</h{{ level }}>
+      {% if g.blurb %}<div class="group-section-blurb">{{ g.blurb | md }}</div>{% endif %}
+      {# the items sit under this group's heading, so they render one level down unless the page says otherwise #}
+      {{ prefab(item_prefab, {'level': level + 1}, item_args or {}, items=g['items']) }}
+    </section>
+    {% endfor %}
+  </div>
+  {% else %}<p class="empty">{{ empty }}</p>{% endif %}
+css: |
+  .group-sections { display: grid; gap: 1.6rem; }
+  .group-section { border-left: 3px solid var(--accent); padding-left: .9rem; }
+  .group-section-title { margin: 0 0 .2rem; font-size: 1.05rem; }
+  .group-section-blurb { color: var(--fg-2); margin-bottom: .7rem; }
+  .group-section-blurb p:last-child { margin-bottom: 0; }
+examples:
+  - args:
+      groups:
+        - key: the-room
+          title: The room and the hands
+          blurb: The pod, the chair you do not leave, and the single pair of hands every manual job has to share.
+          items: [{title: Pod}, {title: Chair}]
+        - key: unnamed
+          items: [{title: A group nobody declared}]
+      item_args: {columns: 2}

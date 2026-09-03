@@ -84,7 +84,7 @@ $defs:
       limit: {type: integer}
       map: {type: object}
       fields: {type: array, items: {type: string}}
-      jinja: {type: boolean, description: Render the markdown through Jinja first (docs, site, url available).}
+      jinja: {type: boolean, description: "Render the markdown through Jinja first (docs, site, url available)."}
       # prefab
       prefab: {type: string}
       args:

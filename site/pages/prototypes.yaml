@@ -3,7 +3,7 @@ id: prototypes
 route: /prototypes/
 title: Prototypes
 summary: Interactive builds hosted inside the site. Drop an export under site/assets/prototypes/<name>/ and add an embed section here.
-nav: {label: Prototypes, order: 55}
+nav: {label: Prototypes, order: 55, group: meta}
 sections:
   - id: how
     type: markdown

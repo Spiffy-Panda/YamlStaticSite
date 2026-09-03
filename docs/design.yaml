@@ -30,34 +30,72 @@ overview: |
   for forbidden strings. Docs that are done and committed leave the plan for `docs/_archive/`,
   which is never loaded.
 
+# The subject axis (GH-8). The type arrays below say what kind of thing an item is; these say what
+# it is about. Every principle, component and constraint in this document names one.
+groups:
+  - id: g-sources
+    title: Sources of truth
+    blurb: |
+      What the toolchain reads before it does anything: `site.yaml`, each collection's own
+      `collection.yaml` and `hooks.py`, and the schemas that fold one envelope into every kind.
+      Everything further down is derived from these files, which is why they are the only ones an
+      agent edits by hand.
+  - id: g-trust
+    title: Proof and redaction
+    blurb: |
+      Two gates decide whether a build is honest and whether it is safe to publish: evidence claims
+      that a missing path or a failing command can break, and visibility markings backed by a scan
+      of the finished output. Neither gate takes a status word's opinion for an answer.
+  - id: g-presentation
+    title: Data to page
+    blurb: |
+      The half of the toolchain a human sees. A binding selects and shapes doc data, a prefab
+      renders it, and the page contributes framing only. Selection lives in the binding so the same
+      prefab serves any doc kind, and the result has to read without JavaScript.
+  - id: g-pipeline
+    title: Pipeline and surfaces
+    blurb: |
+      Orchestration and the ways the toolchain is driven: one build pipeline per target, runtime
+      data collection, the two-port development server, the CLI, and the skills that teach an agent
+      to use them.
+
 principles:
   - id: p-agent-first
+    group: g-sources
     title: Structured files are the source of truth; HTML is derived
     rationale: Agents should never edit rendered output, and humans should never need to read YAML to understand the project.
   - id: p-validate-early
+    group: g-trust
     title: Validate before rendering, with file and path in every error
     rationale: An agent fixing a doc needs the exact location and the allowed values, not a stack trace.
   - id: p-evidence
+    group: g-trust
     title: A doc is current when its claims pass, never because a status says so
     rationale: Status words rot; a path check or a command cannot. `draft` does not exist.
   - id: p-data-driven-rules
+    group: g-sources
     title: Vocabularies and limits are data, scoped per collection
     rationale: One schema serves many musings with different working vocabularies; nothing about a musing's process is hard-coded.
   - id: p-private-by-marking
+    group: g-trust
     title: Privacy is declared on the data, enforced on the output
     rationale: Marking an item private is cheap and local; the output scan catches anything the marking missed.
   - id: p-no-logic-in-templates
+    group: g-presentation
     title: Selection and shaping happen in bindings, presentation in prefabs
     rationale: Keeps Jinja small enough to live in YAML and keeps the same prefab reusable across doc kinds.
   - id: p-static-first
+    group: g-presentation
     title: Pages read without JavaScript; dynamic sections and worksheets degrade to a note
     rationale: GitHub Pages is a file host. Runtime data is a bonus, not a dependency.
   - id: p-few-deps
+    group: g-pipeline
     title: Four dependencies, standard library for everything else
     rationale: PyYAML, Jinja2, jsonschema and markdown-it-py. The server is http.server; watching is mtime polling.
 
 components:
   - id: c-config
+    group: g-sources
     name: Config and collections
     kind: module
     responsibility: Load site.yaml over defaults; discover collections from root globs; resolve paths, targets, vocabularies, limits, mounts and redaction lists.
@@ -66,6 +104,7 @@ components:
     code: [yss/config.py]
     status: active
   - id: c-hooks
+    group: g-sources
     name: Hook scripts
     kind: module
     responsibility: Load a hooks.py per site or collection and call configure, load_docs, load_pages, markdown, before_render, after_build and providers.
@@ -73,6 +112,7 @@ components:
     code: [yss/hooks.py]
     status: active
   - id: c-schemas
+    group: g-sources
     name: Schema registry and loaders
     kind: schema
     responsibility: Load schemas, fold the envelope into each kind, resolve x-vocab and x-limit per collection, validate docs, pages, prefabs, collections and site config, skip `_` paths.
@@ -82,6 +122,7 @@ components:
     code: [yss/loader.py, yss/schemas/]
     status: active
   - id: c-refs
+    group: g-trust
     name: Reference checker
     kind: module
     responsibility: Index item ids per doc, validate x-ref fields (item, doc/item, doc) and inline `[[doc#item]]` references in docs and pages, and answer `yss refs`.
@@ -89,6 +130,7 @@ components:
     code: [yss/loader.py]
     status: active
   - id: c-evidence
+    group: g-trust
     name: Evidence checker
     kind: module
     responsibility: Collect claims from `evidence:` lists and x-evidence fields, evaluate paths, globs, symbols, commands and git recency, and inject freshness into docs and items. Policy per doc - CLI flag, then collection.yaml, then site.yaml.
@@ -97,6 +139,7 @@ components:
     code: [yss/evidence.py, yss/providers/evidence.py]
     status: active
   - id: c-visibility
+    group: g-trust
     name: Visibility and redaction
     kind: module
     responsibility: Remove private objects and private_notes for public targets; scan output trees for forbidden and flagged strings.
@@ -104,14 +147,16 @@ components:
     code: [yss/visibility.py]
     status: active
   - id: c-binding
+    group: g-presentation
     name: Binding resolver
     kind: module
-    responsibility: Turn a `from/where/sort/limit/map/fields/group_by` spec into data, with collection-local ids and the virtual roots $docs, $pages, $site, $prefabs, $collections, $evidence.
+    responsibility: Turn a `from/where/sort/limit/map/fields/group_by` spec into data, with collection-local ids, the virtual roots $docs, $pages, $site, $prefabs, $collections, $evidence, and group_by keys resolved against the source doc's authored `groups`.
     inputs: [binding spec, filtered docs]
     outputs: [list or scalar]
     code: [yss/binding.py]
     status: active
   - id: c-render
+    group: g-presentation
     name: Renderer
     kind: module
     responsibility: Jinja2 environment with prefab templates, section handlers, inline reference expansion, pluggable markdown, collection theme and sub-navigation, layout wrapping.
@@ -119,12 +164,14 @@ components:
     code: [yss/render.py, yss/templates/default.html]
     status: active
   - id: c-prefabs
+    group: g-presentation
     name: Prefab library
     kind: ui
     responsibility: Built-in cards, grids, tables, boards, timelines, lists, evidence list, collection index and the worksheet; sites and collections override or add prefabs by name.
     code: [yss/prefabs/, site/prefabs/]
     status: active
   - id: c-worksheet
+    group: g-presentation
     name: Worksheet
     kind: ui
     responsibility: Decision instrument - questions with recommended defaults, a required-answer gate, and a Build button producing a paste-ready agent instruction. An applied question carries a `resolution` and renders as a record (adr-018).
@@ -132,6 +179,7 @@ components:
     code: [yss/prefabs/worksheet.yaml, yss/schemas/doc.worksheet.schema.yaml]
     status: active
   - id: c-build
+    group: g-pipeline
     name: Build pipeline
     kind: process
     responsibility: Orchestrate load, reference checks, filter, evidence, hooks, render, export, assets, mounts, dynamic collection, manifest and the leak scan; delete output on a forbidden hit.
@@ -140,6 +188,7 @@ components:
     code: [yss/build.py]
     status: active
   - id: c-dynamic
+    group: g-pipeline
     name: Dynamic sources
     kind: data
     responsibility: Collect runtime JSON from providers (including hooks providers), commands or files into a uniform envelope; built-in providers for build info, test runs, git log and evidence.
@@ -148,6 +197,7 @@ components:
     code: [yss/dynamic.py, yss/providers/]
     status: active
   - id: c-server
+    group: g-pipeline
     name: Two-port server
     kind: service
     responsibility: Serve dist/private and dist/public on separate ports, honour base_url, refresh stale dynamic sources in the background, send COOP/COEP, rebuild on change.
@@ -155,12 +205,14 @@ components:
     code: [yss/server.py]
     status: active
   - id: c-client
+    group: g-presentation
     name: Client runtime
     kind: ui
     responsibility: Fetch dynamic JSON and render it as table, kv, list, cards, json or a custom script; nav toggle.
     code: [yss/assets/yss.js, yss/assets/yss.css]
     status: active
   - id: c-cli
+    group: g-pipeline
     name: CLI
     kind: module
     responsibility: validate, check, refs, build, serve, dynamic, scan, ls, query, schema, new, init, skills, pages-setup.
@@ -168,6 +220,7 @@ components:
     code: [yss/cli.py, yss/scaffold.py, yss/skillpack.py, yss/ghpages.py]
     status: active
   - id: c-skills
+    group: g-pipeline
     name: Agent skills
     kind: process
     responsibility: Teach agents the mental model and the commands; one skill per authoring task plus publishing; shipped in the package and installed per repo.
@@ -191,7 +244,7 @@ interfaces:
     name: Binding spec
     kind: yaml
     signature: "{from: <doc>.<path> | /<doc>.<path> | $docs | $pages | $site | $prefabs | $collections | $evidence, where, sort, limit, map, fields, group_by}"
-    description: Used for prefab args and markdown sections. Inside a collection, `<doc>` resolves to the local doc first; `/<doc>` forces the root doc.
+    description: Used for prefab args and markdown sections. Inside a collection, `<doc>` resolves to the local doc first; `/<doc>` forces the root doc. `group_by` yields `[{key, items}]`, plus the authored group's own fields when the key names an entry in the source doc's `groups`.
     component: c-binding
   - id: i-refs
     name: Inline references
@@ -301,20 +354,27 @@ flows:
 
 constraints:
   - id: k-gh-pages
+    group: g-presentation
     text: GitHub Pages serves files only - no custom headers, no server logic, project sites live under /<repo>/.
     source: platform
+    status: live
   - id: k-no-leak
+    group: g-trust
     text: The public build must never contain the maintainer's legal name, the absolute checkout path, or anything marked private.
     source: policy
   - id: k-agent-readable
+    group: g-sources
     text: Every artefact an agent needs (docs, schemas, prefabs, pages, collection config) is YAML with a schema the CLI can print.
     source: user
   - id: k-per-musing
+    group: g-sources
     text: Anything unique to one musing must be expressible in its own collection.yaml or hooks.py without touching yss.
     source: user
   - id: k-windows
+    group: g-pipeline
     text: Development happens on Windows with Git Bash and PowerShell; no shell-specific tooling in the pipeline.
     source: platform
+    status: live
 
 alternatives:
   - id: a-xslt

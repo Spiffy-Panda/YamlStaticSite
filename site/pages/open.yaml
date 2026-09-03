@@ -4,7 +4,7 @@ route: /open/
 title: Open decisions (record)
 summary: A worksheet that has been applied, kept as the record of what was asked and what it turned into. Nothing here is still to answer; the live worksheet is Next.
 visibility: public          # worksheets stay on the public site (P.2, 2026-09-02)
-nav: {label: Open (record), order: 45}
+nav: {label: Open, order: 45, group: decide}
 docs: [open, plan]
 sections:
   - id: worksheet

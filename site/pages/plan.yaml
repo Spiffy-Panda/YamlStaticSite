@@ -3,7 +3,7 @@ id: plan
 route: /plan/
 title: Plan
 summary: Goals, milestones and tasks for the toolchain, read straight from plan.yaml. For anyone deciding what to work on next.
-nav: {label: Plan, order: 10}
+nav: {label: Plan, order: 10, group: content}
 docs: [plan]
 sections:
   - id: goals
@@ -76,3 +76,19 @@ sections:
         - {key: context, label: Context, md: true}
         - {key: owner, label: Owner}
       empty: No open questions.
+
+  - id: answered
+    type: prefab
+    heading: Answered questions
+    intro: |
+      Questions that have been decided, kept on the page because the worksheets that decided them
+      link straight to these rows. A reference into a question that this page filtered away renders
+      as a dead link, which the build now reports (see [[decisions#adr-023]]).
+    prefab: table
+    args:
+      rows: {from: plan.open_questions, where: {status: {not: open}}, sort: id}
+      columns:
+        - {key: question, label: Question, md: true}
+        - {key: answer, label: Answer, md: true}
+        - {key: status, label: Status}
+      empty: Nothing has been answered yet.

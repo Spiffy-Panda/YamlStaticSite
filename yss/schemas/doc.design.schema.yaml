@@ -24,6 +24,7 @@ properties:
         id: {$ref: "#/$defs/slug"}
         title: {type: string, x-limit: title}
         rationale: {type: string, x-limit: summary}
+        status: {type: string, x-vocab: claim_status}
       unevaluatedProperties: false
   components:
     type: array
@@ -55,6 +56,7 @@ properties:
         signature: {type: string}
         description: {type: string, x-limit: summary}
         component: {$ref: "#/$defs/slug", x-ref: item}
+        status: {type: string, x-vocab: claim_status}
       unevaluatedProperties: false
   flows:
     type: array
@@ -76,6 +78,7 @@ properties:
               action: {type: string, x-limit: line}
               produces: {type: string, x-limit: line}
             additionalProperties: false
+        status: {type: string, x-vocab: claim_status}
       unevaluatedProperties: false
   constraints:
     type: array
@@ -86,7 +89,8 @@ properties:
       properties:
         id: {$ref: "#/$defs/slug"}
         text: {type: string, x-limit: summary}
-        source: {type: string, description: Where the constraint comes from (platform, policy, user).}
+        source: {type: string, description: "Where the constraint comes from (platform, policy, user)."}
+        status: {type: string, x-vocab: claim_status}
       unevaluatedProperties: false
   alternatives:
     type: array
@@ -98,4 +102,5 @@ properties:
         id: {$ref: "#/$defs/slug"}
         option: {type: string, x-limit: line}
         rejected_because: {type: string, x-limit: summary}
+        status: {type: string, x-vocab: claim_status}
       unevaluatedProperties: false

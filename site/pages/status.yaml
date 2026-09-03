@@ -3,7 +3,7 @@ id: status
 route: /status/
 title: Status
 summary: Repo-specific runtime data - test results, build information and git state - loaded from dynamic JSON sources.
-nav: {label: Status, order: 50}
+nav: {label: Status, order: 50, group: meta}
 sections:
   - id: about
     type: markdown

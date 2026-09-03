@@ -117,6 +117,8 @@ modules:
       - {name: Renderer, kind: class, signature: "Renderer(cfg, target, docs, pages, prefabs, all_doc_ids, build_info, evidence)"}
       - {name: Renderer.prefab, kind: function, signature: "(name, *dicts, **kwargs) -> Markup"}
       - {name: Renderer.expand_refs, kind: function, signature: "(text) -> text", description: "Inline references to markdown links."}
+      - {name: Renderer._nav_groups, kind: function, signature: "(items) -> [{id, label, menu, items, waiting}]", description: "Nav clusters from site.yaml nav.groups; empty groups are dropped."}
+      - {name: Renderer._page_state, kind: function, signature: "(page) -> {archived, waiting}", description: "Derived from the docs a page presents - drives what the nav shows (adr-022)."}
       - {name: route_to_path, kind: function, signature: "(out_dir, route) -> Path"}
     tests: [tests/test_yss.py]
   - id: build
@@ -202,7 +204,7 @@ modules:
     status: active
   - id: layout
     path: yss/templates/default.html
-    purpose: Default layout - header/nav with collection links, collection bar with emblem, theme and sub-nav, page header with freshness badge, sections, table of contents, footer.
+    purpose: Default layout - header nav as ordered groups (labelled clusters, optional details menus, waiting counts) plus collection links, collection bar with emblem, theme and sub-nav, page header with freshness badge, sections, table of contents, footer.
     language: jinja
     status: active
 

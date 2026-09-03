@@ -100,6 +100,51 @@ def _copy_tree(src: Path, dst: Path) -> None:
         shutil.copytree(src, dst, dirs_exist_ok=True)
 
 
+def _glob_paths(root: Path, pattern: str) -> set[Path]:
+    """Paths under root matching pattern, relative to root. A trailing '/' names a directory and
+    everything beneath it (so `exclude: [prototype/]` drops a whole subtree, not just its name)."""
+    pattern = (pattern or "").strip().lstrip("/")
+    if not pattern:
+        return set()
+    if pattern.endswith("/"):
+        base = pattern.rstrip("/")
+        dirs = list(root.glob(base)) if base else [root]
+        found: set[Path] = set()
+        for d in dirs:
+            if d.is_dir():
+                found.add(d)
+                found |= set(d.rglob("*"))
+        return found
+    return set(root.glob(pattern))
+
+
+def _mount_files(src: Path, include: list[str], exclude: list[str]) -> list[Path]:
+    """Files to copy from src: no `include` means everything (today's behaviour); `include`
+    restricts to matches (non-recursive `*.html` vs. recursive `**/*.html` are distinguishable);
+    `exclude` then removes matches from that set, winning over `include`."""
+    if include:
+        matched: set[Path] = set()
+        for pattern in include:
+            matched |= {p for p in _glob_paths(src, pattern) if p.is_file()}
+    else:
+        matched = {p for p in src.rglob("*") if p.is_file()}
+    if exclude:
+        excluded: set[Path] = set()
+        for pattern in exclude:
+            excluded |= _glob_paths(src, pattern)
+        matched = {p for p in matched if not any(p == e or e in p.parents for e in excluded)}
+    return sorted(matched)
+
+
+def _copy_filtered(src: Path, dst: Path, include: list[str], exclude: list[str]) -> None:
+    dst.mkdir(parents=True, exist_ok=True)
+    for f in _mount_files(src, include, exclude):
+        rel = f.relative_to(src)
+        target = dst / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(f, target)
+
+
 def _mount(cfg: Config, out: Path, base: Path, spec: dict, target: str, prefix: str, warnings: list[str]) -> None:
     targets = spec.get("targets") or ["private"]
     if target not in targets:
@@ -112,7 +157,12 @@ def _mount(cfg: Config, out: Path, base: Path, spec: dict, target: str, prefix: 
     if not src.is_dir():
         warnings.append(f"mount {spec['path']} -> /{at}/: source folder missing, skipped")
         return
-    _copy_tree(src, dst)
+    include = spec.get("include") or []
+    exclude = spec.get("exclude") or []
+    if include or exclude:
+        _copy_filtered(src, dst, include, exclude)
+    else:
+        _copy_tree(src, dst)
 
 
 def build(
@@ -189,6 +239,13 @@ def build(
         path.write_text(html, encoding="utf-8")
         report.pages.append(page["route"])
 
+    # dead references: an anchor a rendered [[doc#item]] link points at that no page emits (gh-11)
+    dead = renderer.dead_refs()
+    report.warnings += dead
+    if strict and dead:
+        shutil.rmtree(out, ignore_errors=True)
+        raise BuildError(f"[{target}] strict mode: {len(dead)} dead reference(s).\n  " + "\n  ".join(dead))
+
     # data export (agent readable, and available to client-side JS)
     data_dir = out / "data"
     (data_dir / "docs").mkdir(parents=True, exist_ok=True)
@@ -254,7 +311,10 @@ def build(
         if collection.is_root or collection.id in hidden_collections:
             continue
         for spec in collection.data.get("mounts") or []:
-            _mount(cfg, out, collection.root, spec, target, f"{collection.id}/", report.warnings)
+            # Prefixed by the collection's full route (id, plus any `at` prefix - gh-4) so a
+            # mounted static tree lands at the same depth as the pages that link into it, and
+            # hand-authored relative links inside it (`../../index.html`) keep resolving.
+            _mount(cfg, out, collection.root, spec, target, collection.route_prefix.strip("/") + "/", report.warnings)
 
     # dynamic sources
     if run_dynamic:

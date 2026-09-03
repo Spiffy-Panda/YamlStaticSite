@@ -39,6 +39,26 @@ def get_path_or_none(obj: Any, path: str) -> Any:
         return None
 
 
+def source_doc(expr: str, ctx: dict) -> dict | None:
+    """The doc a `from:` expression reads, or None for a virtual root or an unknown doc.
+
+    Used to find authored `groups:` for `group_by`; never raises, because a `from` that cannot be
+    resolved is reported by resolve_from with a much better message.
+    """
+    expr = expr.strip()
+    if expr.startswith("$"):
+        return None
+    doc_id = expr.partition(".")[0]
+    docs = ctx.get("docs") or {}
+    collection = ctx.get("collection")
+    if doc_id.startswith("/"):
+        doc_id = doc_id[1:]
+    elif collection and f"{collection}/{doc_id}" in docs:
+        doc_id = f"{collection}/{doc_id}"
+    doc = docs.get(doc_id)
+    return doc if isinstance(doc, dict) else None
+
+
 def resolve_from(expr: str, ctx: dict) -> Any:
     """`plan.milestones` -> docs['plan']['milestones']; `$docs`, `$pages`, `$site` are virtual roots."""
     expr = expr.strip()
@@ -146,12 +166,30 @@ def map_items(items: list, mapping: dict, render: Callable[[str, dict], str] | N
     return out
 
 
-def group_items(items: list, key: str) -> list[dict]:
+def group_items(items: list, key: str, defs: Any = None) -> list[dict]:
+    """Bucket items by a field.
+
+    Without `defs` this is the original behaviour: `[{key, items}]` in order of first appearance.
+
+    With `defs` - the source doc's authored `groups:` list - every bucket whose key names a declared
+    group also carries that group's own fields (`title`, `blurb`, `notes`, `tags`, ...), and the
+    declared order becomes the display order, with undeclared keys appended in order of first
+    appearance. That is how a heading and a paragraph written once in the doc reach the page: the
+    prefab reads `g.title` / `g.blurb` instead of rendering a bare key.
+    """
     groups: "OrderedDict[Any, list]" = OrderedDict()
     for item in items:
         gk = get_path_or_none(item, key) if isinstance(item, dict) else None
         groups.setdefault(gk, []).append(item)
-    return [{"key": k, "items": v} for k, v in groups.items()]
+    declared: "OrderedDict[Any, dict]" = OrderedDict()
+    for g in defs or []:
+        if isinstance(g, dict) and isinstance(g.get("id"), str) and g["id"] not in declared:
+            declared[g["id"]] = g
+    order = [k for k in declared if k in groups] + [k for k in groups if k not in declared]
+    return [
+        {**declared.get(k, {}), "key": k, "items": groups[k]}
+        for k in order
+    ]
 
 
 def resolve_binding(spec: dict, ctx: dict, render: Callable[[str, dict], str] | None = None) -> Any:
@@ -185,5 +223,7 @@ def resolve_binding(spec: dict, ctx: dict, render: Callable[[str, dict], str] | 
             for it in items
         ]
     if "group_by" in spec:
-        items = group_items(items, spec["group_by"])
+        doc = source_doc(spec["from"], ctx)
+        defs = doc.get("groups") if doc else None
+        items = group_items(items, spec["group_by"], defs if isinstance(defs, list) else None)
     return items

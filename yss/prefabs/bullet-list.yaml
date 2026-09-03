@@ -2,14 +2,14 @@ name: bullet-list
 description: Plain list of strings or {text, badge, href} items, rendered as inline markdown. Use for goals, principles, constraints.
 category: list
 params:
-  items: {type: list, required: true, item: {text: "string (or the item itself is a string)", badge: optional, href: optional}}
+  items: {type: list, required: true, item: {id: "optional - emitted as the bullet's anchor", text: "string (or the item itself is a string)", badge: optional, href: optional}}
   ordered: {type: boolean, default: false}
   empty: {type: string, default: Nothing listed.}
 template: |
   {% if items %}
   <{{ 'ol' if ordered else 'ul' }} class="bullet-list">
     {% for it in items %}
-    <li>
+    <li{% if it is mapping and it.get('id') %} id="{{ it.get('id') }}"{% endif %}>
       {% if it is mapping %}
         {% if it.href %}<a href="{{ it.href }}">{{ (it.text or it.title) | md_inline }}</a>{% else %}{{ (it.text or it.title) | md_inline }}{% endif %}
         {% if it.badge %} {{ prefab('badge', text=it.badge) }}{% endif %}

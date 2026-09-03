@@ -14,9 +14,9 @@ from .dynamic import write_all
 from .evidence import check as evidence_check, format_report
 from .ghpages import GhError, setup as pages_setup
 from .loader import LoadError, SchemaRegistry, dump_yaml
-from .scaffold import ScaffoldError, init_site, new_doc, new_page, new_prefab
+from .scaffold import ScaffoldError, init_site, new_collection, new_doc, new_page, new_prefab
 from .skillpack import check as skills_check, install as skills_install
-from .visibility import filter_for_target, is_visible, scan_tree
+from .visibility import filter_for_target, format_skip_summary, is_visible, scan_tree
 
 
 def _cfg(args) -> Config:
@@ -181,12 +181,20 @@ def cmd_scan(args) -> int:
         print("no forbidden or flagged strings configured (.yss/local.yaml or env vars); nothing to scan")
         return 0
     root = Path(args.path).resolve() if args.path else cfg.root
-    fhits, whits = scan_tree(root, forbidden, flags)
+    # site.yaml's standing ignore list, then whatever this invocation adds with --ignore.
+    extra_ignore_globs = tuple(cfg.data["redaction"].get("scan_ignore") or ()) + tuple(args.ignore)
+    stats: dict = {}
+    fhits, whits = scan_tree(
+        root, forbidden, flags,
+        respect_gitignore=args.gitignore,
+        extra_ignore_globs=extra_ignore_globs,
+        stats=stats,
+    )
     for rel, line, masked in fhits:
         print(f"FORBIDDEN {rel}:{line}: {masked}")
     for rel, line, masked in whits:
         print(f"flag      {rel}:{line}: {masked}")
-    print(f"scanned {root.name}: {len(fhits)} forbidden, {len(whits)} flagged")
+    print(f"scanned {root.name}: {len(fhits)} forbidden, {len(whits)} flagged ({format_skip_summary(stats)})")
     return 1 if fhits else 0
 
 
@@ -284,6 +292,11 @@ def cmd_new(args) -> int:
             path = new_doc(cfg, reg, args.kind, args.id, args.title, args.force)
         elif args.what == "page":
             path = new_page(cfg, reg, args.id, args.title, args.doc, args.force)
+        elif args.what == "collection":
+            paths = new_collection(cfg, reg, args.id, args.title, args.collections_root, args.force)
+            for path in paths:
+                print(f"wrote {path.relative_to(cfg.root).as_posix()}")
+            return 0
         else:
             path = new_prefab(cfg, reg, args.id, args.force)
     except ScaffoldError as exc:
@@ -405,6 +418,11 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("scan", help="scan the source tree for forbidden/flagged strings before publishing")
     p.add_argument("path", nargs="?", help="directory to scan (default: site root)")
     p.add_argument("--target", "-t", default="public", help="target whose redaction rules apply")
+    p.add_argument("--ignore", action="append", default=[], metavar="GLOB",
+                   help="skip files matching this glob (relative to the scanned root, e.g. '*.godot/**'); repeatable")
+    p.add_argument("--no-gitignore", dest="gitignore", action="store_false", default=True,
+                   help="scan everything, including files the enclosing git repo's .gitignore would exclude "
+                        "(default: gitignored files are skipped)")
     p.set_defaults(func=cmd_scan)
 
     p = sub.add_parser("ls", help="list docs, pages, prefabs, doc kinds and dynamic sources")
@@ -426,12 +444,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--yaml", action="store_true")
     p.set_defaults(func=cmd_schema)
 
-    p = sub.add_parser("new", help="scaffold a doc, page or prefab from its schema")
-    p.add_argument("what", choices=["doc", "page", "prefab"])
-    p.add_argument("kind_or_id", help="doc: <kind>; page/prefab: <id>")
+    p = sub.add_parser("new", help="scaffold a doc, page, prefab or collection from its schema")
+    p.add_argument("what", choices=["doc", "page", "prefab", "collection"])
+    p.add_argument("kind_or_id", help="doc: <kind>; page/prefab/collection: <id>")
     p.add_argument("id", nargs="?", help="doc id (docs only)")
     p.add_argument("--title")
     p.add_argument("--doc", help="page: doc id to bind a starter section to")
+    p.add_argument("--collections-root", help="collection: which site.yaml collections[].root glob to scaffold into, when more than one is declared")
     p.add_argument("--force", action="store_true")
     p.set_defaults(func=cmd_new)
 
@@ -466,6 +485,8 @@ def main(argv: list[str] | None = None) -> int:
         else:
             args.kind = None
             args.id = args.kind_or_id
+            if args.what != "collection" and args.collections_root:
+                parser.error("--collections-root only applies to `new collection`")
     try:
         return int(args.func(args) or 0)
     except (ConfigError, LoadError) as exc:

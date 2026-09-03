@@ -4,7 +4,7 @@ route: /
 title: YamlStaticSite
 summary: A toolchain that turns agent-first structured YAML into a human-first static site. This site is built from its own docs.
 visibility: public
-nav: {label: Home, order: 0}
+nav: {label: Home, order: 0, group: content}
 sections:
   - id: what
     type: markdown
@@ -57,6 +57,27 @@ sections:
           meta: "{{ questions | length }} calls to make"
       columns: 2
       empty: No worksheet is waiting on a verdict.
+
+  - id: worksheet-records
+    type: prefab
+    heading: Worksheets already applied
+    intro: |
+      The record of every call that has been made. Each of these was answered, applied, and then
+      written back onto its own questions: what addressed each one sits under it, and the choices as
+      they were offered are kept in a foldout beneath. Nothing here is waiting on anybody, which is
+      why these pages are reached from here rather than from the bar at the top.
+    prefab: card-grid
+    args:
+      items:
+        from: $docs
+        where: {kind: worksheet, status: archived}
+        sort: id
+        map:
+          body: summary
+          href: "{{ doc_url(id) }}"
+          meta: "{{ questions | length }} calls, all applied"
+      columns: 3
+      empty: No worksheet has been applied yet.
 
   - id: musings-blockers
     type: prefab

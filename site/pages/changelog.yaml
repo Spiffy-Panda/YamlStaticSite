@@ -3,7 +3,7 @@ id: changelog
 route: /changelog/
 title: Changelog
 summary: What changed in each release of yss.
-nav: {label: Changelog, order: 70}
+nav: {label: Changelog, order: 70, group: content}
 docs: [changelog]
 sections:
   - id: releases

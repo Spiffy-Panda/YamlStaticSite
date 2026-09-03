@@ -3,7 +3,7 @@ id: glossary
 route: /glossary/
 title: Glossary
 summary: The vocabulary used by the toolchain, its skills and this site.
-nav: {label: Glossary, order: 60}
+nav: {label: Glossary, order: 60, group: content}
 docs: [glossary]
 sections:
   - id: terms

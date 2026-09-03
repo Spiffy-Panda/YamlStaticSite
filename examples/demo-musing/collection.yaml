@@ -29,4 +29,5 @@ mounts:
   - path: play                                 # copied to /demo-musing/play/ in both builds
     at: play/
     targets: [private, public]                 # mounts default to private; a public playable opts in here (adr-015)
+    include: ["*.html"]                        # gh-3: publish only the playable page itself, nothing beside it
 agent_notes: Anything unique to this musing goes in hooks.py; shared behaviour goes upstream into yss.

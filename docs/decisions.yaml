@@ -406,3 +406,68 @@ entries:
     alternatives:
       - Check mount hrefs as well (catches a deleted export, but the folder may be built by a hook and absent at check time).
       - Fetch external hrefs (finds link rot, at the cost of network access, flakiness and offline failures).
+
+  - id: adr-022
+    date: 2026-09-03
+    title: The nav declares a category and derives the rest
+    status: accepted
+    context: |
+      The top bar had grown to eighteen flat links and told a reader nothing about what any of them
+      was. Content pages, live decision worksheets, applied worksheets kept as records, and
+      generated build state all sat in one undifferentiated row, and four of them had "(record)"
+      written into their labels by hand because nothing else said so. The site owner also wants the
+      wording to follow a site's voice - a technical repository and a public-facing musing do not
+      call the same group by the same name - so the taxonomy cannot be hard-coded in the template.
+    decision: |
+      A page declares one thing, its category: `nav.group`, from the `nav_group` vocabulary that
+      ships as `content`, `decide`, `meta` and is data like every other vocabulary (adr-011).
+      Everything that changes is derived from the docs the page presents, never declared on the
+      page: a page whose docs are all `archived` leaves the bar entirely, and a page presenting a
+      worksheet carries a count of the questions that have no `resolution` yet - the calls still
+      waiting on a human. That is adr-009 applied to navigation.
+
+      `nav.groups` in site.yaml is an ordered list of `{id, label, menu}`. The label is the voice
+      knob: rename `Decide` to whatever a site calls it, or drop a group from the list and its
+      pages fall into the first one. `menu: true` puts a group behind a `<details>` disclosure,
+      which needs no JavaScript. A group with nothing visible in it renders nothing at all.
+    consequences:
+      - The bar says what kind of destination each link is, and stops listing pages that are finished.
+      - An applied worksheet disappears from the bar without anyone editing it; it is reached from the home page, which lists the records.
+      - A worksheet that still needs a human announces how many calls it is holding, and stops as soon as they are applied.
+      - Renaming a group is a one-string edit in site.yaml, so the technical/plain voice split needs no second vocabulary.
+      - The renderer now reads the doc envelope of every page's docs to build the nav; a page that declares no docs has no derived state and is always shown.
+    alternatives:
+      - "A `nav.voice: technical | plain` preset (one word to set, but a second vocabulary to document and keep in sync, and it cannot express merging two groups)."
+      - Declaring `archived` or `needs attention` on the page (simple, but it is a hand-set state that goes stale - the thing adr-009 exists to prevent).
+      - Leaving the bar flat and shortening labels (no machinery, but eighteen links stay eighteen links).
+
+  - id: adr-023
+    date: 2026-09-03
+    title: A reference is dead until the rendered page proves otherwise
+    status: accepted
+    context: |
+      `[[doc#item]]` references were checked against the data and not against the rendering:
+      `check_refs` confirmed an item with that id existed, and nothing confirmed that the page
+      presenting it emitted an anchor. A link could pass `yss validate` and still be dead in the
+      browser. Two failure modes, not one - a prefab that emits no `id` at all, and an item that a
+      binding's `where:` clause filters off its own page, which no prefab change can fix. This
+      repository had seven of the second kind and three of the first.
+    decision: |
+      Anchors are emitted wherever an item is addressable - table rows, timeline entries, bullet
+      items, glossary terms and changelog releases join the prefabs that already did - and the
+      renderer then checks its own output: every reference it turns into an href is recorded, every
+      `id` each page emits is recorded, and after the build it reports the ones that did not land,
+      naming the reference, the page that carries the link, the route that should have carried the
+      anchor, and where the reference was written. It is a build warning that `--strict` makes
+      fatal, matching how stale evidence is already treated (adr-014); validate never renders, so it
+      cannot know, and `yss check` proves docs against the repo without rendering.
+    consequences:
+      - Whether a link works is a checked result about real HTML, so it stays true when a prefab, a binding or a page changes - no prefab has to declare that it anchors.
+      - A page that filters items away is now visibly responsible for the references that pointed at them; the plan page gained an answered-questions section for exactly that reason.
+      - CI runs the public build with --strict, so a dead reference fails the deploy rather than shipping.
+      - The renderer keeps two more indexes for the length of a build.
+    alternatives:
+      - Anchors everywhere and no check (cheap, but says nothing about an item filtered off its own page).
+      - A validate-time error (validate does not render, so it would have to predict the output).
+      - Leaving it to review (this is precisely the class of thing adr-009 says should be checked rather than remembered).
+

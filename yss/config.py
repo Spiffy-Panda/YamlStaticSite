@@ -8,6 +8,7 @@ from __future__ import annotations
 import copy
 import glob as globmod
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,7 @@ import yaml
 
 PKG_DIR = Path(__file__).resolve().parent
 CONFIG_NAMES = ("site.yaml", "site.yml")
+SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 
 DEFAULTS: dict[str, Any] = {
     "site": {"name": "Untitled site", "description": "", "repo": ""},
@@ -40,7 +42,21 @@ DEFAULTS: dict[str, Any] = {
         "risk_status": ["open", "mitigated", "accepted", "closed"],
         "question_status": ["open", "answered", "deferred"],
         "release_status": ["released", "unreleased", "yanked"],
+        "claim_status": ["live", "decided", "open", "superseded"],
         "link_kind": ["repo", "issue", "pr", "doc", "page", "play", "external", "file"],
+        "nav_group": ["content", "decide", "meta"],
+    },
+    # What the top bar looks like. `groups` is an ordered list of {id, label, menu}: the id comes
+    # from the nav_group vocabulary, the label is what a reader sees (rename it for a plainer
+    # voice, or drop a group entirely and its pages fall into the first one), and `menu: true`
+    # puts the group behind a disclosure instead of spelling it out. An empty label means the
+    # group is the bar itself and needs no heading. A group with nothing visible renders nothing.
+    "nav": {
+        "groups": [
+            {"id": "content", "label": ""},
+            {"id": "decide", "label": "Decide"},
+            {"id": "meta", "label": "About this build", "menu": True},
+        ]
     },
     "limits": {"title": 120, "summary": 300, "line": 240, "markdown": 2400},
     "build": {"strict": False},
@@ -63,7 +79,8 @@ DEFAULTS: dict[str, Any] = {
         "env_forbidden": "YSS_FORBIDDEN_STRINGS",
         "env_flag": "YSS_FLAG_STRINGS",
         "forbid_root_path": True,
-    },
+            "scan_ignore": [],
+},
 }
 
 COLLECTION_DEFAULTS: dict[str, Any] = {
@@ -75,6 +92,11 @@ COLLECTION_DEFAULTS: dict[str, Any] = {
     "assets": "assets",
     "config": "collection.yaml",
     "hooks": "hooks.py",
+    # URL prefix every collection matched by this glob group routes under, e.g. "musings/" ->
+    # /musings/<id>/ instead of /<id>/. Empty (default) leaves today's routing unchanged. This is
+    # a per-glob-group setting rather than a per-collection one: a repo with nine sibling musings
+    # sets it once on their shared `root: musings/*` entry instead of nine times.
+    "at": "",
 }
 
 
@@ -128,6 +150,7 @@ class Collection:
     assets_dir: Path | None = None
     hooks_path: Path | None = None
     data: dict = field(default_factory=dict)
+    route_base: str = ""
 
     @property
     def is_root(self) -> bool:
@@ -156,7 +179,10 @@ class Collection:
 
     @property
     def route_prefix(self) -> str:
-        return "/" if self.is_root else f"/{self.id}/"
+        if self.is_root:
+            return "/"
+        base = (self.route_base or "").strip("/")
+        return f"/{base}/{self.id}/" if base else f"/{self.id}/"
 
     def doc_id(self, stem: str) -> str:
         return stem if self.is_root else f"{self.id}/{stem}"
@@ -246,7 +272,7 @@ class Config:
                 data={"title": self.site.get("name", "site"), "order": 0},
             )
         ]
-        seen: set[str] = set()
+        seen: dict[str, Path] = {}
         for spec in self.data.get("collections") or []:
             spec = deep_merge(COLLECTION_DEFAULTS, spec if isinstance(spec, dict) else {"root": str(spec)})
             pattern = spec["root"]
@@ -257,12 +283,25 @@ class Config:
                 folder = Path(match)
                 if not folder.is_dir() or folder.name.startswith(("_", ".")):
                     continue
-                cid = folder.name
-                if cid in seen:
-                    raise ConfigError(f"collection id '{cid}' matched twice (patterns overlap)")
-                seen.add(cid)
                 config_path = folder / spec["config"]
                 data = _read_yaml(config_path) if config_path.is_file() else {}
+                # An explicit `id:` in collection.yaml overrides the folder name, so a migrated
+                # collection can keep its already-published URL slug even when its folder name
+                # (case, history, whatever) has drifted from it (gh-2).
+                raw_id = data.get("id")
+                cid = raw_id if raw_id else folder.name
+                if not isinstance(cid, str) or not SLUG_RE.match(cid):
+                    where = config_path.relative_to(self.root).as_posix() if config_path.is_file() else folder.name
+                    raise ConfigError(
+                        f"{where}: id '{cid}' is not a valid slug (lowercase letters, digits, '-' or '_', "
+                        "starting with a letter or digit)"
+                    )
+                if cid in seen:
+                    raise ConfigError(
+                        f"collection id '{cid}' is claimed by both '{seen[cid].name}' and '{folder.name}' "
+                        "(set a distinct `id:` in one of their collection.yaml files)"
+                    )
+                seen[cid] = folder
                 data.setdefault("title", cid.replace("-", " ").replace("_", " ").title())
                 hooks_path = folder / spec["hooks"]
                 collection = Collection(
@@ -275,6 +314,7 @@ class Config:
                     assets_dir=folder / spec["assets"],
                     hooks_path=hooks_path if hooks_path.is_file() else None,
                     data=data,
+                    route_base=spec.get("at") or "",
                 )
                 found.append(collection)
         self._collections = found
@@ -298,6 +338,10 @@ class Config:
     @property
     def vocabularies(self) -> dict:
         return self.data["vocabularies"]
+
+    @property
+    def nav(self) -> dict:
+        return self.data.get("nav") or {}
 
     @property
     def limits(self) -> dict:

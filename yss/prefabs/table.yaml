@@ -2,7 +2,7 @@ name: table
 description: Table from a list of mappings. Columns default to the keys of the first row; give `columns` to pick and label them. Lists are joined with commas; short status-like strings get a tone.
 category: data
 params:
-  rows: {type: list, required: true}
+  rows: {type: list, required: true, description: "A row that carries an `id` gets it as the `<tr>` anchor, so [[doc#item]] resolves to that row."}
   columns: {type: list, description: "Strings (keys) or {key, label, md: true} mappings."}
   empty: {type: string, default: No rows.}
   caption: {type: string}
@@ -21,7 +21,8 @@ template: |
     <thead><tr>{% for c in cols %}<th>{{ c.label or c.key }}</th>{% endfor %}</tr></thead>
     <tbody>
     {% for row in rows %}
-      <tr>
+      {% set rid = row.get('id') if row is mapping else none %}
+      <tr{% if rid %} id="{{ rid }}"{% endif %}>
       {% for c in cols %}
         {% set v = row.get(c.key) if row is mapping else row %}
         <td class="{% if v is string and v | length < 16 %}tone-{{ v | slug }} cell-tone{% endif %}">{{ cell(v, c.md) }}</td>
