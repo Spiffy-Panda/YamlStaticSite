@@ -67,7 +67,7 @@ terms:
   - term: archive
     definition: A `_`-prefixed file or folder under docs/ that the loader never reads; where done-and-committed milestones go.
   - term: worksheet
-    definition: A doc kind and prefab for decisions only the human can make - questions with recommended defaults that build a paste-ready agent instruction with a verdicts block.
+    definition: A doc kind and prefab for decisions only the human can make - questions with recommended defaults that build a paste-ready agent instruction with a verdicts block. Once every question carries a resolution it stops asking and becomes the record of what was decided.
     see_also: [verdict]
   - term: verdict
-    definition: The human's answer to a worksheet question, carried in the built instruction and applied to the docs by an agent.
+    definition: The human's answer to a worksheet question, carried in the built instruction and applied to the docs by an agent, then written back onto the question as its `resolution`.

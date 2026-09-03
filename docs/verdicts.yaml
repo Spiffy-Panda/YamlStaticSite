@@ -9,19 +9,25 @@ updated: 2026-09-02
 owners: [agent]
 related: [plan, decisions]
 intro: |
-  **Applied 2026-09-02 by Panda.** Every question below has been answered and recorded in the plan
-  and decisions; this worksheet is kept as the record. Do not re-answer it - open a new worksheet.
-
-  Everything below is a methodology choice, not an implementation detail. Each question has a
-  recommended default already selected and says what each answer costs. Answer, press **Build the
-  instruction**, and hand the text to an agent in a fresh session; the agent applies the verdict block
-  to the docs and commits.
+  The first worksheet of the pilot, and the one that set the methodology rather than any
+  implementation detail: how yss enters the Musings repository, which vocabularies are the shipped
+  defaults, what stale evidence does to a build, when done work leaves the plan, and how another
+  repository installs yss. What each answer turned into is written under the question it answered.
 warn: |
   🐼❗ These verdicts change defaults for every repo that adopts yss, not just this one. Anything
   per-musing (vocabularies, limits, hooks) can still be overridden in that musing's collection.yaml.
 
 questions:
   - id: v-adoption
+    resolution:
+      applied: 2026-09-02
+      by: Panda
+      chose: [collections]
+      recorded_in: [decisions/adr-010, plan/q-musings-collision, plan/m12-musings]
+      summary: |
+        Full adoption, one musing at a time, through collections - so the two generators live side
+        by side until the last musing has moved and `build_site.py` is retired last. The migration
+        is milestone m12.
     call: V.1
     lead: How does yss enter the Musings repository?
     help: Two site generators cannot both own site/. Decision adr-010 proposes collections migrated one musing at a time.
@@ -42,6 +48,13 @@ questions:
         prompt: "Reject adr-010 in favour of one site.yaml per musing; note the missing landing page as an accepted cost."
 
   - id: v-first-musing
+    resolution:
+      applied: 2026-09-02
+      by: Panda
+      recorded_in: [plan/m12-first]
+      summary: |
+        The space cargo cannon musing goes first, and its rendered result is compared against the
+        old generator's output before a second one moves.
     call: V.2
     lead: Which musing migrates first?
     kind: text
@@ -51,6 +64,15 @@ questions:
     applies_to: "plan m12-first title"
 
   - id: v-risk-vocab
+    resolution:
+      applied: 2026-09-02
+      by: Panda
+      chose: [risk_status]
+      recorded_in: [plan/q-work-status-for-risks, decisions/adr-011]
+      summary: |
+        Risks keep their own vocabulary - open, mitigated, accepted, closed - as the shipped
+        default, because a risk is not work and does not become done. It stays a default rather
+        than a rule: vocabularies are data, so a collection overrides it in its collection.yaml.
     call: V.3
     lead: Default vocabulary for risks
     help: Vocabularies are data and any collection can override them; this sets the default shipped with yss.
@@ -67,6 +89,15 @@ questions:
         prompt: "Set the default risk vocabulary to work_status and migrate the risks in docs/plan.yaml."
 
   - id: v-strictness
+    resolution:
+      applied: 2026-09-02
+      by: Panda
+      chose: [strict]
+      recorded_in: [plan/q-check-strictness, decisions/adr-009]
+      summary: |
+        The CI public build runs with `--strict`, so stale evidence fails the deploy rather than
+        warning into an empty room. Local builds stay lenient - `build.strict` is false in
+        site.yaml - which is the split adr-014 later made configurable.
     call: V.4
     lead: What does stale evidence do to the public build in CI?
     help: "`yss check` runs as its own step today. Strict mode makes `yss build` fail on stale claims."
@@ -83,6 +114,15 @@ questions:
         prompt: "Keep stale evidence as warnings in CI; badges and the evidence page surface it."
 
   - id: v-git-recency
+    resolution:
+      applied: 2026-09-02
+      by: Panda
+      chose: ["on"]
+      recorded_in: [plan/q-check-strictness, plan/r-evidence-noise]
+      summary: |
+        Git recency stays on: cited code that changed after a doc's `updated` date raises a warning.
+        Keeping it on is what makes the noise-after-a-refactor problem real, which is why P.8 chose
+        to build `yss reverify` rather than turn the check off.
     call: V.5
     lead: Keep git recency warnings on by default?
     help: A doc whose cited code changed after its `updated` date gets a warn badge until someone re-verifies it and bumps the date.
@@ -99,6 +139,16 @@ questions:
         prompt: "Disable evidence.git_recency in site.yaml and note why in decisions."
 
   - id: v-archive
+    resolution:
+      applied: 2026-09-02
+      by: Panda
+      chose: [on-commit]
+      recorded_in: [decisions/adr-012]
+      summary: |
+        A milestone leaves the plan as soon as it is done and committed, moving to `docs/_archive/`
+        which is never loaded, with a changelog line as the record. The plan therefore holds open
+        work only - and the first thing that rule collided with was an archived worksheet still
+        referencing a done milestone, which is now the live question N.1 on [[next]].
     call: V.6
     lead: When do done milestones leave the plan?
     help: The plan should only hold open work; archived milestones live in docs/_archive/ which agents never load.
@@ -115,6 +165,15 @@ questions:
         prompt: "Archive done milestones only when a changelog release is cut."
 
   - id: v-readme
+    resolution:
+      applied: 2026-09-02
+      by: Panda
+      chose: [include]
+      recorded_in: [plan/q-md-bridge]
+      summary: |
+        README.md stays where it is and the Reference page includes it verbatim, so GitHub's front
+        page and the site never disagree. The duplication is accepted deliberately rather than
+        solved by moving the content into a doc.
     call: V.7
     lead: What happens to README.md?
     applies_to: "plan q-md-bridge"
@@ -130,6 +189,14 @@ questions:
         prompt: "Answer q-md-bridge: migrate README content into docs and shrink README to a pointer."
 
   - id: v-install
+    resolution:
+      applied: 2026-09-02
+      by: Panda
+      chose: [pip]
+      recorded_in: [plan/q-multi-repo]
+      summary: |
+        `pip install` from the git URL is the default way another repository gets yss; vendoring the
+        folder stays possible for a repo that wants the schemas visible in its own tree.
     call: V.8
     lead: How do other repos get yss?
     applies_to: "plan q-multi-repo"

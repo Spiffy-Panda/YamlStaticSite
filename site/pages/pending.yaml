@@ -1,10 +1,10 @@
 # Page - schema: page. Presents docs/pending.yaml, applied 2026-09-02 and kept as the record.
 id: pending
 route: /pending/
-title: Pending
-summary: Applied 2026-09-02 and kept as the record. The live worksheet is on the Open page.
+title: Pending decisions (record)
+summary: A worksheet that has been applied, kept as the record of what was asked and what it turned into. Nothing here is still to answer; the live worksheet is Next.
 visibility: public          # worksheets stay on the public site (P.2, 2026-09-02)
-nav: {label: Pending, order: 47}
+nav: {label: Pending (record), order: 47}
 docs: [pending, plan]
 sections:
   - id: worksheet
@@ -13,7 +13,6 @@ sections:
     args:
       title: {from: pending.title}
       intro: {from: pending.intro}
-      warn: {from: pending.warn}
       questions: {from: pending.questions}
       prompt: {from: pending.prompt}
       decided_by: true
@@ -34,5 +33,6 @@ sections:
     type: markdown
     heading: Other worksheets
     markdown: |
-      - [[open]] - the live one; answer that instead.
-      - [[verdicts]] - applied 2026-09-02; kept as the record.
+      - [[next]] - the live one; answer that instead.
+      - [[open]] - applied 2026-09-02; the record.
+      - [[verdicts]] - applied 2026-09-02; the record.

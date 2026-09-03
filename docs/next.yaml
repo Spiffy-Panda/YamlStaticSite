@@ -31,6 +31,11 @@ questions:
       so removing the milestone fails validation. The instruction that closed it also forbade
       touching archived worksheets. [[codemap]] and two tests cite `plan#m3-pilot` as well, but
       those are easy to repoint.
+
+      Since this was written, the three applied worksheets gained `resolution` blocks
+      ([[decisions#adr-018]]) - an edit to archived worksheets, made on Panda's instruction, that
+      adds what happened without changing what was asked. It does not answer this call: `blocks` is
+      still reference-checked, and m3-pilot still cannot move.
     applies_to: "plan m3-pilot (archive move); docs/_archive/plan-2026-09-done.yaml; whichever rule you relax"
     blocks: [plan/m3-pilot]
     compare: |

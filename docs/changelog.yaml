@@ -18,6 +18,10 @@ releases:
         text: "collection-index renders a hero panel above the grid and a link row per card; `kind: play` renders as a prototype button."
       - type: changed
         text: "A card link into a mount the target does not carry is dropped rather than rendered dead, so a public landing page never advertises a private playable."
+      - type: added
+        text: "A worksheet question may carry a `resolution` (summary, chose, applied, by, recorded_in); the worksheet prefab then renders it as a record - the summary replaces the choices and the options move into a foldout with the taken one marked (adr-018)."
+      - type: changed
+        text: "A worksheet whose questions are all resolved renders without form controls or a Build button, and its blocked-work box becomes the work it released."
   - version: 0.2.0
     date: 2026-09-02
     status: released

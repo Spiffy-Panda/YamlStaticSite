@@ -9,20 +9,24 @@ updated: 2026-09-02
 owners: [agent]
 related: [plan, decisions, verdicts, open]
 intro: |
-  **Applied 2026-09-02 by Panda.** Every question below was answered and recorded in the plan, the
-  decision log ([[decisions#adr-014]], [[decisions#adr-015]], [[decisions#adr-016]]), site.yaml and
-  the demo collection. This worksheet is kept as the record - do not re-answer it; anything still
-  open is on [[open]].
-
-  P.1 was approved, so `build.strict` and per-collection `evidence` settings are now in the site and
-  collection schemas with matching CLI flags. P.9 was answered with one gap, which became the open
-  question [[plan#q-subsite-cards]].
-warn: |
-  🐼❗ Archived. Answering this page again builds an instruction that has already been applied.
-  Open [[open]] for the questions that are still live.
+  The second worksheet of the pilot: schema-change approvals, hosting choices, the Musings renderer,
+  the release cut and the site review. Its answers are in [[decisions#adr-014]],
+  [[decisions#adr-015]] and [[decisions#adr-016]], and what each one turned into is written under
+  the question it answered. P.9 left one gap, which became [[plan#q-subsite-cards]] and was answered
+  as O.1 on [[open]].
 
 questions:
   - id: p-flow-overrides
+    resolution:
+      applied: 2026-09-02
+      by: Panda
+      chose: [approve]
+      recorded_in: [decisions/adr-014, plan/m7-flow-overrides]
+      summary: |
+        Approved, and shipped the same day. `build.strict` is a key in site.yaml, a collection can
+        set its own `evidence` policy, and `--strict/--no-strict`, `--git/--no-git` and
+        `--run-commands/--no-run-commands` override both from the command line. The flow became
+        config rather than a hard-coded workflow flag.
     call: P.1
     lead: May agents add flow overrides to the site schema (build.strict, evidence per collection)?
     help: You asked for config or CLI overrides so agents can adjust the flow. That needs new keys in the site schema and collection schema, which the verdict rules classed as flag-only.
@@ -44,6 +48,15 @@ questions:
         cons: [Agents cannot adjust the flow themselves, Per-musing policy impossible]
 
   - id: p-worksheet-visibility
+    resolution:
+      applied: 2026-09-02
+      by: Panda
+      chose: [public]
+      summary: |
+        Against the recommendation: worksheets stay on the public site. The reasoning that made
+        private the default - that a worksheet shows what the project has not decided yet - was
+        outweighed by the same page being the thing to link to when asking someone to decide. Each
+        worksheet page carries `visibility: public` with this call named in a comment.
     call: P.2
     lead: Should worksheets stay on the public site?
     help: The Verdicts and Pending pages show internal deliberations. The outcome is already public through the decision log and the plan.
@@ -64,6 +77,16 @@ questions:
         cons: [Every future worksheet must be written for a public reader]
 
   - id: p-headers
+    resolution:
+      applied: 2026-09-02
+      by: Panda
+      chose: [no-threads]
+      recorded_in: [decisions/adr-016, plan/r-headers]
+      summary: |
+        Exports are built without threads, so no isolation headers are needed anywhere and one
+        export serves both targets. The coi-serviceworker shim was considered and dropped. The
+        private server still sends COOP/COEP, but nothing is allowed to depend on it - which is
+        what makes the risk mitigated rather than merely handled locally.
     call: P.3
     lead: How do Godot and threaded wasm exports run on GitHub Pages without isolation headers?
     help: The private server sends COOP/COEP; Pages cannot. Risk r-headers is open and both prototype tasks wait on this.
@@ -86,6 +109,15 @@ questions:
         cons: [First visit reloads once, Vendored script to update, Breaks if a CSP forbids service workers]
 
   - id: p-playable-public
+    resolution:
+      applied: 2026-09-02
+      by: Panda
+      chose: [private-default]
+      recorded_in: [decisions/adr-015]
+      summary: |
+        A mount is private unless it names the public target, so publishing a playable is always a
+        deliberate act. The demo collection's playable opts in as the worked example, and a card
+        link into a mount the public target does not carry is dropped rather than rendered dead.
     call: P.4
     lead: Can playables be published to the public site by default?
     help: Mounts are private-only unless a collection says otherwise; the demo collection's playable is waiting on this call.
@@ -107,6 +139,15 @@ questions:
         cons: [Half-finished builds can reach the public site, Contradicts the privacy-by-marking principle]
 
   - id: p-renderer
+    resolution:
+      applied: 2026-09-02
+      by: Panda
+      chose: [plug]
+      recorded_in: [plan/m12-renderer, plan/r-two-renderers]
+      summary: |
+        The existing Musings renderer stays authoritative for the whole migration, plugged in
+        through `markdown.renderer` or a collection's `hooks.py`, so no page changes appearance
+        while it moves. Retiring it is the last step of the migration, not part of this call.
     call: P.5
     lead: Which markdown renderer does the Musings migration use?
     help: Musings has its own renderer with a documented subset; yss ships markdown-it-py and can plug a renderer in per site or per collection.
@@ -128,6 +169,14 @@ questions:
         cons: [Rendering differences to review page by page, Lint rule to write]
 
   - id: p-release
+    resolution:
+      applied: 2026-09-02
+      by: Panda
+      chose: [now]
+      summary: |
+        Cut immediately rather than waiting for the first musing. 0.2.0 shipped on 2026-09-02 with
+        self-proving docs, data-driven rules, item-level references, collections with hooks,
+        worksheets and flow policy as config; see [[changelog]].
     call: P.6
     lead: Cut yss 0.2.0 now, or after the first musing migrates?
     help: The changelog lists 0.2.0 as unreleased. A release means a git tag and flipping the status.
@@ -148,6 +197,15 @@ questions:
         cons: [No stable pin meanwhile, Changelog keeps growing under one version]
 
   - id: p-hardening
+    resolution:
+      applied: 2026-09-02
+      by: Panda
+      chose: [search]
+      recorded_in: [plan/m7-search]
+      summary: |
+        Only search was ticked, so it went first and the rest of m7 stayed unranked - which is what
+        left a follow-up question. That question was asked as O.3 on [[open]] and ranked the whole
+        milestone; nothing in m7 was dropped.
     call: P.7
     lead: Which hardening items should agents pick up next?
     kind: check
@@ -177,6 +235,15 @@ questions:
         cons: [Slower CI, Commands must be safe unattended]
 
   - id: p-evidence-noise
+    resolution:
+      applied: 2026-09-02
+      by: Panda
+      chose: [tool]
+      recorded_in: [plan/m7-reverify, plan/r-evidence-noise]
+      summary: |
+        A command rather than a habit: `yss reverify <doc>` will bump `updated` once a human
+        confirms the doc still holds. It has not shipped, so the risk stays open until it does -
+        the verdict decided the fix, not that the problem was gone.
     call: P.8
     lead: How should git recency warnings be handled after a large refactor?
     help: Risk r-evidence-noise is open - every doc that cites changed code warns until its updated date is bumped.
@@ -197,6 +264,15 @@ questions:
         cons: [Easy to rubber-stamp, More CLI surface]
 
   - id: p-site-review
+    resolution:
+      applied: 2026-09-02
+      by: Panda
+      recorded_in: [plan/m3-review, plan/q-subsite-cards]
+      summary: |
+        No framing gaps in what the site renders today, with one caveat the reviewer stated plainly:
+        nothing had yet run outside this repository. One gap was named - how a parent site presents
+        the sub-sites it links to - and it became the open question `q-subsite-cards`, answered later
+        as O.1 on [[open]].
     call: P.9
     lead: Site review - what framing gaps did you find?
     kind: text

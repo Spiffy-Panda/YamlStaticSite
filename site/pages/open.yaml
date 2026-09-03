@@ -1,10 +1,10 @@
 # Page - schema: page. Presents docs/open.yaml, applied 2026-09-02 and kept as the record.
 id: open
 route: /open/
-title: Open
-summary: Applied 2026-09-02 and kept as the record. The live worksheet is on the Next page.
+title: Open decisions (record)
+summary: A worksheet that has been applied, kept as the record of what was asked and what it turned into. Nothing here is still to answer; the live worksheet is Next.
 visibility: public          # worksheets stay on the public site (P.2, 2026-09-02)
-nav: {label: Open, order: 45}
+nav: {label: Open (record), order: 45}
 docs: [open, plan]
 sections:
   - id: worksheet
@@ -13,7 +13,6 @@ sections:
     args:
       title: {from: open.title}
       intro: {from: open.intro}
-      warn: {from: open.warn}
       questions: {from: open.questions}
       prompt: {from: open.prompt}
       decided_by: true
@@ -22,7 +21,7 @@ sections:
   - id: waiting
     type: prefab
     heading: Plan questions still open
-    intro: Every question in [[plan]] that nobody has answered yet. This worksheet's own questions are all answered; the live ones are on [[next]].
+    intro: Every question in [[plan]] that nobody has answered yet. None of them belong to this worksheet - its own are all applied above; the live ones are on [[next]].
     prefab: table
     args:
       rows:
@@ -39,5 +38,5 @@ sections:
     heading: Other worksheets
     markdown: |
       - [[next]] - the live one; answer that instead.
-      - [[pending]] - applied 2026-09-02; kept as the record.
-      - [[verdicts]] - applied 2026-09-02; kept as the record.
+      - [[pending]] - applied 2026-09-02; the record.
+      - [[verdicts]] - applied 2026-09-02; the record.

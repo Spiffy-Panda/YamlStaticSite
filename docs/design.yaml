@@ -5,7 +5,7 @@ id: design
 title: YamlStaticSite design
 summary: Three schema families (structured docs, UI prefabs, un-inflated pages) feed a build that validates, checks evidence, renders a site per target and exports the same data as JSON; collections make folder-per-topic repos first-class.
 status: active
-updated: 2026-09-02
+updated: 2026-09-03
 owners: [agent]
 related: [plan, codemap, decisions]
 
@@ -127,7 +127,7 @@ components:
   - id: c-worksheet
     name: Worksheet
     kind: ui
-    responsibility: Decision instrument - questions with recommended defaults, a required-answer gate, and a Build button that produces a paste-ready agent instruction with a verdict block; no persistence.
+    responsibility: Decision instrument - questions with recommended defaults, a required-answer gate, and a Build button producing a paste-ready agent instruction. An applied question carries a `resolution` and renders as a record (adr-018).
     depends_on: [c-prefabs]
     code: [yss/prefabs/worksheet.yaml, yss/schemas/doc.worksheet.schema.yaml]
     status: active
@@ -283,6 +283,9 @@ flows:
         produces: plain-text instruction with a VERDICTS block
       - actor: agent
         action: Apply the verdicts to the docs and config in a fresh session, validate, check, build, commit
+      - actor: agent
+        action: Write a `resolution` on each answered question - what addressed it, what was taken, where it landed
+        produces: the worksheet page turns into its own record; the choices stay in a foldout
   - id: f-author
     title: Agent adds a milestone and shows it
     trigger: A task is planned

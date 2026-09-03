@@ -1,10 +1,10 @@
 # Page - schema: page. Presents docs/verdicts.yaml as a worksheet.
 id: verdicts
 route: /verdicts/
-title: Verdicts
-summary: Applied 2026-09-02 and kept as the record. The live worksheet is on the Open page.
+title: Pilot verdicts (record)
+summary: A worksheet that has been applied, kept as the record of what was asked and what it turned into. Nothing here is still to answer; the live worksheet is Next.
 visibility: public          # worksheets stay on the public site (P.2, 2026-09-02)
-nav: {label: Verdicts, order: 48}
+nav: {label: Verdicts (record), order: 48}
 docs: [verdicts, plan]
 sections:
   - id: worksheet
@@ -22,7 +22,7 @@ sections:
   - id: questions
     type: prefab
     heading: Open questions on record
-    intro: The same questions as they stand in [[plan]]; they flip to answered when the instruction above is applied.
+    intro: The same questions as they stand in [[plan]]. They were flipped to answered when this worksheet was applied; what each verdict turned into is written under it above.
     prefab: table
     args:
       rows: {from: plan.open_questions}

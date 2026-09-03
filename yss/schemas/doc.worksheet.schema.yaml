@@ -35,6 +35,27 @@ properties:
           x-ref: item
           description: "Plan items waiting on this answer, as doc/item (e.g. plan/m6-godot). Rendered as links and listed under Blocked work."
         compare: {type: string, x-limit: markdown, description: Extra comparison notes shown in the compare-all foldout.}
+        resolution:
+          type: object
+          required: [summary]
+          additionalProperties: false
+          description: >-
+            What actually happened to this question. Its presence turns the question into a record:
+            the choices stop being offered, the summary takes their place, and the options move into
+            a foldout underneath. A question without one is still live.
+          properties:
+            summary: {type: string, x-limit: markdown, description: What addressed it, written in the past tense.}
+            chose:
+              type: array
+              items: {type: string}
+              description: The option `value`s that were picked; each must name an option of this question.
+            applied: {type: string, format: date, description: ISO date the verdict was applied.}
+            by: {type: string, description: Handle of whoever made the call.}
+            recorded_in:
+              type: array
+              items: {$ref: "#/$defs/slug"}
+              x-ref: item
+              description: Where the verdict landed, as doc/item (e.g. decisions/adr-017). Rendered as links.
         options:
           type: array
           items:

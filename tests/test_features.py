@@ -229,22 +229,21 @@ class ArchiveTests(TempSiteCase):
 
 
 class WorksheetTests(TempSiteCase):
-    def test_worksheet_renders_with_defaults_and_config(self):
+    def test_a_live_worksheet_renders_with_defaults_and_config(self):
         loaded = load_all(self.cfg)
         self.assertEqual(loaded.errors, [])
         rep = build(self.cfg, "public", run_dynamic=False, loaded=loaded)
-        html = (rep.out_dir / "verdicts" / "index.html").read_text(encoding="utf-8")
-        self.assertIn('data-q="v-adoption"', html)
-        self.assertIn('value="collections" data-prompt="Accept adr-010', html)
+        html = (rep.out_dir / "next" / "index.html").read_text(encoding="utf-8")
+        self.assertIn('data-q="n-archive-pilot"', html)
+        self.assertIn('value="stop-checking" data-prompt="Skip x-ref', html)
         self.assertIn("checked", html)  # recommended default pre-selected
         self.assertIn("Build the instruction", html)
         self.assertIn('class="ws-config"', html)
         self.assertIn("RULES", (rep.out_dir / "assets" / "prefabs.js").read_text(encoding="utf-8"))
-        pending = (rep.out_dir / "pending" / "index.html").read_text(encoding="utf-8")
-        self.assertIn('class="ws-procon"', pending)      # pros/cons foldout per option
-        self.assertIn('class="ws-compare"', pending)     # compare-all foldout per question
-        self.assertIn('href="/YamlStaticSite/plan/#m6-godot"', pending)  # blocks link resolved
-        self.assertIn("Blocked work waiting on this worksheet", pending)
+        self.assertIn('class="ws-procon"', html)      # pros/cons foldout per option
+        self.assertIn('class="ws-compare"', html)     # compare-all foldout per question
+        self.assertIn('href="/YamlStaticSite/plan/#m3-pilot"', html)  # blocks link resolved
+        self.assertIn("Blocked work waiting on this worksheet", html)
 
     def test_site_theme_css_is_linked_after_the_base_stylesheet(self):
         """site.yaml theme.css rides on top of yss.css; it must not replace it."""
@@ -329,21 +328,48 @@ class MountTargetTests(TempSiteCase):
 
 
 class WorksheetLifecycleTests(TempSiteCase):
-    """A worksheet is applied, archived and replaced; the live one is `open` (P.2 keeps both public)."""
+    """A worksheet is applied and becomes its own record; the live one is `next` (P.2 keeps them all public)."""
 
-    def test_worksheet_pages_are_public_and_the_archived_one_says_so(self):
+    def test_worksheet_pages_are_public_and_the_applied_ones_are_records(self):
         rep = build(self.cfg, "public", run_dynamic=False)
-        for route in ("open", "pending", "verdicts"):
+        for route in ("open", "pending", "verdicts", "next"):
             self.assertTrue((rep.out_dir / route / "index.html").is_file(), route)
-        pending = (rep.out_dir / "pending" / "index.html").read_text(encoding="utf-8")
-        self.assertIn("Applied 2026-09-02", pending)
-        self.assertIn('href="/YamlStaticSite/open/"', pending)  # points at the live worksheet
+        for route in ("open", "pending", "verdicts"):
+            html = (rep.out_dir / route / "index.html").read_text(encoding="utf-8")
+            self.assertIn('class="ws-record"', html, route)          # the record banner
+            self.assertIn("applied 2026-09-02", html, route)
+            self.assertNotIn("Build the instruction", html, route)   # nothing left to answer
+            self.assertNotIn('class="ws-config"', html, route)
+            self.assertIn('href="/YamlStaticSite/next/"', html, route)  # points at the live worksheet
 
-    def test_the_live_worksheet_lists_the_open_plan_questions(self):
+    def test_an_applied_question_shows_what_addressed_it_and_keeps_the_choices(self):
+        """adr-018: the summary replaces the choices; the options move into a foldout, taken one marked."""
+        rep = build(self.cfg, "public", run_dynamic=False)
+        html = (rep.out_dir / "verdicts" / "index.html").read_text(encoding="utf-8")
+        self.assertIn('data-q="v-adoption"', html)
+        self.assertIn('data-resolved="1"', html)
+        self.assertIn("What addressed it", html)
+        self.assertIn('href="/YamlStaticSite/decisions/#adr-010"', html)   # recorded_in link
+        self.assertNotIn('value="collections" data-prompt=', html)         # no input to pick it again
+        self.assertIn('class="ws-was"', html)                              # the choices, kept
+        self.assertIn("ws-opt-chosen", html)                               # the one that was taken
+        pending = (rep.out_dir / "pending" / "index.html").read_text(encoding="utf-8")
+        self.assertIn('class="ws-procon"', pending)                        # pros and cons survive
+        self.assertIn('class="ws-compare"', pending)                       # so does the compare table
+
+    def test_a_released_blocker_is_not_still_blocking(self):
         rep = build(self.cfg, "public", run_dynamic=False)
         html = (rep.out_dir / "open" / "index.html").read_text(encoding="utf-8")
-        self.assertIn("q-subsite-cards", html)
+        self.assertIn("Work this worksheet released", html)
+        self.assertNotIn("Blocked work waiting on this worksheet", html)
+        self.assertIn('href="/YamlStaticSite/plan/#m6-bandwidth"', html)
+
+    def test_the_live_worksheet_still_asks(self):
+        rep = build(self.cfg, "public", run_dynamic=False)
+        html = (rep.out_dir / "next" / "index.html").read_text(encoding="utf-8")
         self.assertIn("Build the instruction", html)
+        self.assertNotIn('data-resolved="1"', html)
+        self.assertNotIn('class="ws-record"', html)
 
 
 

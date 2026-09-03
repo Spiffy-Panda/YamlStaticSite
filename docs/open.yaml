@@ -9,15 +9,9 @@ updated: 2026-09-02
 owners: [agent]
 related: [plan, decisions, pending, next]
 intro: |
-  **Applied 2026-09-02 by Panda.** O.1 chose the card contract, so `links` and `hero` are now in the
-  collection schema and the landing page draws its cards from them ([[decisions#adr-017]]). O.2 set
-  no rule on purpose - no Godot export goes public until one exists and its size is measured. O.3
-  ranked the whole of milestone m7, so nothing in it is dropped.
-
-  This worksheet is kept as the record - do not re-answer it. Anything still open is on [[next]].
-warn: |
-  🐼❗ Archived. Answering this page again builds an instruction that has already been applied.
-  Open [[next]] for the questions that are still live.
+  The worksheet that ran between [[pending]] and [[next]], opened once the pending calls had been
+  applied. What each answer turned into is written under the question it answered. The questions
+  that are still live are on [[next]].
 
 questions:
   - id: o-subsite-cards
@@ -31,6 +25,17 @@ questions:
       that card, or how a collection asks for the hero slot.
     applies_to: "plan q-subsite-cards answer; collection schema if a contract is chosen; decisions (new entry)"
     blocks: [plan/q-subsite-cards]
+    resolution:
+      applied: 2026-09-02
+      by: Panda
+      chose: [contract]
+      recorded_in: [decisions/adr-017, plan/q-subsite-cards]
+      summary: |
+        The contract went into the collection schema: a collection declares its own `emblem`,
+        `blurb`, `links` (label, href, kind) and a `hero` flag, and the parent renders whatever it
+        finds. The Collections panel on the home page is that renderer, and the demo musing is the
+        first collection to fill it in. A parent no longer has to know anything about a sub-site to
+        draw its card.
     compare: |
       The contract makes a new musing appear on the landing page by existing, at the cost of two
       more collection.yaml keys and a card prefab that has to suit every musing. The hand-written
@@ -66,6 +71,16 @@ questions:
       what has to be true before one goes public.
     applies_to: "plan m6-bandwidth status and notes; decisions (new entry if a rule is set)"
     blocks: [plan/m6-bandwidth]
+    resolution:
+      applied: 2026-09-02
+      by: Panda
+      chose: [never-yet]
+      recorded_in: [plan/m6-bandwidth, plan/m6-godot]
+      summary: |
+        No rule was written, on purpose. `m6-bandwidth` stays blocked until a real export exists and
+        its size has been measured, and until then no Godot export carries the public target on its
+        mount. Mounts are private by default regardless, so nothing was left unsafe by deciding not
+        to decide.
     options:
       - value: never-yet
         text: Not until a real export exists and its size is measured
@@ -115,6 +130,15 @@ questions:
         why: Task verify commands get executed, not just recorded.
         pros: [Verify strings become real checks]
         cons: [Slower CI, Commands must be safe unattended]
+    resolution:
+      applied: 2026-09-02
+      by: Panda
+      chose: [reverify, watchdog, kinds, run-commands]
+      recorded_in: [plan/m7-reverify, plan/m7-watchdog, plan/m7-kinds, plan/m7-verify-evidence]
+      summary: |
+        All four were ticked, which ranked the whole of milestone m7 rather than picking one:
+        search first, then reverify, watchdog, kinds and the command-evidence CI job. Nothing in m7
+        was dropped, and each task carries its place in the order in its notes.
 
 prompt:
   task: Apply the open decisions below to the yss docs and configuration

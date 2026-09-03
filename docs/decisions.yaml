@@ -304,3 +304,32 @@ entries:
     alternatives:
       - A hand-written list on the parent page (no schema change, but a migrated musing stays invisible until someone adds it).
       - Contract plus per-sub-site overrides on the parent page (nothing invisible, but the same fact lives in two places).
+
+  - id: adr-018
+    date: 2026-09-03
+    title: An applied worksheet keeps the choices but stops offering them
+    status: accepted
+    context: |
+      A worksheet that had been applied still rendered as a form: radio buttons pre-selected, a
+      Build button, and a "blocked work waiting on this worksheet" box - on a page whose questions
+      had all been answered and whose blocked items had all been released. The only thing saying
+      otherwise was hand-written prose in the intro and a warning box, which every applied worksheet
+      had to repeat and which no rule kept true. A page named Open read as open work; a page marked
+      archived read as still blocking.
+    decision: |
+      A question may carry a `resolution` - a past-tense summary of what addressed it, plus the
+      option values that were taken, the date, who decided, and `recorded_in` references to where
+      the verdict landed. Its presence changes what the prefab renders: the choices stop being
+      offered, the summary takes their place, and the options move into a foldout underneath with
+      the taken one marked. When every question has one, the worksheet renders as a record - no
+      form controls, no Build button, and the blocked box becomes "work this worksheet released".
+      Whether a worksheet is finished is therefore a property of its data, the same way whether a
+      doc is current is an evidence result rather than a status (adr-009).
+    consequences:
+      - An applied worksheet documents its own outcome; the intro no longer has to repeat what happened, and the warning box telling people not to re-answer it is unnecessary.
+      - The record and the choices live together, so why an option was rejected is still readable next to what was chosen.
+      - Filling a resolution means editing an archived worksheet, which is exactly what next#n-archive-pilot is about; these edits add what happened rather than changing what was asked, but the collision is real and still needs a verdict.
+      - A partly-applied worksheet is possible - resolved questions drop out of the required-answer gate while the rest stay live.
+    alternatives:
+      - Leave the prose in each intro (nothing to build, but every worksheet repeats it and nothing keeps it true).
+      - Drop applied worksheets from the site entirely (no confusion, but the record of what was asked and rejected goes with them).
