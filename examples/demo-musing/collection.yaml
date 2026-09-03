@@ -6,6 +6,10 @@ emblem: "🧪"
 order: 1
 status: active
 tags: [example]
+hero: true                                     # the card contract (adr-017): this one leads the panel
+links:                                         # hrefs are relative to /demo-musing/
+  - {label: Overview, href: "", kind: page}
+  - {label: The playable, href: "play/index.html", kind: play}
 theme:
   accent: "#7a3e9d"
   css: [assets/theme.css]

@@ -1,0 +1,139 @@
+# Worksheet - schema: doc.worksheet. The live one. Opened 2026-09-02 after the open worksheet was applied.
+# Agents: add a question here whenever work stalls on a human call; never answer one.
+kind: worksheet
+id: next
+title: Next decisions
+summary: What is waiting on Panda after the open worksheet was applied - archiving the closed pilot milestone, two link vocabularies that now disagree, and whether card links should be checked evidence.
+status: active
+updated: 2026-09-02
+owners: [agent]
+related: [plan, decisions, open]
+intro: |
+  The previous worksheet ([[open]]) has been applied and archived. All three questions here came
+  out of applying it, and none of them blocks work that is already moving. Recommended defaults are
+  pre-selected; open **pros and cons** under an option before changing one, press **Build the
+  instruction**, and hand the text to an agent in a fresh session.
+
+  N.1 is a housekeeping conflict an agent could not resolve alone. N.2 and N.3 are both about the
+  card contract now that it exists and is rendering.
+warn: |
+  🐼❗ N.1 exists because the archive rule and the "never edit an archived worksheet" rule collide.
+  Answer it before the next big plan cleanup, or the same collision comes back.
+
+questions:
+  - id: n-archive-pilot
+    call: N.1
+    lead: The pilot milestone is done - may an agent edit archived worksheets to archive it?
+    help: |
+      m3-pilot closed on 2026-09-02 with both tasks done, and the rule says a done-and-committed
+      milestone moves to `docs/_archive/`. It could not be moved: the archived worksheet
+      [[pending]] still lists `plan/m3-review` under `blocks`, and that field is reference-checked,
+      so removing the milestone fails validation. The instruction that closed it also forbade
+      touching archived worksheets. [[codemap]] and two tests cite `plan#m3-pilot` as well, but
+      those are easy to repoint.
+    applies_to: "plan m3-pilot (archive move); docs/_archive/plan-2026-09-done.yaml; whichever rule you relax"
+    blocks: [plan/m3-pilot]
+    compare: |
+      Archived worksheets are a record of what was asked and answered, and their `blocks` lists are
+      part of that record. Either the record is allowed to drift as the plan moves on, or the
+      reference checker has to stop treating an archived worksheet's `blocks` as a live reference,
+      or done milestones linger in the plan and the archive rule quietly stops meaning anything.
+    options:
+      - value: stop-checking
+        text: Stop reference-checking `blocks` on archived worksheets
+        recommended: true
+        why: The record stays untouched and the plan can archive freely; a worksheet with status archived is history, not a live claim.
+        prompt: "Skip x-ref validation of `blocks` on worksheets whose status is archived, then archive m3-pilot and repoint the codemap and test references."
+        pros: [Archived worksheets are never edited, The archive rule keeps working, One narrow rule change]
+        cons: [An archived worksheet can point at items that no longer exist, One more exception to explain]
+      - value: allow-edit
+        text: Let an agent update `blocks` on an archived worksheet when the item it names is archived
+        why: References stay true everywhere; the edit is mechanical and only touches `blocks`.
+        prompt: "Allow agents to update `blocks` on archived worksheets when the referenced item is archived; archive m3-pilot and fix the references."
+        pros: [Every reference stays resolvable, No schema or checker change]
+        cons: [The record of what was asked is no longer exactly what was asked, Opens the door to other archived-doc edits]
+      - value: keep-in-plan
+        text: Leave done milestones in the plan until nothing references them
+        why: No rule changes; m3-pilot sits in the plan marked done.
+        prompt: "Leave m3-pilot in docs/plan.yaml marked done; archive it only once nothing references it."
+        pros: [No rule changes at all]
+        cons: [The plan stops holding open work only, A done milestone can linger indefinitely]
+
+  - id: n-link-kinds
+    call: N.2
+    lead: Two link vocabularies now disagree - should they be one?
+    help: |
+      The doc envelope's `links` have used `kind: repo | issue | pr | doc | page | external | file`
+      since adr-002. The card contract added by [[decisions#adr-017]] uses
+      `page | play | doc | external | repo | file` - close, but not the same list, and `play` exists
+      in only one of them. Anyone writing a link now has to know which kind of link they are writing.
+    applies_to: "collection schema links.kind; doc envelope links.kind; decisions (new entry if the vocabularies merge)"
+    options:
+      - value: merge
+        text: One shared link vocabulary, with `play` added to it
+        recommended: true
+        why: One list everywhere, resolved from config like every other vocabulary (adr-011).
+        prompt: "Make link kinds a named vocabulary in site.yaml (repo, issue, pr, doc, page, play, external, file) and point both the envelope and the collection card contract at it with x-vocab."
+        pros: [One list to learn, Overridable per collection like other vocabularies, "`play` becomes available to doc links too"]
+        cons: [Touches the doc envelope, which every kind folds in, Existing docs must still validate]
+      - value: keep-separate
+        text: Keep them separate; a card link is not a doc link
+        why: The card contract is about what a parent site renders, not about what a doc cites.
+        prompt: "Leave the two link vocabularies separate; document the difference in the yss-publish skill."
+        pros: [No envelope change, Each list stays as short as its job needs]
+        cons: [Two similar lists to remember, "`play` unavailable to doc links"]
+
+  - id: n-link-evidence
+    call: N.3
+    lead: Should a card link be checked evidence?
+    kind: check
+    required: false
+    help: |
+      A card link's href is not verified today. A link to a page that was renamed, or to a mount
+      whose folder was deleted, renders as a dead link on the landing page - exactly the kind of
+      claim `yss check` exists to catch. Links into a mount the target does not carry are already
+      dropped, so this is about links that are simply wrong. Tick what should be checked.
+    applies_to: "collection schema links.href x-evidence; plan m7 task if work is needed"
+    options:
+      - value: routes
+        text: A link to a collection page must resolve to a real route
+        why: Catches a renamed or deleted page on the next build.
+        pros: [Dead card links fail the check, No new authoring]
+        cons: [Routes only exist after pages load, so the check runs late]
+      - value: mounts
+        text: A link into a mount must exist in the mounted folder
+        why: Catches a deleted or renamed export.
+        pros: [A missing playable is caught before publishing]
+        cons: [The folder may be built by a hook and absent at check time]
+      - value: external
+        text: External hrefs are fetched
+        why: Catches link rot off-site.
+        pros: [Finds dead external links]
+        cons: [Network access during check, Slow and flaky, Fails offline]
+
+prompt:
+  task: Apply the next decisions below to the yss docs and configuration
+  background: |
+    Repository YamlStaticSite. Docs are YAML under docs/ validated by `python -m yss validate` and
+    `python -m yss check`. Plan in docs/plan.yaml, decisions in docs/decisions.yaml, defaults in
+    site.yaml, per-collection config in <collection>/collection.yaml. Load the `yss` skill first.
+  steps:
+    - For each decision, update the named plan item, risk or open question; add a decision entry where a verdict sets a rule.
+    - N.1 decides whether m3-pilot can be archived and which rule gives way; apply the move if the answer allows it.
+    - N.2 and N.3 both touch the card contract from adr-017; a merge answer changes the doc envelope, so say so in the decision entry.
+    - Archive this worksheet (status archived, applied note in the intro) and start a new one for anything still open.
+    - Run validate, check, build --target all --no-dynamic and the tests; commit with the verdict block in the message body.
+  do_not_touch:
+    - .yss/local.yaml and anything under dist/.
+    - Accepted decisions - supersede, never edit.
+    - Archived worksheets (docs/verdicts.yaml, docs/pending.yaml, docs/open.yaml) unless N.1 says otherwise.
+  flag_only:
+    - Schema changes beyond what N.2 and N.3 approve.
+    - Anything that would need changes in the Musings repository itself.
+  rules:
+    - Project knowledge goes in docs/*.yaml, never in new markdown files.
+    - Validate and check after every edit; fix every reported file and path.
+    - Mark anything not for the public site as visibility private or private_notes.
+    - No absolute paths in anything that reaches dist/.
+decided_by: true
+extra: true

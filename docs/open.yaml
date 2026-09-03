@@ -1,24 +1,23 @@
-# Worksheet - schema: doc.worksheet. The live one. Opened 2026-09-02 after the pending worksheet was applied.
-# Agents: add a question here whenever work stalls on a human call; never answer one.
+# Worksheet - schema: doc.worksheet. Applied 2026-09-02 and kept as the record; do not re-answer it.
+# Agents: new questions go in docs/next.yaml, never here.
 kind: worksheet
 id: open
 title: Open decisions
 summary: What is still waiting on Panda after the 2026-09-02 verdicts - the sub-site card contract, when a Godot export may go public, and which hardening item follows search.
-status: active
+status: archived
 updated: 2026-09-02
 owners: [agent]
-related: [plan, decisions, pending]
+related: [plan, decisions, pending, next]
 intro: |
-  The previous worksheet ([[pending]]) has been applied and archived. Three questions are left, and
-  two of them are new - they came out of applying it. Recommended defaults are pre-selected; open
-  **pros and cons** under an option before changing one, press **Build the instruction**, and hand
-  the text to an agent in a fresh session.
+  **Applied 2026-09-02 by Panda.** O.1 chose the card contract, so `links` and `hero` are now in the
+  collection schema and the landing page draws its cards from them ([[decisions#adr-017]]). O.2 set
+  no rule on purpose - no Godot export goes public until one exists and its size is measured. O.3
+  ranked the whole of milestone m7, so nothing in it is dropped.
 
-  Nothing here blocks the toolchain itself. The first question blocks the Musings landing page, the
-  second gates any public Godot export, and the third only orders work already on the plan.
+  This worksheet is kept as the record - do not re-answer it. Anything still open is on [[next]].
 warn: |
-  🐼❗ O.1 is the only one that can change a schema. Everything else is plan ordering or a hosting
-  call, so an agent can act on it the same day.
+  🐼❗ Archived. Answering this page again builds an instruction that has already been applied.
+  Open [[next]] for the questions that are still live.
 
 questions:
   - id: o-subsite-cards

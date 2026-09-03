@@ -1,28 +1,28 @@
-# Page - schema: page. Presents docs/open.yaml, applied 2026-09-02 and kept as the record.
-id: open
-route: /open/
-title: Open
-summary: Applied 2026-09-02 and kept as the record. The live worksheet is on the Next page.
+# Page - schema: page. Presents docs/next.yaml, the live worksheet.
+id: next
+route: /next/
+title: Next
+summary: The decisions still waiting on Panda, as a worksheet with pros and cons per option. Answer, build the instruction, hand it to an agent.
 visibility: public          # worksheets stay on the public site (P.2, 2026-09-02)
-nav: {label: Open, order: 45}
-docs: [open, plan]
+nav: {label: Next, order: 44}
+docs: [next, plan]
 sections:
   - id: worksheet
     type: prefab
     prefab: worksheet
     args:
-      title: {from: open.title}
-      intro: {from: open.intro}
-      warn: {from: open.warn}
-      questions: {from: open.questions}
-      prompt: {from: open.prompt}
+      title: {from: next.title}
+      intro: {from: next.intro}
+      warn: {from: next.warn}
+      questions: {from: next.questions}
+      prompt: {from: next.prompt}
       decided_by: true
       extra: true
 
   - id: waiting
     type: prefab
     heading: Plan questions still open
-    intro: Every question in [[plan]] that nobody has answered yet. This worksheet's own questions are all answered; the live ones are on [[next]].
+    intro: Every question in [[plan]] that nobody has answered yet, whether or not a worksheet question above covers it.
     prefab: table
     args:
       rows:
@@ -36,8 +36,8 @@ sections:
 
   - id: previous
     type: markdown
-    heading: Other worksheets
+    heading: Previous worksheets
     markdown: |
-      - [[next]] - the live one; answer that instead.
+      - [[open]] - applied 2026-09-02; kept as the record.
       - [[pending]] - applied 2026-09-02; kept as the record.
       - [[verdicts]] - applied 2026-09-02; kept as the record.

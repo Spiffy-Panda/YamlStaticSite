@@ -347,5 +347,47 @@ class WorksheetLifecycleTests(TempSiteCase):
 
 
 
+class CardContractTests(TempSiteCase):
+    """A collection declares its own card; the parent page renders whatever it finds (adr-017)."""
+
+    def collection_yaml(self):
+        return self.root / "examples" / "demo-musing" / "collection.yaml"
+
+    def test_contract_reaches_the_landing_page(self):
+        rep = build(self.cfg, "public", run_dynamic=False)
+        html = (rep.out_dir / "index.html").read_text(encoding="utf-8")
+        self.assertIn("collection-hero-panel", html)                       # hero: true
+        self.assertIn("collection-link kind-play", html)                   # kind: play button
+        self.assertIn('href="/YamlStaticSite/demo-musing/play/index.html"', html)  # relative href resolved
+        self.assertIn('href="/YamlStaticSite/demo-musing/"', html)         # empty href is the landing route
+
+    def test_a_link_into_an_uncarried_mount_is_dropped(self):
+        """A private-only playable must not be advertised on the public landing page."""
+        path = self.collection_yaml()
+        path.write_text(path.read_text(encoding="utf-8")
+                        .replace("targets: [private, public]", "targets: [private]"), encoding="utf-8")
+        cfg = Config.load(self.root)
+        pub = (build(cfg, "public", run_dynamic=False).out_dir / "index.html").read_text(encoding="utf-8")
+        priv = (build(cfg, "private", run_dynamic=False).out_dir / "index.html").read_text(encoding="utf-8")
+        self.assertNotIn("play/index.html", pub)
+        self.assertIn("play/index.html", priv)
+
+    def test_a_collection_without_a_contract_still_renders(self):
+        path = self.collection_yaml()
+        text = path.read_text(encoding="utf-8")
+        text = text[:text.index("hero: true")] + text[text.index("visibility:") if "visibility:" in text else text.index("theme:"):]
+        path.write_text(text, encoding="utf-8")
+        cfg = Config.load(self.root)
+        html = (build(cfg, "public", run_dynamic=False).out_dir / "index.html").read_text(encoding="utf-8")
+        self.assertIn("collection-card", html)
+        self.assertNotIn("collection-hero-panel", html)
+
+    def test_an_unknown_link_kind_is_rejected(self):
+        path = self.collection_yaml()
+        path.write_text(path.read_text(encoding="utf-8").replace("kind: play", "kind: bogus"), encoding="utf-8")
+        errors = load_all(Config.load(self.root)).errors
+        self.assertTrue(any("bogus" in e for e in errors), errors)
+
+
 if __name__ == "__main__":
     unittest.main()

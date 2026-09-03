@@ -141,11 +141,42 @@ class Renderer:
             return self.url(f"{self.current_collection.id}/{path}")
         return self.url(path)
 
+    def _mounted_prefixes(self, c: Collection) -> set[str]:
+        """First path segment of every mount this collection carries in this target."""
+        out = set()
+        for spec in c.data.get("mounts") or []:
+            if self.target in (spec.get("targets") or ["private"]):
+                out.add(spec["at"].strip("/").split("/")[0])
+        return out
+
+    def _card_links(self, c: Collection) -> list[dict]:
+        """Resolve the card contract's links against the collection route for this target.
+
+        A relative link into a mount the target does not carry would be a dead card link on the
+        public site, so it is dropped instead of rendered.
+        """
+        carried = self._mounted_prefixes(c)
+        declared = {(spec.get("at") or "").strip("/").split("/")[0] for spec in c.data.get("mounts") or []}
+        links = []
+        for link in c.links:
+            href = str(link.get("href") or "")
+            absolute = href.startswith(("http://", "https://", "mailto:", "/", "#", "data:"))
+            if not absolute:
+                head = href.lstrip("/").split("/")[0]
+                if head in declared and head not in carried:
+                    continue
+                href = self.url(f"{c.id}/{href.lstrip('/')}")
+            else:
+                href = self.url(href)
+            links.append(dict(link, href=href, kind=link.get("kind") or "page"))
+        return links
+
     def _collection_summary(self, c: Collection) -> dict:
         info = c.summary()
         info["docs"] = sorted(d for d, doc in self.docs.items() if doc.get("_collection") == c.id)
         info["pages"] = [p["route"] for p in self.pages if p.get("_collection") == c.id]
         info["href"] = self.url(c.route_prefix)
+        info["links"] = self._card_links(c)
         statuses = [self.docs[d].get("_evidence", {}).get("status", "ok") for d in info["docs"]]
         info["evidence"] = "stale" if "stale" in statuses else ("warn" if "warn" in statuses else "ok")
         return info

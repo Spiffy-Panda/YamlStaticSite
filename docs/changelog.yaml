@@ -7,6 +7,17 @@ status: active
 updated: 2026-09-02
 
 releases:
+  - version: 0.3.0
+    date: 2026-09-02
+    status: unreleased
+    summary: The card contract - a collection declares what a parent site shows for it, and the landing page renders whatever it finds.
+    changes:
+      - type: added
+        text: "Card contract in collection.yaml: `links` (label, href, kind) and a `hero` flag, carried on `$collections` and rendered by the collection-index prefab (adr-017)."
+      - type: added
+        text: "collection-index renders a hero panel above the grid and a link row per card; `kind: play` renders as a prototype button."
+      - type: changed
+        text: "A card link into a mount the target does not carry is dropped rather than rendered dead, so a public landing page never advertises a private playable."
   - version: 0.2.0
     date: 2026-09-02
     status: released

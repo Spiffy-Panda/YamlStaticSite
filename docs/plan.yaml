@@ -32,10 +32,16 @@ non_goals:
 milestones:
   - id: m3-pilot
     title: Pilot on this repository
-    status: active
+    status: done
     priority: 1
     summary: This repo's own docs, pages and a demo collection exercise every feature; a human review closes the loop.
-    done_when: The verdicts worksheet has been filled once and its instruction applied without a schema change.
+    done_when: Both worksheets have been filled and applied, and the review is captured as answered questions.
+    notes: |
+      Closed 2026-09-02, both tasks done. The original done_when said "applied without a schema
+      change"; P.1 and O.1 then approved schema changes deliberately, which is the worksheet loop
+      working rather than failing, so the bar is restated above. Not archived yet - moving it to
+      docs/_archive/ breaks the `blocks` reference in the archived worksheet [[pending]] and the
+      `yss refs plan#m3-pilot` example in [[codemap]]; see [[next#n-archive-pilot]].
     tasks:
       - id: m3-review
         title: Human review of the rendered site for framing gaps
@@ -70,9 +76,14 @@ milestones:
         notes: Export with threads off; the private server's headers must not be what makes it work.
       - id: m6-bandwidth
         title: Decide when a Godot export may carry the public target on its mount, given Pages bandwidth cost
-        status: planned
+        status: blocked
         owner: panda
-        notes: Gates any public Godot mount; private-only mounts are unaffected.
+        depends_on: [m6-godot]
+        notes: |
+          Deliberately unanswered (O.2, 2026-09-02): no rule is written until a real export exists
+          and its size has been measured, so no Godot export carries the public target until then.
+          Private-only mounts are unaffected, and mounts stay private by default regardless
+          ([[decisions#adr-015]]). [[#m6-godot]] produces the export this call needs.
       - id: m6-serve-mounts
         title: Serve-mode mounts (private server maps a URL to a source folder without copying)
         status: planned
@@ -87,31 +98,38 @@ milestones:
     title: Hardening and ergonomics
     status: planned
     priority: 4
-    summary: Things consciously left out so far.
+    summary: Things consciously left out so far, now ranked in the order they get picked up - search, reverify, watchdog, kinds, run-commands.
     tasks:
       - id: m7-search
         title: Client-side search index over docs.json
         status: planned
         owner: agent
-        notes: Picked as the next hardening item to pick up (P.7, 2026-09-02); the other m7 items stay unranked.
+        notes: |
+          First in the m7 order (P.7, 2026-09-02). O.3 then ranked the rest - reverify, watchdog,
+          kinds, run-commands - so the whole milestone is wanted and nothing in it was dropped.
       - id: m7-watchdog
         title: Optional watchdog-based file watching instead of polling
         status: planned
         owner: agent
+        notes: Third in the m7 order (O.3, 2026-09-02).
       - id: m7-kinds
         title: Promote recurring `generic` shapes into real doc kinds
         status: planned
         owner: agent
+        notes: Fourth in the m7 order (O.3, 2026-09-02); still only worth doing once a shape repeats.
       - id: m7-reverify
         title: "`yss reverify <doc>` - bump `updated` after the human confirms the doc still holds"
         status: planned
         owner: agent
-        notes: Chosen over simply accepting the noise (P.8, 2026-09-02); [[#r-evidence-noise]] stays open until it ships.
+        notes: |
+          Chosen over simply accepting the noise (P.8, 2026-09-02); [[#r-evidence-noise]] stays open
+          until it ships. Second in the m7 order behind [[#m7-search]] (O.3, 2026-09-02).
         verify: python -m yss reverify --help
       - id: m7-verify-evidence
         title: Optional CI job that runs `yss check --run-commands` so task verify commands are executed
         status: planned
         owner: agent
+        notes: Last in the m7 order (O.3, 2026-09-02); every m7 item is now wanted, none dropped.
         verify: cat .github/workflows/pages.yml
       - id: m7-flow-overrides
         title: "Config and CLI overrides for the flow: build.strict in site.yaml, --no-strict, evidence.git_recency per collection"
@@ -211,7 +229,8 @@ open_questions:
       - The parent page lists its sub-sites by hand and an agent keeps the list current
       - Both - the contract supplies defaults, the parent page overrides per sub-site
     owner: panda
-    status: open
+    status: answered
+    answer: "Card contract in collection.yaml - links (label, href, kind) and a hero flag - rendered by the parent; adr-017 accepted (Panda, 2026-09-02)."
   - id: q-md-bridge
     question: Should README.md content be migrated into docs, or stay as an include section on the Reference page?
     context: The Reference page includes README.md verbatim; the same words then exist in two places.

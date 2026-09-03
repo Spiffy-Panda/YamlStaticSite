@@ -33,11 +33,17 @@ sections:
   - id: collections
     type: prefab
     heading: Collections
-    intro: A collection is a folder with its own docs, pages, prototypes and hooks - the shape of a musing. This repo ships one demo collection to exercise the contract.
+    intro: |
+      A collection is a folder with its own docs, pages, prototypes and hooks - the shape of a
+      musing. Each card is drawn from that folder's `collection.yaml`: emblem, blurb, and the links
+      it declares, which reach both its pages and its prototypes. A collection that asks for the
+      hero slot leads the panel. Nothing here is written by hand, so a new collection appears by
+      existing (see [[decisions#adr-017]]).
     prefab: collection-index
     args:
       collections: {from: $collections}
       columns: 3
+      hero: true
 
   - id: active
     type: prefab

@@ -46,7 +46,7 @@ modules:
     status: active
     exports:
       - {name: Config, kind: class, signature: "Config.load(root=None)", description: Finds site.yaml upwards from cwd.}
-      - {name: Collection, kind: class, signature: "Collection(id, root, docs_dir, pages_dir, ...)", description: "id '' is the site root; vocab(cfg), limits(cfg) and evidence(cfg) merge overrides."}
+      - {name: Collection, kind: class, signature: "Collection(id, root, docs_dir, pages_dir, ...)", description: "id '' is the site root; vocab(cfg), limits(cfg) and evidence(cfg) merge overrides; hero and links carry the card contract."}
       - {name: Config.evidence_for, kind: function, signature: "(collection_id='') -> dict", description: "site.yaml evidence overridden by that collection's own block."}
       - {name: Config.collections, kind: function, signature: "() -> [Collection]"}
       - {name: Config.redaction_lists, kind: function, signature: "(target) -> (forbidden, flags)"}

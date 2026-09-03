@@ -58,6 +58,10 @@ title: Demo musing
 summary: One paragraph.
 emblem: "🧪"                     # or assets/emblem.svg
 order: 1
+hero: true                      # sit in the parent page's hero panel above the ordinary cards
+links:                          # the card contract: what a parent site shows for this collection
+  - {label: Overview, href: "", kind: page}          # relative to /<folder>/
+  - {label: The playable, href: "play/index.html", kind: play}   # kind play renders as a button
 visibility: public              # private -> the whole collection is absent from public builds
 theme: {accent: "#7a3e9d", css: [assets/theme.css]}
 vocabularies: {risk_status: [open, watching, resolved]}   # this collection's own words
@@ -66,6 +70,14 @@ evidence: {git_recency: true, run_commands: false}         # this collection's e
 dynamic: {sources: {notes: {provider: hooks:notes, targets: [public, private]}}}
 mounts: [{path: play, at: play/, targets: [private, public]}]   # copied to /<folder>/play/
 ```
+
+**The card contract.** A parent page never hand-lists its sub-sites: `emblem`, `summary`, `order`,
+`hero` and `links` in each `collection.yaml` are carried on `$collections`, and the built-in
+`collection-index` prefab draws the hero panel and the grid from them, so a migrated collection
+appears by existing. A relative `href` resolves under that collection's route (`play/index.html`
+reaches its mount); a link into a mount the target does not carry is dropped, so the public site
+never advertises a private playable. Extend the contract upstream rather than writing card markup
+in a page.
 
 **Mounts are private by default.** A mount with no `targets` exists only in the private build; a
 collection publishes one by naming the public target on that mount, one mount at a time. Never flip

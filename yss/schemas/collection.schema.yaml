@@ -14,6 +14,29 @@ properties:
   summary: {type: string, x-limit: summary}
   emblem: {type: string, description: "Emoji or a path under the collection's assets/ (e.g. assets/emblem.svg)."}
   order: {type: integer}
+  hero:
+    type: boolean
+    default: false
+    description: Put this collection in the hero panel a parent page renders above the ordinary cards.
+  links:
+    type: array
+    description: |
+      The card contract - what a parent site shows for this collection besides emblem, title and
+      summary. A relative href resolves under the collection's own route, so `pitch/` becomes
+      /<collection>/pitch/ and `play/index.html` reaches its mount. A link into a mount that this
+      target does not carry is dropped from the card rather than rendered as a dead one.
+    items:
+      type: object
+      required: [label, href]
+      properties:
+        label: {type: string, x-limit: line}
+        href: {type: string, description: Relative to the collection route, or an absolute URL.}
+        kind:
+          type: string
+          enum: [page, play, doc, external, repo, file]
+          default: page
+          description: "`play` renders as a prototype button; everything else as a text link."
+      additionalProperties: false
   visibility: {type: string, enum: [public, private], default: public}
   status: {type: string, x-vocab: lifecycle}
   tags: {type: array, items: {type: string}}

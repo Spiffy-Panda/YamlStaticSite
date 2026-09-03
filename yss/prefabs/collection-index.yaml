@@ -1,29 +1,58 @@
 name: collection-index
-description: "Cards for every collection (musing, sub-project): emblem, title, summary, doc count and evidence badge, linking to the collection's landing route. Bind `collections` from `$collections`."
+description: "Cards for every collection (musing, sub-project): emblem, title, summary, doc count, evidence badge and the card links declared in collection.yaml. Collections marked `hero: true` are rendered first, full width. Bind `collections` from `$collections`."
 category: list
 params:
-  collections: {type: list, required: true, item: {id: folder name, title: required, summary: optional, emblem: emoji or asset path, href: landing url, docs: list of doc ids, evidence: "ok|warn|stale", tags: list}}
+  collections: {type: list, required: true, item: {id: folder name, title: required, summary: optional, emblem: emoji or asset path, href: landing url, hero: "true puts it in the hero panel", links: "[{label, href, kind}] - kind play renders as a button", docs: list of doc ids, evidence: "ok|warn|stale", tags: list}}
   columns: {type: integer, default: 3}
+  hero: {type: boolean, default: true, description: Render collections marked `hero` in a full-width panel above the grid. False puts every collection in the grid.}
   empty: {type: string, default: No collections yet.}
 template: |
-  {% if collections %}
-  <div class="card-grid cols-{{ columns }} collection-index">
-  {% for c in collections | sort(attribute='order') %}
-    <article class="card collection-card tone-{{ c.evidence or 'ok' }}" id="collection-{{ c.id }}">
+  {% macro card(c, is_hero) %}
+    <article class="card collection-card tone-{{ c.evidence or 'ok' }}{% if is_hero %} collection-hero{% endif %}" id="collection-{{ c.id }}">
       <div class="card-head">
         <h3 class="card-title"><a href="{{ c.href }}">{% if c.emblem and c.emblem|length <= 4 %}<span class="collection-card-emblem">{{ c.emblem }}</span>{% endif %}{{ c.title }}</a></h3>
         {% if c.evidence and c.evidence != 'ok' %}{{ prefab('badge', text=c.evidence) }}{% endif %}
       </div>
       {% if c.emblem and c.emblem|length > 4 %}<img class="collection-card-image" src="{{ url(c.id ~ '/' ~ c.emblem) }}" alt="">{% endif %}
       {% if c.summary %}<div class="card-body prose">{{ c.summary | md }}</div>{% endif %}
+      {% if c.links %}
+      <ul class="collection-card-links">
+      {% for link in c.links %}
+        <li><a class="collection-link kind-{{ link.kind or 'page' }}" href="{{ link.href }}">{% if (link.kind or 'page') == 'play' %}<span aria-hidden="true">&#9654;</span> {{ link.label }}{% else %}{{ link.label }} <span aria-hidden="true">&rarr;</span>{% endif %}</a></li>
+      {% endfor %}
+      </ul>
+      {% endif %}
       <ul class="card-meta"><li>{{ (c.docs or []) | length }} docs</li><li>{{ (c.pages or []) | length }} pages</li>{% if c.status %}<li>{{ c.status }}</li>{% endif %}</ul>
       {% if c.tags %}{{ prefab('tag-list', tags=c.tags) }}{% endif %}
     </article>
-  {% endfor %}
+  {% endmacro %}
+  {% set ordered = collections | sort(attribute='order') %}
+  {% set heroes = ordered | selectattr('hero') | list if hero else [] %}
+  {% set rest = ordered | rejectattr('hero') | list if hero else ordered %}
+  {% if ordered %}
+  {% if heroes %}
+  <div class="collection-hero-panel">
+  {% for c in heroes %}{{ card(c, true) }}{% endfor %}
   </div>
+  {% endif %}
+  {% if rest %}
+  <div class="card-grid cols-{{ columns }} collection-index">
+  {% for c in rest %}{{ card(c, false) }}{% endfor %}
+  </div>
+  {% endif %}
   {% else %}<p class="empty">{{ empty }}</p>{% endif %}
 css: |
   .collection-card-emblem { margin-right: .35rem; }
   .collection-card-image { max-height: 120px; width: auto; border-radius: 6px; }
+  .collection-hero-panel { display: grid; gap: 1rem; margin-bottom: 1rem; }
+  .collection-hero { border-color: var(--accent); }
+  .collection-hero .card-title { font-size: 1.3rem; }
+  .collection-card-links { list-style: none; display: flex; flex-wrap: wrap; gap: .4rem .9rem; margin: .6rem 0 0; padding: 0; }
+  .collection-card-links a { font-weight: 600; text-decoration: none; }
+  .collection-card-links a:hover { text-decoration: underline; }
+  .collection-link.kind-play { border: 1px solid var(--border); border-radius: 6px; padding: .15rem .5rem; }
 examples:
-  - args: {collections: [{id: demo, title: Demo musing, summary: "A **small** example.", emblem: "🧪", href: "#", docs: [demo/plan], pages: ["/demo/"], evidence: ok, order: 1}]}
+  - args:
+      collections:
+        - {id: demo, title: Demo musing, summary: "A **small** example.", emblem: "🧪", href: "#", hero: true, links: [{label: The pitch, href: "#", kind: page}, {label: The playable, href: "#", kind: play}], docs: [demo/plan], pages: ["/demo/"], evidence: ok, order: 1}
+        - {id: other, title: Another musing, summary: One without a hero slot., emblem: "◈", href: "#", docs: [], pages: [], evidence: ok, order: 2}

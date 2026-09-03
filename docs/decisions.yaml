@@ -279,3 +279,28 @@ entries:
       - The public site cannot serve a Godot export until the bandwidth call is made; private mounts are unaffected.
     alternatives:
       - Ship coi-serviceworker beside each export (keeps threads, adds a first-load reload, a vendored script, and a CSP dependency).
+
+  - id: adr-017
+    date: 2026-09-02
+    title: A collection declares its own card; the parent page renders whatever it finds
+    status: accepted
+    context: |
+      The 2026-09-02 site review named one gap: a musings landing page draws a card per musing -
+      emblem, blurb, and links going both to that musing's pages and straight to its prototypes -
+      and some musings sit in a hero panel, but nothing said what a collection must publish for a
+      parent to draw that card, or how it asks for the hero slot. The alternative was a hand-written
+      list on the parent page, which goes stale the moment a musing is migrated and nobody adds it.
+    decision: |
+      collection.yaml carries the card contract beside the existing emblem, summary and order:
+      `links` (label, href, kind) and a `hero` flag. A relative href resolves under the collection's
+      own route, so `play/index.html` reaches its mount; `kind: play` renders as a prototype button
+      and everything else as a text link. Both fields ride on `$collections`, and the built-in
+      collection-index prefab renders the hero panel above the grid from them.
+    consequences:
+      - A migrated musing appears on the landing page by existing, with no edit to the parent page.
+      - One place per musing holds what the card says, and the hero panel is data rather than page markup.
+      - A card link into a mount the target does not carry is dropped rather than rendered dead, so the public site never advertises a private playable.
+      - A musing that needs a card the contract has no field for must extend the contract upstream instead of writing its own markup.
+    alternatives:
+      - A hand-written list on the parent page (no schema change, but a migrated musing stays invisible until someone adds it).
+      - Contract plus per-sub-site overrides on the parent page (nothing invisible, but the same fact lives in two places).

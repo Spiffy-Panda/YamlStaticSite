@@ -141,6 +141,15 @@ class Collection:
         return int(self.data.get("order", 100))
 
     @property
+    def hero(self) -> bool:
+        return bool(self.data.get("hero", False))
+
+    @property
+    def links(self) -> list[dict]:
+        """Card links declared in collection.yaml, hrefs still relative to the collection."""
+        return [dict(link) for link in self.data.get("links") or []]
+
+    @property
     def visibility(self) -> str:
         return self.data.get("visibility", "public")
 
@@ -168,6 +177,8 @@ class Collection:
             "summary": self.data.get("summary", ""),
             "emblem": self.data.get("emblem"),
             "order": self.order,
+            "hero": self.hero,
+            "links": self.links,
             "route": self.route_prefix,
             "visibility": self.visibility,
             "tags": self.data.get("tags") or [],
