@@ -428,6 +428,14 @@ def build(
             except HookError as exc:
                 raise BuildError(str(exc)) from exc
 
+        # Strict failures are collected, not raised on the spot (gh-21). Two of these gates fire
+        # before the assets, the data export, the mounts and - crucially - the leak scan, so
+        # raising early would leave behind a partial tree that `scan_tree` never looked at. The
+        # build therefore runs to completion, the leak scan keeps its own containment `rmtree`,
+        # and everything strict has to say is reported together at the end over an output tree
+        # that is whole and scanned. Nothing hazardous survives a failure; a wrong page does.
+        strict_failures: list[str] = []
+
         # pages
         duplicate_ids: list[str] = []
         rendered: list[tuple[str, str]] = []  # (route, html) for the dead-link gate below
@@ -453,10 +461,8 @@ def build(
             ]
         report.warnings += duplicate_ids
         if strict and duplicate_ids:
-            shutil.rmtree(out, ignore_errors=True)
-            raise BuildError(
-                f"[{target}] strict mode: {len(duplicate_ids)} duplicate anchor id(s).\n  "
-                + "\n  ".join(duplicate_ids)
+            strict_failures.append(
+                f"{len(duplicate_ids)} duplicate anchor id(s).\n  " + "\n  ".join(duplicate_ids)
             )
 
         # binding warnings the renderer collected while filling the pages (gh-12)
@@ -466,8 +472,7 @@ def build(
         dead = renderer.dead_refs()
         report.warnings += dead
         if strict and dead:
-            shutil.rmtree(out, ignore_errors=True)
-            raise BuildError(f"[{target}] strict mode: {len(dead)} dead reference(s).\n  " + "\n  ".join(dead))
+            strict_failures.append(f"{len(dead)} dead reference(s).\n  " + "\n  ".join(dead))
 
         # data export (agent readable, and available to client-side JS)
         data_dir = out / "data"
@@ -575,8 +580,7 @@ def build(
         dead_links = _dead_links(rendered, out, cfg.base_url(target))
         report.warnings += dead_links
         if strict and dead_links:
-            shutil.rmtree(out, ignore_errors=True)
-            raise BuildError(f"[{target}] strict mode: {len(dead_links)} dead link(s).\n  " + "\n  ".join(dead_links))
+            strict_failures.append(f"{len(dead_links)} dead link(s).\n  " + "\n  ".join(dead_links))
 
         # leak scan
         forbidden, flags = cfg.redaction_lists(target)
@@ -590,11 +594,17 @@ def build(
                 f"[{target}] output contained forbidden strings; output removed.\n  " + "\n  ".join(lines) + more
             )
         if strict and report.flags:
-            shutil.rmtree(out, ignore_errors=True)
-            raise BuildError(f"[{target}] strict mode: flagged strings present.\n  " + "\n  ".join(report.flags))
+            strict_failures.append("flagged strings present.\n  " + "\n  ".join(report.flags))
         if strict and report.evidence and report.evidence.stale:
-            shutil.rmtree(out, ignore_errors=True)
-            raise BuildError(f"[{target}] strict mode: {len(report.evidence.stale)} stale evidence claim(s); run `yss check`")
+            strict_failures.append(
+                f"{len(report.evidence.stale)} stale evidence claim(s); run `yss check`"
+            )
+        if strict_failures:
+            joiner = f"\n[{target}] strict mode: "
+            raise BuildError(
+                f"[{target}] strict mode: " + joiner.join(strict_failures)
+                + f"\n{report.out_label} was left in place for inspection."
+            )
         return report
     finally:
         _release_lock(lock)

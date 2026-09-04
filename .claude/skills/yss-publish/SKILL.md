@@ -28,8 +28,12 @@ workflow's explicit `--strict` so the deploy gate does not depend on config.
 
 Exit 1 with `file: at path: message` lines on validation errors (schema, vocabulary, limits, dangling
 references), or the page/section/prefab on render errors. A redacting target that contains a
-**forbidden string deletes its output** and fails. Every build stamps freshness from the fast
-evidence checks (paths, globs, symbols, git recency) and writes `data/evidence.json`.
+**forbidden string deletes its output** and fails - it is the only failure that deletes anything,
+because it is the only one with something to contain. A `--strict` failure (duplicate anchor ids,
+dead references, dead links, flagged strings, stale evidence) runs the build to completion, reports
+every gate's complaint in one error, and **leaves `dist/<target>` in place** so you can open the
+page that caused it. Every build stamps freshness from the fast evidence checks (paths, globs,
+symbols, git recency) and writes `data/evidence.json`.
 
 A rendered page's own local links are checked against the output too: an href/src that lands on
 nothing, or an absolute path outside `base_url`, is a build warning and a `--strict` failure. Mount
