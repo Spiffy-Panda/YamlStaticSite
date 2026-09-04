@@ -212,9 +212,11 @@ class GroupPrefabTests(TempSiteCase):
             for item in design[field]:
                 self.assertIn(item.get("group"), ids, f"{field}/{item['id']}")
         page = next(p for p in loaded.pages if p["id"] == "design")
-        section = next(s for s in page["sections"] if s.get("id") == "components")
+        # gh-12 merged the old per-type sections into one that groups the whole doc at once
+        section = next(s for s in page["sections"] if s.get("id") == "subjects")
         self.assertEqual(section["prefab"], "group-sections")
         self.assertEqual(section["args"]["groups"]["group_by"], "group")
+        self.assertEqual(section["args"]["groups"]["from"], "design.$items")
 
 
 if __name__ == "__main__":

@@ -41,7 +41,7 @@ properties:
         outputs: {type: array, items: {type: string}}
         depends_on: {type: array, items: {$ref: "#/$defs/slug"}, x-ref: item}
         code: {type: array, items: {type: string}, x-evidence: path, description: Paths implementing this component (checked).}
-        status: {type: string, x-vocab: work_status}
+        status: {type: string, x-vocab: claim_status}
       unevaluatedProperties: false
   interfaces:
     type: array

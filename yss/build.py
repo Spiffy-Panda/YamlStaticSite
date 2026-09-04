@@ -1,10 +1,14 @@
 """Build orchestration: validate -> check refs -> filter for target -> evidence -> render -> export -> scan."""
 from __future__ import annotations
 
+import html as htmlmod
 import json
 import os
+import posixpath
+import re
 import shutil
 import subprocess
+from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -15,7 +19,7 @@ from .dynamic import write_all
 from .evidence import EvidenceReport, check as evidence_check, inject as evidence_inject
 from .hooks import HookError, call, load_hooks
 from .loader import SchemaRegistry, check_refs, load_collection_configs, load_docs, load_pages, load_prefabs, resolve_doc_id
-from .render import Renderer, RenderError, route_to_path
+from .render import ANCHOR_RE, Renderer, RenderError, route_to_path
 from .visibility import filter_for_target, is_visible, scan_tree
 
 
@@ -175,7 +179,7 @@ def _mount(cfg: Config, out: Path, base: Path, spec: dict, target: str, prefix: 
     if target not in targets:
         return
     src = (base / spec["path"]).resolve()
-    at = (prefix + spec["at"].strip("/")).strip("/")
+    at = "/".join(p for p in ((prefix or "").strip("/"), spec["at"].strip("/")) if p)
     dst = (out / at).resolve()
     if dst != out and out not in dst.parents:
         raise BuildError(f"mount '{spec['at']}' escapes the output directory")
@@ -188,6 +192,172 @@ def _mount(cfg: Config, out: Path, base: Path, spec: dict, target: str, prefix: 
         _copy_filtered(src, dst, include, exclude)
     else:
         _copy_tree(src, dst)
+
+
+LINK_RE = re.compile(r'\b(?:href|src)="([^"]*)"')
+LINK_SKIP_PREFIXES = ("http://", "https://", "//", "mailto:", "data:", "javascript:", "#")
+
+
+def _dead_links(rendered: list[tuple[str, str]], out: Path, base_url: str) -> list[str]:
+    """Every local href/src a rendered page emits that the output does not actually carry (gh-14).
+
+    `dead_refs` proves an *anchor* exists; nothing proved the *file* did, so a collection whose
+    stylesheet was emitted at the wrong path 404'd through validate, check, scan and build all
+    green. This asks the same question of a page's links that `dead_refs` asks of its references.
+
+    Rendered pages only, never mounted trees: a mount's contents are the collection's own business
+    (adr-021), and hand-authored links inside one are not ours to police. A link *into* a mount is
+    checked like any other, because the page emitting it is ours.
+    """
+    base = base_url if base_url.endswith("/") else base_url + "/"
+    seen: set[tuple[str, str]] = set()
+    dead: list[str] = []
+
+    def report(route: str, href: str, detail: str) -> None:
+        key = (route, href)
+        if key in seen:
+            return
+        seen.add(key)
+        dead.append(f'dead link on page {route}: href="{href}" -> {detail}')
+
+    for route, html in rendered:
+        page_dir = route.strip("/")
+        for raw in LINK_RE.findall(html):
+            href = htmlmod.unescape(raw).strip()
+            if not href or href.startswith(LINK_SKIP_PREFIXES):
+                continue
+            path = href.split("#", 1)[0].split("?", 1)[0]
+            if not path:
+                continue  # a bare query or fragment on the current page
+            if path.startswith("/"):
+                if not path.startswith(base):
+                    report(route, href, f"{path} is outside base_url {base}")
+                    continue
+                rel = path[len(base) :]
+            else:
+                rel = posixpath.normpath(posixpath.join(page_dir, path) if page_dir else path)
+                if rel in (".", "/"):
+                    rel = ""
+                if rel == ".." or rel.startswith("../"):
+                    report(route, href, f"{rel} is outside the output")
+                    continue
+            target = (out / rel) if rel else out
+            if target.is_file() or (target.is_dir() and (target / "index.html").is_file()):
+                continue
+            report(route, href, f"{rel or '/'} is not in the output")
+    return sorted(dead)
+
+
+LOCK_STALE_SECONDS = 600
+
+
+def _lock_path(out: Path) -> Path:
+    """The advisory build lock for an output directory: `dist/.public.build-lock`.
+
+    Deliberately a *sibling* of the output, not a file inside it: `_safe_clear` deletes the
+    directory wholesale, and nothing that reaches `dist/<target>/` may exist that the Pages
+    artefact would then carry.
+    """
+    return out.parent / f".{out.name}.build-lock"
+
+
+def _lock_age(lock: Path) -> tuple[float | None, dict]:
+    """Seconds since the lock was taken, and whatever it says about its owner.
+
+    Age is the *larger* of the file mtime age and the age of the recorded `started_at`, so a
+    lock is only fresh when both agree it is.
+    """
+    try:
+        mtime = lock.stat().st_mtime
+    except OSError:
+        return None, {}
+    info: dict = {}
+    try:
+        info = json.loads(lock.read_text(encoding="utf-8")) or {}
+    except (OSError, ValueError):
+        info = {}
+    now = datetime.now(timezone.utc)
+    ages = [max(0.0, now.timestamp() - mtime)]
+    started = info.get("started_at") if isinstance(info, dict) else None
+    if isinstance(started, str):
+        try:
+            stamp = datetime.fromisoformat(started)
+            if stamp.tzinfo is None:
+                stamp = stamp.replace(tzinfo=timezone.utc)
+            ages.append(max(0.0, (now - stamp).total_seconds()))
+        except ValueError:
+            pass
+    return max(ages), (info if isinstance(info, dict) else {})
+
+
+def _acquire_lock(out: Path, target: str) -> tuple[Path, list[str]]:
+    """Take the advisory lock for `out`, or refuse the build (gh-19).
+
+    Two builders on one `dist/<target>/` race silently: the second one's `_safe_clear` deletes
+    the first one's output while it is still writing into it, and the first still prints its
+    success line. The lock makes the collision loud and early instead.
+
+    A lock older than `LOCK_STALE_SECONDS` is assumed abandoned and replaced with a warning. We
+    never liveness-check the recorded pid: `os.kill(pid, 0)` *terminates* the process on Windows.
+    """
+    lock = _lock_path(out)
+    warnings: list[str] = []
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    for _ in range(3):
+        payload = json.dumps(
+            {
+                "pid": os.getpid(),
+                "target": target,
+                "started_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            }
+        )
+        try:
+            fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            pass
+        else:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write(payload)
+            return lock, warnings
+        age, info = _lock_age(lock)
+        if age is None:
+            continue  # it vanished between the open and the stat; try again
+        if age <= LOCK_STALE_SECONDS:
+            raise BuildError(
+                f"another build owns {out} (lock {lock}, pid {info.get('pid')}, "
+                f"started {info.get('started_at')}); wait for it or delete the lock if that process is gone"
+            )
+        warnings.append(
+            f"replaced a stale build lock {lock} (pid {info.get('pid')}, started {info.get('started_at')}, "
+            f"{int(age)}s old, stale after {LOCK_STALE_SECONDS}s)"
+        )
+        try:
+            lock.unlink()
+        except OSError:
+            pass
+    raise BuildError(f"could not take the build lock {lock}; delete it if no build is running")
+
+
+def _release_lock(lock: Path) -> None:
+    try:
+        lock.unlink()
+    except OSError:
+        pass
+
+
+def output_ok(report: "BuildReport") -> bool:
+    """Did the build's own manifest survive? `BuildReport.summary()` is composed from in-memory
+    counts and never stats the filesystem, so a concurrent builder can clear `out` between the
+    last write and the return and the summary still claims success (gh-19)."""
+    return (report.out_dir / "build.json").is_file()
+
+
+def missing_output_message(report: "BuildReport") -> str:
+    label = report.out_label or report.out_dir
+    return (
+        f"[{report.target}] build reported success but {label}/build.json is missing"
+        " - another process (a watching yss serve?) probably cleared the output"
+    )
 
 
 def build(
@@ -218,176 +388,216 @@ def build(
         if is_visible(page, target) and page.get("_collection", "") not in hidden_collections
     ]
     out = (out_dir or cfg.out_dir(target)).resolve()
-    _safe_clear(out, cfg)
-    report = BuildReport(target=target, out_dir=out)
+    lock, lock_warnings = _acquire_lock(out, target)
     try:
-        report.out_label = out.relative_to(cfg.root).as_posix()
-    except ValueError:
-        report.out_label = out.name
-
-    # evidence (paths, globs, symbols, git recency; commands only when configured)
-    evidence_rows: list[dict] = []
-    if check_evidence:
-        report.evidence = evidence_check(cfg, docs_t, loaded.registry, run_commands=False)
-        evidence_inject(docs_t, report.evidence)
-        evidence_rows = [c.as_dict() for c in report.evidence.claims]
-        for claim in report.evidence.stale:
-            report.warnings.append(f"stale: {claim.doc} {claim.field} -> {claim.target}: {claim.detail}")
-
-    built_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    build_info = {
-        "target": target,
-        "built_at": built_at,
-        "version": __version__,
-        "site": cfg.site.get("name"),
-        "base_url": cfg.base_url(target),
-        "repo": cfg.site.get("repo"),
-        **git_commit(cfg.root),
-    }
-    renderer = Renderer(cfg, target, docs_t, pages_t, loaded.prefabs, list(loaded.docs), build_info, evidence_rows)
-
-    # hooks: before_render
-    for collection in cfg.collections():
-        if collection.id in hidden_collections:
-            continue
+        _safe_clear(out, cfg)
+        report = BuildReport(target=target, out_dir=out)
         try:
-            call(load_hooks(collection.hooks_path, cfg.root), "before_render", cfg, target, collection.summary())
-        except HookError as exc:
-            raise BuildError(str(exc)) from exc
+            report.out_label = out.relative_to(cfg.root).as_posix()
+        except ValueError:
+            report.out_label = out.name
+        report.warnings += lock_warnings
 
-    # pages
-    for page in pages_t:
-        try:
-            html = renderer.render_page(page)
-        except RenderError as exc:
-            raise BuildError(str(exc)) from exc
-        path = route_to_path(out, page["route"])
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(html, encoding="utf-8")
-        report.pages.append(page["route"])
+        # evidence (paths, globs, symbols, git recency; commands only when configured)
+        evidence_rows: list[dict] = []
+        if check_evidence:
+            report.evidence = evidence_check(cfg, docs_t, loaded.registry, run_commands=False)
+            evidence_inject(docs_t, report.evidence)
+            evidence_rows = [c.as_dict() for c in report.evidence.claims]
+            for claim in report.evidence.stale:
+                report.warnings.append(f"stale: {claim.doc} {claim.field} -> {claim.target}: {claim.detail}")
 
-    # dead references: an anchor a rendered [[doc#item]] link points at that no page emits (gh-11)
-    dead = renderer.dead_refs()
-    report.warnings += dead
-    if strict and dead:
-        shutil.rmtree(out, ignore_errors=True)
-        raise BuildError(f"[{target}] strict mode: {len(dead)} dead reference(s).\n  " + "\n  ".join(dead))
+        built_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        build_info = {
+            "target": target,
+            "built_at": built_at,
+            "version": __version__,
+            "site": cfg.site.get("name"),
+            "base_url": cfg.base_url(target),
+            "repo": cfg.site.get("repo"),
+            **git_commit(cfg.root),
+        }
+        renderer = Renderer(cfg, target, docs_t, pages_t, loaded.prefabs, list(loaded.docs), build_info, evidence_rows)
 
-    # data export (agent readable, and available to client-side JS)
-    data_dir = out / "data"
-    (data_dir / "docs").mkdir(parents=True, exist_ok=True)
-    index = []
-    for doc_id, doc in docs_t.items():
-        path = data_dir / "docs" / f"{doc_id}.json"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(doc, indent=2, default=str), encoding="utf-8")
-        index.append(
-            {
-                "id": doc_id,
-                "kind": doc.get("kind"),
-                "title": doc.get("title"),
-                "summary": doc.get("summary"),
-                "status": doc.get("status"),
-                "updated": doc.get("updated"),
-                "tags": doc.get("tags") or [],
-                "collection": doc.get("_collection", ""),
-                "evidence": (doc.get("_evidence") or {}).get("status", "ok"),
-                "page": renderer.doc_url(doc_id) or None,
-                "json": renderer.url(f"data/docs/{doc_id}.json"),
-                "source": doc.get("_source"),
-            }
+        # hooks: before_render
+        for collection in cfg.collections():
+            if collection.id in hidden_collections:
+                continue
+            try:
+                call(load_hooks(collection.hooks_path, cfg.root), "before_render", cfg, target, collection.summary())
+            except HookError as exc:
+                raise BuildError(str(exc)) from exc
+
+        # pages
+        duplicate_ids: list[str] = []
+        rendered: list[tuple[str, str]] = []  # (route, html) for the dead-link gate below
+        for page in pages_t:
+            try:
+                html = renderer.render_page(page)
+            except RenderError as exc:
+                raise BuildError(str(exc)) from exc
+            path = route_to_path(out, page["route"])
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(html, encoding="utf-8")
+            report.pages.append(page["route"])
+            rendered.append((page["route"], html))
+            # duplicate anchors: two elements on one page claiming the same id (gh-12). `dead_refs`
+            # cannot see this - it asks whether an anchor is *present*, a set membership test - so a
+            # prefab that derives an id from a label happily emits it once per bucket and every
+            # [[doc#item]] link into the page silently lands on whichever comes first.
+            counts = Counter(a for a in ANCHOR_RE.findall(html) if a)
+            duplicate_ids += [
+                f"duplicate anchor id '{anchor}' on page {page['route']} ({n} times)"
+                for anchor, n in sorted(counts.items())
+                if n > 1
+            ]
+        report.warnings += duplicate_ids
+        if strict and duplicate_ids:
+            shutil.rmtree(out, ignore_errors=True)
+            raise BuildError(
+                f"[{target}] strict mode: {len(duplicate_ids)} duplicate anchor id(s).\n  "
+                + "\n  ".join(duplicate_ids)
+            )
+
+        # binding warnings the renderer collected while filling the pages (gh-12)
+        report.warnings += renderer.warnings
+
+        # dead references: an anchor a rendered [[doc#item]] link points at that no page emits (gh-11)
+        dead = renderer.dead_refs()
+        report.warnings += dead
+        if strict and dead:
+            shutil.rmtree(out, ignore_errors=True)
+            raise BuildError(f"[{target}] strict mode: {len(dead)} dead reference(s).\n  " + "\n  ".join(dead))
+
+        # data export (agent readable, and available to client-side JS)
+        data_dir = out / "data"
+        (data_dir / "docs").mkdir(parents=True, exist_ok=True)
+        index = []
+        for doc_id, doc in docs_t.items():
+            path = data_dir / "docs" / f"{doc_id}.json"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(doc, indent=2, default=str), encoding="utf-8")
+            index.append(
+                {
+                    "id": doc_id,
+                    "kind": doc.get("kind"),
+                    "title": doc.get("title"),
+                    "summary": doc.get("summary"),
+                    "status": doc.get("status"),
+                    "updated": doc.get("updated"),
+                    "tags": doc.get("tags") or [],
+                    "collection": doc.get("_collection", ""),
+                    "evidence": (doc.get("_evidence") or {}).get("status", "ok"),
+                    "page": renderer.doc_url(doc_id) or None,
+                    "json": renderer.url(f"data/docs/{doc_id}.json"),
+                    "source": doc.get("_source"),
+                }
+            )
+            report.docs.append(doc_id)
+        (data_dir / "docs.json").write_text(json.dumps(index, indent=2), encoding="utf-8")
+        (data_dir / "pages.json").write_text(
+            json.dumps(
+                [
+                    {"id": p["id"], "route": p["route"], "url": renderer.url(p["route"]), "title": p["title"], "summary": p.get("summary"), "docs": p.get("docs") or [], "collection": p.get("_collection", "")}
+                    for p in pages_t
+                ],
+                indent=2,
+            ),
+            encoding="utf-8",
         )
-        report.docs.append(doc_id)
-    (data_dir / "docs.json").write_text(json.dumps(index, indent=2), encoding="utf-8")
-    (data_dir / "pages.json").write_text(
-        json.dumps(
-            [
-                {"id": p["id"], "route": p["route"], "url": renderer.url(p["route"]), "title": p["title"], "summary": p.get("summary"), "docs": p.get("docs") or [], "collection": p.get("_collection", "")}
-                for p in pages_t
-            ],
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
-    (data_dir / "collections.json").write_text(json.dumps(renderer.ctx["collections"], indent=2, default=str), encoding="utf-8")
-    (data_dir / "evidence.json").write_text(json.dumps(evidence_rows, indent=2), encoding="utf-8")
-    (data_dir / "site.json").write_text(json.dumps({"site": cfg.site, **build_info}, indent=2), encoding="utf-8")
+        (data_dir / "collections.json").write_text(json.dumps(renderer.ctx["collections"], indent=2, default=str), encoding="utf-8")
+        (data_dir / "evidence.json").write_text(json.dumps(evidence_rows, indent=2), encoding="utf-8")
+        (data_dir / "site.json").write_text(json.dumps({"site": cfg.site, **build_info}, indent=2), encoding="utf-8")
 
-    # schemas (so agents and the site can read them from the output too)
-    schemas_dir = out / "schemas"
-    schemas_dir.mkdir(exist_ok=True)
-    for name, schema in loaded.registry.schemas.items():
-        (schemas_dir / f"{name}.json").write_text(json.dumps(schema, indent=2), encoding="utf-8")
+        # schemas (so agents and the site can read them from the output too)
+        schemas_dir = out / "schemas"
+        schemas_dir.mkdir(exist_ok=True)
+        for name, schema in loaded.registry.schemas.items():
+            (schemas_dir / f"{name}.json").write_text(json.dumps(schema, indent=2), encoding="utf-8")
 
-    # assets: package defaults, then site overrides, then collections, then generated prefab css/js
-    assets_out = out / "assets"
-    _copy_tree(PKG_DIR / "assets", assets_out)
-    _copy_tree(cfg.path("assets"), assets_out)
-    for collection in cfg.collections():
-        if collection.is_root or collection.id in hidden_collections:
-            continue
-        _copy_tree(collection.assets_dir, out / collection.id / "assets")
-    (assets_out / "prefabs.css").write_text(renderer.prefab_css(), encoding="utf-8")
-    (assets_out / "prefabs.js").write_text(renderer.prefab_js(), encoding="utf-8")
-    (out / ".nojekyll").write_text("", encoding="utf-8")
+        # assets: package defaults, then site overrides, then collections, then generated prefab css/js
+        assets_out = out / "assets"
+        _copy_tree(PKG_DIR / "assets", assets_out)
+        _copy_tree(cfg.path("assets"), assets_out)
+        for collection in cfg.collections():
+            if collection.is_root or collection.id in hidden_collections:
+                continue
+            # Route-addressed, not id-addressed: a collection with an `at:` prefix serves its
+            # theme.css and emblem from /<at>/<id>/assets/, which is where the hrefs point (gh-14).
+            _copy_tree(collection.assets_dir, out / collection.route_path("assets"))
+        (assets_out / "prefabs.css").write_text(renderer.prefab_css(), encoding="utf-8")
+        (assets_out / "prefabs.js").write_text(renderer.prefab_js(), encoding="utf-8")
+        (out / ".nojekyll").write_text("", encoding="utf-8")
 
-    # mounts (site-level and per collection)
-    for spec in cfg.mounts:
-        _mount(cfg, out, cfg.root, spec, target, "", report.warnings)
-    for collection in cfg.collections():
-        if collection.is_root or collection.id in hidden_collections:
-            continue
-        for spec in collection.data.get("mounts") or []:
-            # Prefixed by the collection's full route (id, plus any `at` prefix - gh-4) so a
-            # mounted static tree lands at the same depth as the pages that link into it, and
-            # hand-authored relative links inside it (`../../index.html`) keep resolving.
-            _mount(cfg, out, collection.root, spec, target, collection.route_prefix.strip("/") + "/", report.warnings)
+        # mounts (site-level and per collection)
+        for spec in cfg.mounts:
+            _mount(cfg, out, cfg.root, spec, target, "", report.warnings)
+        for collection in cfg.collections():
+            if collection.is_root or collection.id in hidden_collections:
+                continue
+            for spec in collection.data.get("mounts") or []:
+                # Prefixed by the collection's full route (id, plus any `at` prefix - gh-4) so a
+                # mounted static tree lands at the same depth as the pages that link into it, and
+                # hand-authored relative links inside it (`../../index.html`) keep resolving. Same
+                # helper as the asset emit, so route-addressing has exactly one definition (gh-14).
+                _mount(cfg, out, collection.root, spec, target, collection.route_path(), report.warnings)
 
-    # dynamic sources
-    if run_dynamic:
-        report.dynamic = write_all(cfg, target, out, only_on_build=True)
-        for name, env in report.dynamic.items():
-            if not env.get("ok"):
-                report.warnings.append(f"dynamic source '{name}' failed: {env.get('error')}")
+        # dynamic sources
+        if run_dynamic:
+            report.dynamic = write_all(cfg, target, out, only_on_build=True)
+            for name, env in report.dynamic.items():
+                if not env.get("ok"):
+                    report.warnings.append(f"dynamic source '{name}' failed: {env.get('error')}")
 
-    # hooks: after_build
-    for collection in cfg.collections():
-        if collection.id in hidden_collections:
-            continue
-        try:
-            call(load_hooks(collection.hooks_path, cfg.root), "after_build", cfg, target, out, collection.summary())
-        except HookError as exc:
-            raise BuildError(str(exc)) from exc
+        # hooks: after_build
+        for collection in cfg.collections():
+            if collection.id in hidden_collections:
+                continue
+            try:
+                call(load_hooks(collection.hooks_path, cfg.root), "after_build", cfg, target, out, collection.summary())
+            except HookError as exc:
+                raise BuildError(str(exc)) from exc
 
-    # manifest (relative paths only)
-    manifest = {
-        **build_info,
-        "pages": report.pages,
-        "docs": report.docs,
-        "collections": [c["id"] for c in renderer.ctx["collections"]],
-        "evidence": {"stale": len(report.evidence.stale), "warn": len(report.evidence.warnings)} if report.evidence else None,
-        "dynamic": {n: {"ok": e.get("ok"), "collected_at": e.get("collected_at")} for n, e in report.dynamic.items()},
-    }
-    (out / "build.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        # manifest (relative paths only)
+        manifest = {
+            **build_info,
+            "pages": report.pages,
+            "docs": report.docs,
+            "collections": [c["id"] for c in renderer.ctx["collections"]],
+            "evidence": {"stale": len(report.evidence.stale), "warn": len(report.evidence.warnings)} if report.evidence else None,
+            "dynamic": {n: {"ok": e.get("ok"), "collected_at": e.get("collected_at")} for n, e in report.dynamic.items()},
+        }
+        (out / "build.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
-    # leak scan
-    forbidden, flags = cfg.redaction_lists(target)
-    fhits, whits = scan_tree(out, forbidden, flags, skip_dirs=())
-    report.flags = [f"{rel}:{line}: flagged string {masked}" for rel, line, masked in whits]
-    if fhits:
-        shutil.rmtree(out, ignore_errors=True)
-        lines = [f"{rel}:{line}: forbidden string {masked}" for rel, line, masked in fhits[:50]]
-        more = f"\n  ... and {len(fhits) - 50} more" if len(fhits) > 50 else ""
-        raise BuildError(
-            f"[{target}] output contained forbidden strings; output removed.\n  " + "\n  ".join(lines) + more
-        )
-    if strict and report.flags:
-        shutil.rmtree(out, ignore_errors=True)
-        raise BuildError(f"[{target}] strict mode: flagged strings present.\n  " + "\n  ".join(report.flags))
-    if strict and report.evidence and report.evidence.stale:
-        shutil.rmtree(out, ignore_errors=True)
-        raise BuildError(f"[{target}] strict mode: {len(report.evidence.stale)} stale evidence claim(s); run `yss check`")
-    return report
+        # dead local links: an href/src a rendered page emits that the output does not carry (gh-14).
+        # Last of the output gates, because it is the only one that asks about files: it has to see
+        # everything the build emits - the hooks' artefacts, and the manifest every footer links to.
+        dead_links = _dead_links(rendered, out, cfg.base_url(target))
+        report.warnings += dead_links
+        if strict and dead_links:
+            shutil.rmtree(out, ignore_errors=True)
+            raise BuildError(f"[{target}] strict mode: {len(dead_links)} dead link(s).\n  " + "\n  ".join(dead_links))
+
+        # leak scan
+        forbidden, flags = cfg.redaction_lists(target)
+        fhits, whits = scan_tree(out, forbidden, flags, skip_dirs=())
+        report.flags = [f"{rel}:{line}: flagged string {masked}" for rel, line, masked in whits]
+        if fhits:
+            shutil.rmtree(out, ignore_errors=True)
+            lines = [f"{rel}:{line}: forbidden string {masked}" for rel, line, masked in fhits[:50]]
+            more = f"\n  ... and {len(fhits) - 50} more" if len(fhits) > 50 else ""
+            raise BuildError(
+                f"[{target}] output contained forbidden strings; output removed.\n  " + "\n  ".join(lines) + more
+            )
+        if strict and report.flags:
+            shutil.rmtree(out, ignore_errors=True)
+            raise BuildError(f"[{target}] strict mode: flagged strings present.\n  " + "\n  ".join(report.flags))
+        if strict and report.evidence and report.evidence.stale:
+            shutil.rmtree(out, ignore_errors=True)
+            raise BuildError(f"[{target}] strict mode: {len(report.evidence.stale)} stale evidence claim(s); run `yss check`")
+        return report
+    finally:
+        _release_lock(lock)
 
 
 def build_targets(cfg: Config, targets: list[str], **kwargs) -> list[BuildReport]:

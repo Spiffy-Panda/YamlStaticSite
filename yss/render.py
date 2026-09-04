@@ -28,6 +28,10 @@ _md = MarkdownIt("commonmark", {"html": True}).enable("table").enable("strikethr
 
 ANCHOR_RE = re.compile(r'\sid="([^"]*)"')
 
+# The nav group whose members are the site's collections rather than its pages (gh-18). Reserved:
+# a page declaring it in `nav.group` falls back to the default page group.
+COLLECTION_NAV_GROUP = "collections"
+
 PARAM_TYPES = {
     "string": (str,),
     "markdown": (str,),
@@ -99,6 +103,9 @@ class Renderer:
         self._rendered_refs: list[dict] = []
         self._page_anchors: dict[str, set[str]] = {}
         self._ref_sources: dict[str, list[str]] | None = None
+        # Non-fatal things a binding noticed while rendering; the build folds these into
+        # report.warnings, so a page that quietly renders the wrong shape still says so (gh-12).
+        self.warnings: list[str] = []
         self.ctx = {
             "docs": docs,
             "pages": pages,
@@ -172,7 +179,7 @@ class Renderer:
         if path.startswith(("http://", "https://", "/", "#", "data:")):
             return self.url(path)
         if self.current_collection and not self.current_collection.is_root:
-            return self.url(f"{self.current_collection.route_prefix.strip('/')}/{path}")
+            return self.url(self.current_collection.route_path(path))
         return self.url(path)
 
     def _mounted_prefixes(self, c: Collection) -> set[str]:
@@ -199,11 +206,27 @@ class Renderer:
                 head = href.lstrip("/").split("/")[0]
                 if head in declared and head not in carried:
                     continue
-                href = self.url(f"{c.route_prefix.strip('/')}/{href.lstrip('/')}")
+                href = self.url(c.route_path(href))
             else:
                 href = self.url(href)
             links.append(dict(link, href=href, kind=link.get("kind") or "page"))
         return links
+
+    def _emblem_url(self, c: Collection) -> str | None:
+        """The href for a collection's emblem when it is a file, None when it is a glyph (gh-14).
+
+        `collection.yaml`'s `emblem` is either a literal grapheme ("🧪") or a path relative to the
+        collection ("assets/emblem.svg"). Templates used to re-derive the href themselves from
+        `<id>/<emblem>`, which ignored `at:` and re-broke on every new consumer, so the resolved
+        url is computed once here and published on `$collections` (and data/collections.json).
+        `summary()` keeps `emblem` as the authored value.
+        """
+        emblem = str(c.data.get("emblem") or "")
+        if not emblem or ("/" not in emblem and "." not in emblem):
+            return None  # a glyph, not a path
+        if emblem.startswith(("http://", "https://", "/", "data:")):
+            return self.url(emblem)
+        return self.url(c.route_path(emblem))
 
     def _collection_summary(self, c: Collection) -> dict:
         info = c.summary()
@@ -211,6 +234,7 @@ class Renderer:
         info["pages"] = [p["route"] for p in self.pages if p.get("_collection") == c.id]
         info["href"] = self.url(c.route_prefix)
         info["links"] = self._card_links(c)
+        info["emblem_url"] = self._emblem_url(c)
         statuses = [self.docs[d].get("_evidence", {}).get("status", "ok") for d in info["docs"]]
         info["evidence"] = "stale" if "stale" in statuses else ("warn" if "warn" in statuses else "ok")
         return info
@@ -270,7 +294,10 @@ class Renderer:
         return {"archived": docs[0].get("status") == "archived", "waiting": waiting}
 
     def _nav(self) -> list[dict]:
-        groups = [g["id"] for g in (self.cfg.nav.get("groups") or [])]
+        # `collections` is reserved: its members are collections, not pages (gh-18). `nav.group` is
+        # a free string in page.schema.yaml, so a page could otherwise declare it and land in a
+        # group it has no business in; it falls back to the default page group instead.
+        groups = [g["id"] for g in (self.cfg.nav.get("groups") or []) if g["id"] != COLLECTION_NAV_GROUP]
         default_group = groups[0] if groups else None
         items = []
         for page in self.pages:
@@ -297,13 +324,53 @@ class Renderer:
         items.sort(key=lambda n: (n["order"], n["label"]))
         return items
 
-    def _nav_groups(self, items: list[dict]) -> list[dict]:
-        """The nav as the template wants it: ordered groups, each with its visible items."""
+    def _collection_nav(self, current_cid: str = "") -> list[dict]:
+        """The collections as nav items, shaped exactly like page items so one macro draws both.
+
+        Every collection used to get an unconditional pill in a hard-coded span with no label, no
+        ordering and no menu branch, so nine musings wrapped the top bar onto a second row and
+        nothing could be done about it (gh-18). As a group they inherit everything page groups
+        already had. Ordered by the collection's own (order, title) - the same order the landing
+        cards use - and `active` is set here rather than compared against the route, because a
+        reader is inside a collection on all of its pages, not just its landing page.
+        """
+        items = []
+        for c in sorted(self.ctx["collections"], key=lambda c: (c.get("order", 100), c.get("title") or "")):
+            items.append(
+                {
+                    "id": c["id"],
+                    "label": c["title"],
+                    "href": c["href"],
+                    "route": c["route"],
+                    "order": c.get("order", 100),
+                    "group": COLLECTION_NAV_GROUP,
+                    "collection": c["id"],
+                    "visibility": c.get("visibility", "public"),
+                    "kind": "collection",
+                    "active": c["id"] == current_cid,
+                    # A file emblem is a picture, and the bar is text; only a glyph goes in a pill.
+                    "emblem": None if c.get("emblem_url") else c.get("emblem"),
+                    "waiting": 0,
+                }
+            )
+        return items
+
+    def _nav_groups(self, items: list[dict], collection_items: list[dict] | None = None) -> list[dict]:
+        """The nav as the template wants it: ordered groups, each with its visible items.
+
+        The `collections` group's members come from `collection_items`, not from `items`. A site
+        that customised `nav.groups` before gh-18 has no `collections` entry, so the group is
+        appended after the page groups - which is where it always used to be drawn.
+        """
+        collection_items = list(collection_items or [])
+        specs = list(self.cfg.nav.get("groups") or [])
         out = []
-        for spec in self.cfg.nav.get("groups") or []:
-            members = [n for n in items if n["group"] == spec["id"]]
+        for spec in specs:
+            members = collection_items if spec["id"] == COLLECTION_NAV_GROUP else [n for n in items if n["group"] == spec["id"]]
             if members:
-                out.append({**spec, "items": members, "waiting": sum(n["waiting"] for n in members)})
+                out.append({**spec, "items": members, "waiting": sum(n.get("waiting") or 0 for n in members)})
+        if collection_items and not any(s["id"] == COLLECTION_NAV_GROUP for s in specs):
+            out.append({"id": COLLECTION_NAV_GROUP, "label": "", "items": collection_items, "waiting": 0})
         if not out and items:
             out.append({"id": "", "label": "", "items": items, "waiting": 0})
         return out
@@ -311,8 +378,22 @@ class Renderer:
     def render_str(self, source: str, ctx: dict) -> str:
         return self.env.from_string(source).render(**ctx)
 
-    def _bind(self, spec: dict) -> Any:
-        return resolve_binding(spec, self.ctx, self.render_str)
+    def _bind(self, spec: dict, sid: str | None = None) -> Any:
+        return resolve_binding(spec, self.ctx, self.render_str, self._binding_warner(sid))
+
+    def _binding_warner(self, sid: str | None) -> Callable[[str], None]:
+        """Prefix a binding's own complaint with the page and section a human would go and edit."""
+
+        def warn(message: str) -> None:
+            page = self.current_page or {}
+            where = f"page '{page.get('id', '?')}' ({page.get('_source', '?')})"
+            if sid:
+                where += f" section '{sid}'"
+            entry = f"{where}: {message}"
+            if entry not in self.warnings:
+                self.warnings.append(entry)
+
+        return warn
 
     # --- markdown --------------------------------------------------------
     def _markdown_fn(self) -> Callable[[str], str]:
@@ -446,7 +527,7 @@ class Renderer:
     def _section_markdown(self, page: dict, sec: dict, sid: str) -> Markup:
         if "from" in sec:
             spec = {k: v for k, v in sec.items() if k in ("from", "where", "sort", "limit", "map", "fields")}
-            text = self._bind(spec)
+            text = self._bind(spec, sid)
             if isinstance(text, list):
                 text = "\n".join(f"- {t}" for t in text)
             elif not isinstance(text, str):
@@ -460,7 +541,7 @@ class Renderer:
     def _section_prefab(self, page: dict, sec: dict, sid: str) -> Markup:
         args = {}
         for key, value in (sec.get("args") or {}).items():
-            args[key] = self._bind(value) if is_binding(value) else value
+            args[key] = self._bind(value, sid) if is_binding(value) else value
         return self.prefab(sec["prefab"], args)
 
     def _resolve_source(self, name: str) -> str | None:
@@ -584,7 +665,7 @@ class Renderer:
                 sections=sections,
                 toc=toc,
                 nav=[n for n in self.nav if not n["collection"]],
-                nav_groups=self._nav_groups([n for n in self.nav if not n["collection"]]),
+                nav_groups=self._nav_groups([n for n in self.nav if not n["collection"]], self._collection_nav(cid)),
                 sub_nav=sub_nav,
                 collection=next((c for c in self.ctx["collections"] if c["id"] == cid), None) if cid else None,
                 theme=theme,

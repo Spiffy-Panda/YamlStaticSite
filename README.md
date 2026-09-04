@@ -76,7 +76,7 @@ dist/<target>/       output (gitignored)
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
+MIT, see [LICENSE](https://github.com/Spiffy-Panda/YamlStaticSite/blob/main/LICENSE).
 
 ## Privacy model
 

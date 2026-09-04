@@ -4,7 +4,7 @@ id: changelog
 title: Changelog
 summary: Releases of the yss toolchain.
 status: active
-updated: 2026-09-03
+updated: 2026-09-04
 
 releases:
   - version: 0.3.0
@@ -70,6 +70,36 @@ releases:
         text: "A collection's card links and `collection_url()` were built from its id rather than its route, so they pointed at the wrong place once a collection sat under a route prefix."
       - type: changed
         text: "Milestones m8-defects and m9-authoring closed and moved to docs/_archive/; every issue in the 2026-09-02 sweep is fixed and closed."
+      - type: added
+        text: "`<doc>.$items` binding root: every item of every type array in one doc, each tagged `_type`, so one `group_by` can span principles, components and constraints (gh-12, adr-025). The pilot's design page renders each subject group once, with all three kinds of item together."
+      - type: fixed
+        text: "`group-sections` no longer derives its anchor from the group's label: a declared group anchors under its own group id (`id_prefix` for a deliberate repeat), the build reports `duplicate anchor id` per page and fails on it under `--strict` (gh-12)."
+      - type: fixed
+        text: "A `group_by` whose buckets all collapsed to `None` now warns and names the page, the section and the `fields:` list that dropped the field it needed - `fields:` runs before `group_by`; `map:` is safe (gh-12, adr-025)."
+      - type: changed
+        text: "A design component's `status` is `claim_status` (live|decided|open|superseded), not `work_status`, so a component that exists in the code can finally say `live`; the pilot's sixteen components moved `active` -> `live`. Codemap modules keep `work_status` (gh-13, adr-026)."
+      - type: changed
+        text: "Breaking for existing design docs: restate any component at `planned`, `active`, `blocked`, `done` or `dropped` as a claim, or it now fails validation (gh-13, adr-026)."
+      - type: fixed
+        text: "A collection declaring `at:` 404'd its own theme.css and emblem: the asset emit and both emblem hrefs were built from the collection id while the stylesheet href was built from the route. `Collection.route_path()` is now the single answer for all of them (gh-14, adr-027)."
+      - type: changed
+        text: "The resolved `emblem_url` is published on `$collections` (and data/collections.json) instead of being re-derived per template; `emblem` keeps the authored value and a literal glyph resolves to null (gh-14)."
+      - type: added
+        text: "A dead-local-link gate: every href/src a rendered page emits is checked against the output, absolute paths must sit under `base_url`, and `--strict` makes a dead link fatal. Mounted trees are not checked; a page's link into one is (gh-14, adr-027)."
+      - type: fixed
+        text: "The page `<title>` was a plain concatenation, so a page titled the same as its collection or the site said it twice (`Demo musing · Demo musing · YamlStaticSite`); the crumbs are now joined with adjacent duplicates dropped (gh-15)."
+      - type: fixed
+        text: "Collection-index cards pluralise their footer counts: `1 doc` / `1 page` instead of `1 docs` / `1 pages` (gh-16). The counts stay target-filtered, so a collection whose docs and pages are all private reads `0 docs · 0 pages` on the public build by design."
+      - type: fixed
+        text: "Anchor jumps landed the target heading under the sticky header - the stylesheet had no scroll offset at all. `:root` names the header height as `--header-offset`, `html` spends it as `scroll-padding-top`, and the sticky table of contents spends the same token (gh-17)."
+      - type: fixed
+        text: "`nav:` in site.yaml had been rejected outright since adr-022 shipped - the site schema has `additionalProperties: false` and no `nav` key - so the knob that ADR documents was never turnable. The schema now carries it (gh-18, adr-028)."
+      - type: added
+        text: "Collections are a nav group under the reserved id `collections`, so a site labels, reorders or folds its collection pills behind a disclosure like any page group; the default config keeps today's appearance, and a customised nav.groups that omits it still shows them (gh-18, adr-028)."
+      - type: fixed
+        text: "A build into a `dist/` another process owns no longer reports success after its output was cleared: `yss build` exits 1 and `yss serve` reports the collision instead of writing its error page over the other builder's tree (gh-19)."
+      - type: added
+        text: "An advisory build lock `dist/.<target>.build-lock`, a sibling of the output so nothing clears it and Pages never carries it, released in a `finally`; a lock older than 600s is replaced with a warning (gh-19, adr-029)."
   - version: 0.2.0
     date: 2026-09-02
     status: released

@@ -51,11 +51,15 @@ DEFAULTS: dict[str, Any] = {
     # voice, or drop a group entirely and its pages fall into the first one), and `menu: true`
     # puts the group behind a disclosure instead of spelling it out. An empty label means the
     # group is the bar itself and needs no heading. A group with nothing visible renders nothing.
+    # `collections` is a reserved id: its items are the site's collections rather than pages, so a
+    # repo with nine musings can label, reorder or fold them away like any other group (gh-18).
+    # A page declaring `nav.group: collections` falls back to the first page group instead.
     "nav": {
         "groups": [
             {"id": "content", "label": ""},
             {"id": "decide", "label": "Decide"},
             {"id": "meta", "label": "About this build", "menu": True},
+            {"id": "collections", "label": ""},
         ]
     },
     "limits": {"title": 120, "summary": 300, "line": 240, "markdown": 2400},
@@ -183,6 +187,20 @@ class Collection:
             return "/"
         base = (self.route_base or "").strip("/")
         return f"/{base}/{self.id}/" if base else f"/{self.id}/"
+
+    def route_path(self, rel: str = "") -> str:
+        """Where something belonging to this collection lives, relative to the output root.
+
+        The single answer to "where do this collection's own files go" (gh-14). Assets were
+        emitted at `<id>/assets/` while the stylesheet href was built from the route, so any
+        collection declaring `at:` 404'd its own theme.css; the emblem hrefs were wrong in the
+        same direction and only worked because both sides agreed. Every caller - the asset emit,
+        `collection_url`, the card links, the emblem urls, the mount prefix - goes through here,
+        so they cannot drift apart again. A root collection (no id, no `at:`) returns `rel`.
+        """
+        base = self.route_prefix.strip("/")
+        rel = str(rel or "").strip("/")
+        return f"{base}/{rel}".strip("/") if base else rel
 
     def doc_id(self, stem: str) -> str:
         return stem if self.is_root else f"{self.id}/{stem}"

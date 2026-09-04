@@ -5,6 +5,7 @@ Every test builds in a temporary copy of the pilot site, never in dist/ (see Tem
 """
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import sys
@@ -176,9 +177,14 @@ class MountFilterTests(TempSiteCase):
 class CollectionRoutePrefixTests(TempSiteCase):
     def test_prefix_moves_pages_and_mounts_and_leaves_base_url_intact(self):
         collection = self.root / "examples-at" / "scc"
+        # The assets folder is load-bearing here (gh-14): without it `_copy_tree` was a no-op, so
+        # `out_dir / "scc"` was never created and the "not also at the unprefixed location"
+        # assertion below passed while the asset emit was in fact ignoring `at:` entirely.
         self.make_collection(
             collection,
             "title: Space Cargo Cannon\n"
+            "emblem: assets/emblem.svg\n"
+            "theme: {css: [assets/x.css]}\n"
             "mounts:\n"
             "  - path: extra\n"
             "    at: extra/\n"
@@ -188,6 +194,9 @@ class CollectionRoutePrefixTests(TempSiteCase):
         )
         (collection / "extra").mkdir()
         (collection / "extra" / "file.txt").write_text("hi", encoding="utf-8")
+        (collection / "assets").mkdir()
+        (collection / "assets" / "x.css").write_text("body{}", encoding="utf-8")
+        (collection / "assets" / "emblem.svg").write_text("<svg/>", encoding="utf-8")
 
         cfg = self.add_collections_entry({"root": "examples-at/*", "at": "musings/"})
         collection_obj = cfg.collection("scc")
@@ -203,7 +212,20 @@ class CollectionRoutePrefixTests(TempSiteCase):
         rep = build(cfg, "private", run_dynamic=False, loaded=loaded)
         self.assertTrue((rep.out_dir / "musings" / "scc" / "index.html").exists())
         self.assertTrue((rep.out_dir / "musings" / "scc" / "extra" / "file.txt").exists())
+        # assets land under the route too, and the page's hrefs agree with where they landed (gh-14)
+        self.assertTrue((rep.out_dir / "musings" / "scc" / "assets" / "x.css").exists())
+        self.assertTrue((rep.out_dir / "musings" / "scc" / "assets" / "emblem.svg").exists())
         self.assertFalse((rep.out_dir / "scc").exists())    # not also at the unprefixed location
+
+        page_html = (rep.out_dir / "musings" / "scc" / "index.html").read_text(encoding="utf-8")
+        self.assertIn('href="/musings/scc/assets/x.css"', page_html)
+        self.assertIn('src="/musings/scc/assets/emblem.svg"', page_html)
+        self.assertNotIn('"/scc/assets/', page_html)
+        collections = json.loads((rep.out_dir / "data" / "collections.json").read_text(encoding="utf-8"))
+        scc = next(c for c in collections if c["id"] == "scc")
+        self.assertEqual(scc["emblem"], "assets/emblem.svg")            # the authored value survives
+        self.assertEqual(scc["emblem_url"], "/musings/scc/assets/emblem.svg")
+        self.assertEqual([w for w in rep.warnings if w.startswith("dead link")], [])
 
         # base_url composition for the public target is untouched by collection prefixes
         self.assertEqual(cfg.base_url("public"), "/YamlStaticSite/")

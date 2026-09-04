@@ -5,7 +5,7 @@ id: design
 title: YamlStaticSite design
 summary: Three schema families (structured docs, UI prefabs, un-inflated pages) feed a build that validates, checks evidence, renders a site per target and exports the same data as JSON; collections make folder-per-topic repos first-class.
 status: active
-updated: 2026-09-03
+updated: 2026-09-04
 owners: [agent]
 related: [plan, codemap, decisions]
 
@@ -98,11 +98,11 @@ components:
     group: g-sources
     name: Config and collections
     kind: module
-    responsibility: Load site.yaml over defaults; discover collections from root globs; resolve paths, targets, vocabularies, limits, mounts and redaction lists.
+    responsibility: Load site.yaml over defaults; discover collections from root globs; resolve paths, targets, vocabularies, limits, mounts, redaction lists, and where a collection's own files live (`route_path`).
     inputs: [site.yaml, collection.yaml, .yss/local.yaml, YSS_FORBIDDEN_STRINGS, YSS_FLAG_STRINGS]
     outputs: [Config, Collection objects]
     code: [yss/config.py]
-    status: active
+    status: live
   - id: c-hooks
     group: g-sources
     name: Hook scripts
@@ -110,7 +110,7 @@ components:
     responsibility: Load a hooks.py per site or collection and call configure, load_docs, load_pages, markdown, before_render, after_build and providers.
     depends_on: [c-config]
     code: [yss/hooks.py]
-    status: active
+    status: live
   - id: c-schemas
     group: g-sources
     name: Schema registry and loaders
@@ -120,7 +120,7 @@ components:
     outputs: [validated dicts with _source and _collection, error lists]
     depends_on: [c-config, c-hooks]
     code: [yss/loader.py, yss/schemas/]
-    status: active
+    status: live
   - id: c-refs
     group: g-trust
     name: Reference checker
@@ -128,7 +128,7 @@ components:
     responsibility: Index item ids per doc, validate x-ref fields (item, doc/item, doc) and inline `[[doc#item]]` references in docs and pages, and answer `yss refs`.
     depends_on: [c-schemas]
     code: [yss/loader.py]
-    status: active
+    status: live
   - id: c-evidence
     group: g-trust
     name: Evidence checker
@@ -137,7 +137,7 @@ components:
     depends_on: [c-schemas]
     outputs: [EvidenceReport, data/evidence.json, _evidence on docs and items]
     code: [yss/evidence.py, yss/providers/evidence.py]
-    status: active
+    status: live
   - id: c-visibility
     group: g-trust
     name: Visibility and redaction
@@ -145,31 +145,31 @@ components:
     responsibility: Remove private objects and private_notes for public targets; scan output trees for forbidden and flagged strings.
     depends_on: [c-config]
     code: [yss/visibility.py]
-    status: active
+    status: live
   - id: c-binding
     group: g-presentation
     name: Binding resolver
     kind: module
-    responsibility: Turn a `from/where/sort/limit/map/fields/group_by` spec into data, with collection-local ids, the virtual roots $docs, $pages, $site, $prefabs, $collections, $evidence, and group_by keys resolved against the source doc's authored `groups`.
+    responsibility: Turn a `from/where/sort/limit/map/fields/group_by` spec into data - collection-local ids, the virtual roots ($docs, $pages, $site, $prefabs, $collections, $evidence, a doc's own $items), group_by keys resolved against its authored `groups`.
     inputs: [binding spec, filtered docs]
     outputs: [list or scalar]
     code: [yss/binding.py]
-    status: active
+    status: live
   - id: c-render
     group: g-presentation
     name: Renderer
     kind: module
-    responsibility: Jinja2 environment with prefab templates, section handlers, inline reference expansion, pluggable markdown, collection theme and sub-navigation, layout wrapping.
+    responsibility: Jinja2 environment with prefab templates, section handlers, inline reference expansion, pluggable markdown, collection theme and sub-navigation, nav groups (including the reserved collections group), resolved emblem urls, layout wrapping.
     depends_on: [c-binding, c-prefabs, c-config, c-hooks]
     code: [yss/render.py, yss/templates/default.html]
-    status: active
+    status: live
   - id: c-prefabs
     group: g-presentation
     name: Prefab library
     kind: ui
     responsibility: Built-in cards, grids, tables, boards, timelines, lists, evidence list, collection index and the worksheet; sites and collections override or add prefabs by name.
     code: [yss/prefabs/, site/prefabs/]
-    status: active
+    status: live
   - id: c-worksheet
     group: g-presentation
     name: Worksheet
@@ -177,16 +177,16 @@ components:
     responsibility: Decision instrument - questions with recommended defaults, a required-answer gate, and a Build button producing a paste-ready agent instruction. An applied question carries a `resolution` and renders as a record (adr-018).
     depends_on: [c-prefabs]
     code: [yss/prefabs/worksheet.yaml, yss/schemas/doc.worksheet.schema.yaml]
-    status: active
+    status: live
   - id: c-build
     group: g-pipeline
     name: Build pipeline
     kind: process
-    responsibility: Orchestrate load, reference checks, filter, evidence, hooks, render, export, assets, mounts, dynamic collection, manifest and the leak scan; delete output on a forbidden hit.
+    responsibility: Orchestrate load, refs, filter, evidence, hooks, render, export, assets, mounts, dynamic collection, manifest, the dead-link gate and the leak scan, under an advisory lock on its output; delete output on a forbidden hit.
     depends_on: [c-schemas, c-refs, c-evidence, c-visibility, c-render, c-dynamic, c-hooks]
     outputs: [dist/<target>/]
     code: [yss/build.py]
-    status: active
+    status: live
   - id: c-dynamic
     group: g-pipeline
     name: Dynamic sources
@@ -195,7 +195,7 @@ components:
     outputs: [dist/<target>/dynamic/<name>.json]
     depends_on: [c-config, c-hooks]
     code: [yss/dynamic.py, yss/providers/]
-    status: active
+    status: live
   - id: c-server
     group: g-pipeline
     name: Two-port server
@@ -203,36 +203,36 @@ components:
     responsibility: Serve dist/private and dist/public on separate ports, honour base_url, refresh stale dynamic sources in the background, send COOP/COEP, rebuild on change.
     depends_on: [c-build, c-dynamic]
     code: [yss/server.py]
-    status: active
+    status: live
   - id: c-client
     group: g-presentation
     name: Client runtime
     kind: ui
     responsibility: Fetch dynamic JSON and render it as table, kv, list, cards, json or a custom script; nav toggle.
     code: [yss/assets/yss.js, yss/assets/yss.css]
-    status: active
+    status: live
   - id: c-cli
     group: g-pipeline
     name: CLI
     kind: module
-    responsibility: validate, check, refs, build, serve, dynamic, scan, ls, query, schema, new, init, skills, pages-setup.
+    responsibility: validate, check, refs, build, serve, dynamic, scan, ls, query, schema, new, init, skills, pages-setup; verifies after each build that the output it was promised is on disk before reporting success.
     depends_on: [c-build, c-server, c-evidence]
     code: [yss/cli.py, yss/scaffold.py, yss/skillpack.py, yss/ghpages.py]
-    status: active
+    status: live
   - id: c-skills
     group: g-pipeline
     name: Agent skills
     kind: process
     responsibility: Teach agents the mental model and the commands; one skill per authoring task plus publishing; shipped in the package and installed per repo.
     code: [yss/skills/, yss/skillpack.py, .claude/skills/]
-    status: active
+    status: live
 
 interfaces:
   - id: i-cli
     name: python -m yss
     kind: cli
     signature: "yss [--root DIR] {validate|check|refs|build|serve|dynamic|scan|ls|query|schema|new|init|skills|pages-setup} ..."
-    description: Exit code 0 on success, 1 on validation, evidence or build failure, 2 on configuration errors.
+    description: Exit code 0 on success, 1 on validation, evidence or build failure - including a target whose build.json is missing after a reported success - 2 on configuration errors.
     component: c-cli
   - id: i-annotations
     name: Schema annotations
@@ -243,8 +243,8 @@ interfaces:
   - id: i-binding
     name: Binding spec
     kind: yaml
-    signature: "{from: <doc>.<path> | /<doc>.<path> | $docs | $pages | $site | $prefabs | $collections | $evidence, where, sort, limit, map, fields, group_by}"
-    description: Used for prefab args and markdown sections. Inside a collection, `<doc>` resolves to the local doc first; `/<doc>` forces the root doc. `group_by` yields `[{key, items}]`, plus the authored group's own fields when the key names an entry in the source doc's `groups`.
+    signature: "{from: <doc>.<path> | <doc>.$items | /<doc>.<path> | $docs | $pages | $site | $prefabs | $collections | $evidence, where, sort, limit, map, fields, group_by}"
+    description: "Used for prefab args and markdown sections. `<doc>.$items` is every item of every type array in that doc, each tagged `_type` (adr-025). Ops run in the order where, sort, limit, map, fields, group_by - `fields:` before `group_by`, which the build warns about."
     component: c-binding
   - id: i-refs
     name: Inline references
@@ -313,6 +313,9 @@ flows:
       - actor: dynamic
         action: Collect every source enabled for the target with on_build true
         produces: dist/<target>/dynamic/<name>.json
+      - actor: build
+        action: Check every href/src on a rendered page against the output; an absolute path must sit under base_url
+        produces: warnings; BuildError and deleted output under --strict
       - actor: build
         action: Scan every text file in the output for forbidden and flagged strings
         produces: BuildError and deleted output on a forbidden hit; warnings for flags; strict mode also fails on stale evidence

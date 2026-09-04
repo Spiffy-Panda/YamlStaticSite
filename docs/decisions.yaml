@@ -5,7 +5,7 @@ id: decisions
 title: Decision log
 summary: Why the toolchain is shaped the way it is.
 status: active
-updated: 2026-09-03
+updated: 2026-09-04
 related: [design]
 
 entries:
@@ -519,3 +519,190 @@ entries:
       - A generated static mirror of the tree in dist/ (works offline and needs no network, but duplicates the package into the public build and sends every source line through the redaction scan; kept as the fallback if the repo goes private).
       - A `/_source` endpoint on the dev server (rejected - `serve.watch` already rebuilds the index when a cited file changes, and reading arbitrary paths from disk is a traversal surface for a feature two dynamic sources already cover).
       - "`importlib` plus `inspect.getsourcelines` (runs module-level code, and answers for neither constants nor dotted members)."
+
+  - id: adr-025
+    date: 2026-09-04
+    title: A doc-local `$items` root, and anchors that belong to the item rather than the label
+    status: accepted
+    context: |
+      A binding reads one array. A subject group in design.yaml owns principles, components and
+      constraints at once, so presenting one group meant three `group-sections` blocks - and each
+      emitted `id="group-<slugged title>"` for the same group, so one page carried the same anchor
+      three times. Nothing complained: `Renderer.dead_refs()` (adr-023) asks whether an anchor is
+      *present*, a set membership test, and a duplicated anchor is present three times over. A
+      reader following `[[design#g-sources]]` landed on whichever copy the browser met first.
+
+      Underneath sat a second trap. The binding ops run in the order where, sort, limit, map,
+      fields, group_by, so `fields: [name]` with `group_by: group` drops the field the grouping
+      needs and buckets everything under `None`; the page then renders one unnamed section instead
+      of the authored groups, silently. The issue blamed `map:` for this, wrongly - `map_items`
+      starts from `dict(item)`, so `map` keeps the original fields. Only `fields:` drops them.
+    decision: |
+      Three changes, one per hole.
+
+      `<doc>.$items` is a doc-local virtual root: every item of every top-level type array, in
+      authored key order, each carrying `_type: <array name>`. It skips `_`-prefixed loader
+      metadata and the envelope lists (groups, links, evidence, tags, owners, related), which
+      describe the doc rather than its subject. `_type` follows the existing metadata convention,
+      so it filters and maps with no new syntax and one `group_by` can finally span type arrays.
+      Only the exact suffix is a root; `$items.0` is an error that says so.
+
+      `group-sections` anchors a group declared in the doc's `groups:` under that group's own id
+      verbatim - the rule adr-023 already set for table rows. An undeclared bucket has no id to be
+      faithful to and keeps `group-<slug>`. `id_prefix` covers the deliberate case of one page
+      rendering the same group twice.
+
+      The build counts `id=` attributes per rendered page and reports every repeat as
+      `duplicate anchor id 'x' on page /route/ (n times)`, fatal under `--strict` alongside dead
+      references, stale evidence and flagged strings. A binding whose `group_by` collapses every
+      bucket to `None` warns and names the page, the section, the field and the source - and says
+      that `fields:` dropped it when `fields:` is present.
+    consequences:
+      - The pilot's design page is the demonstration - one section per subject holding that subject's principles, components and constraints together, each card kickered with its `_type`.
+      - The check found five real offenders on /plan/ at once - the board and the task list anchored the same milestones; the board's cards moved to `board-<id>`, so the plain id belongs to the detail entry a reference means.
+      - "`$items` is only as good as a doc's top-level shape: a doc hiding its items under `data:` (kind generic) sees nothing."
+      - "`_type` is now a reserved item field name, and a page that deliberately repeats a group must say so with `id_prefix` rather than getting a silently mangled anchor."
+    alternatives:
+      - "A list-valued `from:` (makes `from` two types everywhere a binding is touched, records nowhere which list an item came from, and still makes the author enumerate the arrays `$items` finds on its own)."
+      - "A site-wide `$items` alongside `$docs` (loses the doc that `group_by` resolves its authored `groups:` against, which is the whole point, and makes an unfiltered binding a firehose across the site)."
+      - Anchoring on the group's label and accepting the collisions (the state being fixed; a renamed heading also breaks every inbound reference).
+
+  - id: adr-026
+    date: 2026-09-04
+    title: A design component's status is a claim, not a unit of work
+    status: accepted
+    context: |
+      `components[].status` was pinned to `work_status` (planned, active, blocked, done, dropped) -
+      the vocabulary for things an agent is doing. A component is a claim about the architecture as
+      it stands, so `live` was unsayable and all sixteen of the pilot's components sat at `active`:
+      a work word doing a claim's job, and indistinguishable from a half-finished component. Every
+      sibling array in the same doc - principles, interfaces, flows, constraints, alternatives -
+      already used the `claim_status` vocabulary that gh-7 added.
+    decision: |
+      `components[].status` declares `x-vocab: claim_status`. `item_base.status` stays
+      un-enumerated for the reason gh-7 recorded - `allOf` composes by intersection, so an enum
+      there would also constrain codemap modules and plan items - which is why this is an explicit
+      per-kind declaration rather than a deleted property. Codemap `modules[].status` keeps
+      `work_status`: a module genuinely is work in progress or dropped. The pilot migrated its
+      sixteen components from `active` to `live`.
+    consequences:
+      - One vocabulary per design doc - every list in it now answers the same question, "is this claim still true?"
+      - Breaking for existing design docs - a component at a work_status value now fails validation. Taken deliberately while the pilot is the only design doc in existence, ahead of the Musings migration.
+      - A collection that overrides `claim_status` in its collection.yaml now governs its components too.
+      - "`yss new doc design` is unaffected: the scaffold writes only required fields and never a status."
+    alternatives:
+      - Drop `status` from components and let the envelope's open `item_base.status` carry it (rejected - the field stops being enum-checked, so a typo or a work word validates silently, and it is no longer overridable per collection).
+      - Add `live` to `work_status` (rejected - it lets every plan milestone and codemap module be `live` to fix one kind's problem, and leaves the two meanings fused).
+
+  - id: adr-027
+    date: 2026-09-04
+    title: A collection's files are addressed by its route, and a page's local links are checked
+    status: accepted
+    context: |
+      Four call sites answered "where do this collection's files live" and only one honoured `at:`.
+      `collection_url()` prefixed `route_prefix`, so a musing's theme.css href was right; the asset
+      emit, the collection-bar emblem, the landing-card emblem and `Collection.summary()` all built
+      from the collection id instead. The emblems worked only because the emit and the href were
+      wrong in the same direction - fixing the emit alone would have broken them.
+
+      Nothing noticed. validate, check, scan and build were all green over a page whose own
+      stylesheet 404'd, because `dead_refs` (adr-023) asks whether an *anchor* was emitted - a set
+      membership test over rendered HTML - and nothing asked whether a *file* was.
+    decision: |
+      `Collection.route_path(rel)` is the single answer, and every caller goes through it: the
+      asset emit, the mount prefix, `collection_url`, the card links and the emblem urls. The
+      resolved `emblem_url` is computed once and published on `$collections` (and
+      data/collections.json) so no consumer re-derives a base; `emblem` keeps the authored value,
+      and a literal glyph yields `emblem_url: null` so the glyph branch survives.
+
+      `_dead_links` then asks of a page's links what `dead_refs` asks of its references. Every
+      href/src on a rendered page, skipping off-site and fragment-only forms, query and fragment
+      stripped: an absolute path must sit under `base_url`, a relative one resolves against the
+      page's own directory, and either way it has to reach a file or a directory carrying
+      index.html. Warnings by default, fatal under `--strict` with the rmtree-then-raise shape the
+      other output gates use. It runs after the manifest and immediately before the leak scan: it
+      is the only gate that asks about files, so it has to see everything the build emits - the
+      hooks' artefacts, and the `build.json` every footer links to.
+    consequences:
+      - A collection under a route prefix serves its own stylesheet and emblem, and the four call sites cannot drift apart again.
+      - Mount contents are not checked (adr-021 - a mount is the collection's business), but a page's link into a mount is, so a public build that drops a private playable says so.
+      - An href outside `base_url` is dead by definition on a redacting target, which catches a hand-written absolute link that would otherwise only 404 once it reached Pages.
+      - The gate stats the filesystem once per link per page - the cost of the only check that can see a 404.
+    alternatives:
+      - Fixing the asset emit alone (rejected - it breaks both emblems, which depended on the matching error).
+      - Publishing the emblem path and letting each template resolve it (that is the failure mode being fixed; it re-breaks on every new consumer).
+      - Checking mounted trees too (rejected - hand-authored links inside a mount are not ours to police).
+      - Running the gate before the manifest (rejected - build.json is a real output every footer links to, and it reported eighteen false positives per target).
+
+  - id: adr-028
+    date: 2026-09-04
+    title: Collections are a nav group like any other, under a reserved id
+    status: accepted
+    context: |
+      Every collection got an unconditional pill in a hard-coded
+      `<span class="nav-group nav-group-collections">` - no label, no menu branch, no ordering
+      hook, no suppression - while page groups had all of that through site.yaml's `nav.groups`
+      (adr-022). At nine musings the bar wraps onto a second row and nothing can be done about it.
+
+      The reason nobody had hit this from the config side: site.schema.yaml has
+      `additionalProperties: false` and shipped with no `nav` key at all, and `load_all` validates
+      the raw site.yaml - so `nav:` had always been rejected with "Additional properties are not
+      allowed ('nav' was unexpected)". adr-022's stated consequence, that a site renames or folds
+      away a group in site.yaml, was never true of any build: the knob has been documented and
+      unturnable since it shipped.
+    decision: |
+      `nav` joins the site schema (groups of `{id required, label, menu}`), and `collections`
+      becomes a reserved group id whose members are the site's collections rather than its pages.
+      It joins the DEFAULTS group list last, so today's appearance is unchanged.
+
+      `_collection_nav` builds the items - sorted by the collection's own (order, title), each
+      carrying `active` explicitly, because a reader is inside a collection on all of its pages and
+      not only its landing page - and the shared link macro draws pages and collections alike. A
+      customised `nav.groups` predating this change has no `collections` entry, so the group is
+      appended after the page groups, which is where it always was.
+
+      Reserved rather than vocabulary: `nav.group` on a page is a plain string with no `x-vocab`,
+      so a page could otherwise declare `collections` and land among the musings. It falls back to
+      the default page group instead. No suppression knob - `menu: true` already folds the group
+      away, and nobody asked to hide collections entirely.
+    consequences:
+      - A repo with nine musings labels, reorders or folds its collection pills from site.yaml like any other group.
+      - "`nav:` in site.yaml validates for the first time, so adr-022's consequence becomes true retroactively rather than newly."
+      - "A page declaring `nav.group: collections` is silently redirected to the default group rather than erroring - the id is reserved, not rejected."
+      - The collections group is drawn by the same macro as the pages, so a future nav feature lands on both at once.
+    alternatives:
+      - Adding `collections` to the `nav_group` vocabulary (rejected - it would let a page declare it, and that vocabulary is about what a page may say about itself).
+      - "A `nav.collections: false` suppression knob (not asked for; `menu: true` covers the wrapping problem)."
+      - Leaving the hard-coded span and capping the pill count (treats the symptom and keeps the group unconfigurable).
+
+  - id: adr-029
+    date: 2026-09-04
+    title: An advisory lock and an output check make concurrent builds loud
+    status: accepted
+    context: |
+      `dist/<target>/` has one owner and nothing enforced it. `yss build --target public` run while
+      `yss serve` watched the same tree printed its success line and left no dist/public behind:
+      the server's rebuild called `_safe_clear` on the directory the CLI build was still filling.
+      `BuildReport.summary()` is composed purely from in-memory counts and never stats the
+      filesystem, so the report cannot notice its own output disappearing.
+    decision: |
+      Two layers.
+
+      After `build()` returns, `cmd_build` and `server.rebuild` require the build's own
+      `build.json` to exist; if it does not, they say so and fail (exit 1, or ok=False). The server
+      does not write its error page in that case - that would clobber the other builder's output in
+      turn.
+
+      `build()` takes an advisory lock `dist/.<target>.build-lock` with `O_CREAT|O_EXCL`, holding
+      `{pid, target, started_at}` and released in a `finally` that covers every early-exit path. It
+      is a *sibling* of the output, so `_safe_clear` never deletes it and the Pages artefact never
+      carries it. A lock younger than `LOCK_STALE_SECONDS` (600) refuses the build by name; an
+      older one is replaced with a warning.
+    consequences:
+      - A collision is an error at the start of a build rather than a silent empty dist/.
+      - A hard-killed build leaves a lock that blocks the next build for at most ten minutes and then self-heals.
+      - The lock lives inside gitignored dist/, so it can never be committed; the pid in the message is diagnostic only.
+    alternatives:
+      - "Liveness-checking the recorded pid with `os.kill(pid, 0)` (rejected outright - on Windows that terminates the process, and k-windows says this pipeline is developed there)."
+      - "A lock file inside `dist/<target>/` (rejected - `_safe_clear` deletes it, and it would ship to Pages)."
+      - Per-target output directories per process (rejected - the server and the CLI are meant to share one preview tree).

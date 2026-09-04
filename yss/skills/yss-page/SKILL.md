@@ -65,6 +65,11 @@ Relative `src`, `head.css` and `include` paths resolve against the collection fo
 ```yaml
 from: plan.milestones          # <doc id>.<dotted path>; /plan.milestones forces the root doc from a collection
                                # virtual roots: $docs, $pages, $site, $prefabs, $collections, $evidence
+                               # design.$items: every item of every type array in one doc, each
+                               #   tagged `_type: <array name>` - the only way one binding (and one
+                               #   group_by) can span principles + components + constraints. Skips
+                               #   the envelope lists (groups, links, evidence, tags, owners,
+                               #   related) and `_`-prefixed metadata. Exact suffix only, no $items.0
 where:                         # all conditions must hold
   status: [active, blocked]    # any-of
   priority: {lte: 2}           # not | contains | exists | gte | lte
@@ -76,9 +81,19 @@ map:                           # rename/derive fields so they match prefab param
   body: summary
   href: "#{{ id }}"            # any string with {{ }} is a Jinja template over the item (+ url(), doc_url(), ref_url(), docs)
   meta: "{{ tasks | length }} tasks"
-fields: [id, title]            # keep only these
-group_by: status               # -> [{key, items}] (for status-board)
+fields: [id, title]            # keep only these - runs BEFORE group_by, so a field group_by needs
+                               #   must be listed here or every bucket collapses to None (the build
+                               #   warns and names the page and section). `map` is safe: it keeps
+                               #   the original fields.
+group_by: status               # -> [{key, items}] (for status-board); when the source doc declares
+                               #   `groups:`, each bucket also carries that group's title/blurb and
+                               #   the declared order (for group-sections)
 ```
+
+`python -m yss query 'design.$items' --where _type=components` reads exactly what a page would.
+Two ids the same on one page is a build warning (`duplicate anchor id`) and fatal under `--strict`:
+`group-sections` anchors a declared group under its own group id, so a page that renders one group
+twice needs `id_prefix` on the second section.
 
 Check what a binding returns before wiring it:
 

@@ -6,6 +6,13 @@ from typing import Any, Callable
 
 BINDING_KEYS = ("from", "where", "sort", "limit", "map", "group_by", "fields")
 
+ITEMS_SUFFIX = "$items"
+
+# Envelope lists every doc kind shares. They describe the doc, not its subject matter, so `$items`
+# steps over them: `groups:` is the vocabulary `group_by` resolves against, and `links`, `evidence`,
+# `tags`, `owners` and `related` are metadata a reader never wants mixed in with the real items.
+ENVELOPE_LISTS = ("groups", "links", "evidence", "tags", "owners", "related")
+
 
 class BindError(Exception):
     pass
@@ -39,6 +46,31 @@ def get_path_or_none(obj: Any, path: str) -> Any:
         return None
 
 
+def doc_items(doc: dict) -> list[dict]:
+    """Every item in every type array of one doc, flattened, each tagged with the array it came from.
+
+    `design.$items` is one list of principles *and* components *and* constraints, so a single
+    binding can group across them (gh-12). Each item is a copy carrying `_type: <key>`, which
+    follows the existing `_`-prefixed metadata convention (`_collection`, `_evidence`) and so is
+    filterable (`where: {_type: [principles, constraints]}`) and mappable (`map: {badge: _type}`) -
+    an item never loses track of which array it belongs to.
+
+    Skipped: `_`-prefixed loader metadata, the shared envelope lists (`ENVELOPE_LISTS`), and any
+    value that is not a list of mappings. Top-level key order is the doc's authored order, so the
+    flattening is stable and reviewable.
+    """
+    out: list[dict] = []
+    for key, value in doc.items():
+        if key.startswith("_") or key in ENVELOPE_LISTS:
+            continue
+        if not isinstance(value, list) or not value:
+            continue
+        if not all(isinstance(item, dict) for item in value):
+            continue
+        out += [dict(item, _type=key) for item in value]
+    return out
+
+
 def source_doc(expr: str, ctx: dict) -> dict | None:
     """The doc a `from:` expression reads, or None for a virtual root or an unknown doc.
 
@@ -60,7 +92,11 @@ def source_doc(expr: str, ctx: dict) -> dict | None:
 
 
 def resolve_from(expr: str, ctx: dict) -> Any:
-    """`plan.milestones` -> docs['plan']['milestones']; `$docs`, `$pages`, `$site`, `$build` are virtual roots."""
+    """`plan.milestones` -> docs['plan']['milestones']; `$docs`, `$pages`, `$site`, `$build` are virtual roots.
+
+    One doc-local virtual root: `design.$items` is every item of every type array in that doc,
+    each carrying `_type` (see `doc_items`). It exists so a `group_by` can span type arrays.
+    """
     expr = expr.strip()
     if expr.startswith("$"):
         head, _, rest = expr[1:].partition(".")
@@ -93,6 +129,13 @@ def resolve_from(expr: str, ctx: dict) -> Any:
         else:
             hint = "misspelled?"
         raise BindError(f"unknown doc '{doc_id}' ({hint}); visible docs: {', '.join(sorted(docs)) or 'none'}")
+    if rest == ITEMS_SUFFIX:
+        return doc_items(docs[doc_id])
+    if rest.startswith(ITEMS_SUFFIX + "."):
+        raise BindError(
+            f"path '{expr}': '{ITEMS_SUFFIX}' is a whole-doc root, not a field to index into; "
+            f"write '{doc_id}.{ITEMS_SUFFIX}' and select with where/sort/limit"
+        )
     try:
         return get_path(docs[doc_id], rest)
     except KeyError as exc:
@@ -193,7 +236,37 @@ def group_items(items: list, key: str, defs: Any = None) -> list[dict]:
     ]
 
 
-def resolve_binding(spec: dict, ctx: dict, render: Callable[[str, dict], str] | None = None) -> Any:
+def _group_collapse_warning(spec: dict, items: list, groups: list[dict]) -> str | None:
+    """The message for a `group_by` that bucketed everything under `None`, or None when it did not.
+
+    A collapsed grouping is not an error - a doc may legitimately have items with no group yet -
+    but when *every* item lands in the `None` bucket the page silently renders one unnamed section
+    instead of the authored groups, and the cause is almost always an earlier list op that removed
+    the field. `fields:` is the one that does it (it runs before `group_by` and rebuilds each item
+    from the named keys only); `map:` does not, because `map_items` starts from `dict(item)`.
+    """
+    if not items or len(groups) != 1 or groups[0].get("key") is not None:
+        return None
+    key = spec["group_by"]
+    message = (
+        f"group_by '{key}' put all {len(items)} item(s) from '{spec['from']}' into a single "
+        f"unnamed bucket: no item has a '{key}' field, so the authored groups are not rendered"
+    )
+    if "fields" in spec:
+        listed = ", ".join(str(f) for f in spec["fields"])
+        message += (
+            f" - `fields: [{listed}]` runs before `group_by` and dropped it;"
+            f" add '{key}' to `fields:` (or drop `fields:`)"
+        )
+    return message
+
+
+def resolve_binding(
+    spec: dict,
+    ctx: dict,
+    render: Callable[[str, dict], str] | None = None,
+    warn: Callable[[str], None] | None = None,
+) -> Any:
     unknown = set(spec) - set(BINDING_KEYS)
     if unknown:
         raise BindError(
@@ -226,5 +299,10 @@ def resolve_binding(spec: dict, ctx: dict, render: Callable[[str, dict], str] | 
     if "group_by" in spec:
         doc = source_doc(spec["from"], ctx)
         defs = doc.get("groups") if doc else None
-        items = group_items(items, spec["group_by"], defs if isinstance(defs, list) else None)
+        grouped = group_items(items, spec["group_by"], defs if isinstance(defs, list) else None)
+        if warn is not None:
+            message = _group_collapse_warning(spec, items, grouped)
+            if message:
+                warn(message)
+        items = grouped
     return items

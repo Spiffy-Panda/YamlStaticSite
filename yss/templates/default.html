@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ page.title }} · {% if collection %}{{ collection.title }} · {% endif %}{{ site.name }}</title>
+{% set crumbs = [] %}{% for part in [page.title, collection.title if collection else none, site.name] %}{% if part and (not crumbs or crumbs[-1] != part) %}{% set _ = crumbs.append(part) %}{% endif %}{% endfor %}<title>{{ crumbs | join(' · ') }}</title>
 {% if page.summary %}<meta name="description" content="{{ page.summary }}">{% endif %}
 {% for key, value in (head.meta or {}).items() %}<meta name="{{ key }}" content="{{ value }}">{% endfor %}
 <link rel="stylesheet" href="{{ url('assets/yss.css') }}">
@@ -18,7 +18,7 @@
     <button class="nav-toggle" aria-expanded="false" aria-controls="site-nav">Menu</button>
     <nav id="site-nav" class="site-nav">
       {% macro navlink(item) %}
-      <a href="{{ item.href }}" class="{% if item.route == current_route %}active{% endif %} {% if item.visibility == 'private' %}private{% endif %}">{{ item.label }}{% if item.waiting %} <span class="nav-count" title="calls waiting on you">{{ item.waiting }}</span>{% endif %}</a>
+      <a href="{{ item.href }}" class="{% if item.kind == 'collection' %}nav-collection {% endif %}{% if item.active or item.route == current_route %}active{% endif %} {% if item.visibility == 'private' %}private{% endif %}">{% if item.emblem %}{{ item.emblem }} {% endif %}{{ item.label }}{% if item.waiting %} <span class="nav-count" title="calls waiting on you">{{ item.waiting }}</span>{% endif %}</a>
       {% endmacro %}
       {% for g in nav_groups %}
       {% if g.menu %}
@@ -33,13 +33,6 @@
       </span>
       {% endif %}
       {% endfor %}
-      {% if collections %}
-      <span class="nav-group nav-group-collections">
-        {% for c in collections %}
-        <a href="{{ c.href }}" class="nav-collection {% if collection and collection.id == c.id %}active{% endif %} {% if c.visibility == 'private' %}private{% endif %}">{% if c.emblem and c.emblem|length <= 4 %}{{ c.emblem }} {% endif %}{{ c.title }}</a>
-        {% endfor %}
-      </span>
-      {% endif %}
     </nav>
     <span class="target-badge" title="build target">{{ target }}</span>
   </div>
@@ -47,7 +40,7 @@
 {% if collection %}
 <div class="collection-bar">
   <div class="wrap">
-    <span class="collection-emblem">{% if collection.emblem and collection.emblem|length > 4 %}<img src="{{ url(collection.id ~ '/' ~ collection.emblem) }}" alt="">{% else %}{{ collection.emblem or '' }}{% endif %}</span>
+    <span class="collection-emblem">{% if collection.emblem_url %}<img src="{{ collection.emblem_url }}" alt="">{% elif collection.emblem and collection.emblem|length <= 4 %}{{ collection.emblem }}{% endif %}</span>
     <a class="collection-title" href="{{ url(collection.route) }}">{{ collection.title }}</a>
     {% if collection.evidence != 'ok' %}<span class="badge tone-{{ collection.evidence }}">{{ collection.evidence }}</span>{% endif %}
     <nav class="sub-nav">

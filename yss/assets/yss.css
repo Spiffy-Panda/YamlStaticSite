@@ -14,6 +14,9 @@
   --code: #f1f0ec;
   --radius: 8px;
   --shadow: 0 1px 2px rgba(0,0,0,.06);
+  /* Height the sticky .site-header occupies. Anchor jumps and the sticky .toc both offset by it,
+     so the two stay in step when the header changes. */
+  --header-offset: 4.25rem;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -24,7 +27,7 @@
   }
 }
 * { box-sizing: border-box; }
-html { font-size: 16px; }
+html { font-size: 16px; scroll-padding-top: var(--header-offset); }
 body {
   margin: 0; background: var(--bg); color: var(--fg);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -61,6 +64,7 @@ pre code { background: none; padding: 0; }
 .nav-menu > summary:hover { background: var(--accent-2); color: var(--accent); }
 .nav-menu[open] > summary { color: var(--accent); }
 .nav-menu-items { position: absolute; z-index: 20; top: 100%; left: 0; display: flex; flex-direction: column; min-width: 10rem; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: .3rem; box-shadow: var(--shadow); }
+.nav-menu-items a.nav-collection { border: 0; }   /* a collection pill inside a disclosure is a menu row, not a pill (gh-18) */
 .site-nav a.private::after { content: " 🔒"; font-size: .8em; }
 .nav-toggle { display: none; }
 .target-badge { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; padding: .15rem .5rem; border: 1px solid var(--line); border-radius: 999px; color: var(--fg-2); }
@@ -84,7 +88,7 @@ pre code { background: none; padding: 0; }
 .page-header h1 { margin: 0 0 .25rem; font-size: 2rem; line-height: 1.2; }
 .page-summary { margin: 0; color: var(--fg-2); font-size: 1.05rem; }
 .page-docs { font-size: .8rem; color: var(--muted); margin: .5rem 0 0; }
-.toc { position: sticky; top: 4.25rem; align-self: start; font-size: .9rem; border-left: 2px solid var(--line); padding-left: .9rem; }
+.toc { position: sticky; top: var(--header-offset); align-self: start; font-size: .9rem; border-left: 2px solid var(--line); padding-left: .9rem; }
 .toc-title { font-weight: 600; margin-bottom: .4rem; color: var(--fg-2); font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; }
 .toc a { display: block; color: var(--fg-2); text-decoration: none; padding: .15rem 0; }
 .toc a:hover { color: var(--accent); }

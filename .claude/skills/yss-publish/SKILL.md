@@ -31,6 +31,10 @@ references), or the page/section/prefab on render errors. A redacting target tha
 **forbidden string deletes its output** and fails. Every build stamps freshness from the fast
 evidence checks (paths, globs, symbols, git recency) and writes `data/evidence.json`.
 
+A rendered page's own local links are checked against the output too: an href/src that lands on
+nothing, or an absolute path outside `base_url`, is a build warning and a `--strict` failure. Mount
+contents are exempt; a page's link into a mount is not.
+
 ## Redaction
 
 - Mark data: `visibility: private` on collections (collection.yaml), docs, pages, sections or any list item; `private_notes` on anything. Filtered before rendering.
@@ -49,7 +53,9 @@ collections:
 
 Inside a collection folder: `docs/`, `pages/`, `prefabs/`, `schemas/`, `assets/`, optional
 `collection.yaml` and `hooks.py`. Doc ids become `<folder>/<id>`, pages live under `/<folder>/`,
-the nav shows one link per collection, and pages get a collection bar with emblem, theme and sub-nav.
+the nav shows the collections as their own group (site.yaml's reserved `nav.groups` id
+`collections` labels, orders or folds them), and pages get a collection bar with emblem, theme and
+sub-nav.
 Anything the YAML cannot express goes in that folder's `hooks.py` - never in yss.
 
 ```yaml
@@ -77,7 +83,11 @@ mounts: [{path: play, at: play/, targets: [private, public]}]   # copied to /<fo
 appears by existing. A relative `href` resolves under that collection's route (`play/index.html`
 reaches its mount); a link into a mount the target does not carry is dropped, so the public site
 never advertises a private playable. Extend the contract upstream rather than writing card markup
-in a page.
+in a page. The card's doc and page counts are target-filtered, so on the public build a collection
+whose docs and pages are all private reads `0 docs · 0 pages` by design - the card still links to
+a real collection. A path emblem (`assets/emblem.svg`) resolves under the collection's route just
+like its stylesheet, and `$collections` carries the resolved `emblem_url` alongside the authored
+`emblem` - use `emblem_url` in a template, never `<id>/<emblem>`.
 
 **Mounts are private by default.** A mount with no `targets` exists only in the private build; a
 collection publishes one by naming the public target on that mount, one mount at a time. Never flip
@@ -134,6 +144,12 @@ python -m yss serve --no-watch --no-build # just serve what is in dist/
 - Private port serves a stale dynamic source immediately and re-collects it in the background (stale-while-revalidate; `ttl` per source). `?refresh=1` (the refresh button) waits for a fresh collection. A missing file is collected synchronously.
 - Both ports send `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` (`serve.coop_coep`). **Export wasm and Godot prototypes without threads** so they need no isolation headers: GitHub Pages cannot send any, and nothing may depend on the private server's. The coi-serviceworker shim was considered and rejected. A Godot web export is also tens of megabytes and Pages bandwidth is metered against the account, so keep such a mount private until that cost has been decided deliberately.
 - Prototypes: put the export in a collection and mount it (`mounts`), or copy it into `site/assets/prototypes/<name>/` and add an `embed` section.
+
+**One process owns `dist/` at a time.** Do not run `yss build` into a `dist/` that a watching
+`yss serve` owns: the build refuses with `another build owns ...` (advisory lock
+`dist/.<target>.build-lock`), and a build whose output is cleared under it exits 1 instead of
+reporting success. Stop the server, use `--out`, or wait; if a crashed build left a lock behind,
+delete that file - it clears itself after 10 minutes.
 
 ## GitHub Pages
 

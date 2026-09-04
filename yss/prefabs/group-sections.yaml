@@ -1,5 +1,5 @@
 name: group-sections
-description: "Authored subject groups: a heading and a blurb from the doc's `groups:`, then that group's items rendered by another prefab. Bind `groups` with `group_by: group` - the binding resolves each key to the whole authored group, so `title` and `blurb` arrive with the bucket. Falls back to the bare key when a group was never declared."
+description: "Authored subject groups: a heading and a blurb from the doc's `groups:`, then that group's items rendered by another prefab. Bind `groups` with `group_by: group` - the binding resolves each key to the whole authored group, so `title` and `blurb` arrive with the bucket. Falls back to the bare key when a group was never declared. A declared group anchors under its own group id verbatim, so a reference to it resolves; set `id_prefix` when one page renders the same group twice."
 category: layout
 params:
   groups:
@@ -18,13 +18,21 @@ params:
     type: integer
     default: 3
     description: Heading level for the group titles (2-5); keep it below the section heading.
+  id_prefix:
+    type: string
+    default: ""
+    description: "Prepended to every group's anchor id. Only needed when one page renders the same group twice; give the second section a prefix (`alt-`) so the two do not emit the same id."
   empty: {type: string, default: Nothing to show.}
 template: |
   {% if groups %}
   <div class="group-sections">
     {% for g in groups %}
     {% set label = g.title or g.key or 'Ungrouped' %}
-    <section class="group-section" id="group-{{ label | slug }}">
+    {# A group declared in the doc's `groups:` (it has a title) anchors under its own id verbatim,
+       so `[[doc#g-sources]]` resolves - the same rule table rows follow (adr-023). An undeclared
+       bucket has no id to be faithful to, so it keeps the slugged `group-<label>` fallback. #}
+    {% set anchor = id_prefix ~ (g.key if (g.title and g.key) else 'group-' ~ (label | slug)) %}
+    <section class="group-section" id="{{ anchor }}">
       <h{{ level }} class="group-section-title">{{ label }}</h{{ level }}>
       {% if g.blurb %}<div class="group-section-blurb">{{ g.blurb | md }}</div>{% endif %}
       {# the items sit under this group's heading, so they render one level down unless the page says otherwise #}

@@ -150,10 +150,10 @@ $defs:
         type: string
         description: >-
           Generic per-item status for kinds that don't already define their own status vocabulary
-          (e.g. design principles, constraints, interfaces, flows, alternatives use the `claim_status`
-          vocabulary: live, decided, open, superseded). Left unconstrained here on purpose: a JSON
-          Schema `allOf` composes by intersection, so giving this field its own `enum` would also
-          apply to items that already carry a kind-specific status (plan milestones/tasks: work_status;
-          risks: risk_status; questions: question_status; design components / codemap modules:
-          work_status; decision entries: record_status) and make their existing values fail. Kinds
+          (e.g. design components, principles, constraints, interfaces, flows, alternatives use the
+          `claim_status` vocabulary: live, decided, open, superseded). Left unconstrained here on
+          purpose: a JSON Schema `allOf` composes by intersection, so giving this field its own `enum`
+          would also apply to items that already carry a kind-specific status (plan milestones/tasks:
+          work_status; risks: risk_status; questions: question_status; codemap modules: work_status;
+          decision entries: record_status) and make their existing values fail. Kinds
           that want enum-checked values declare `status` themselves with the vocabulary that fits.

@@ -11,36 +11,36 @@ sections:
     heading: Overview
     from: design.overview
 
-  - id: principles
+  - id: subjects
     type: prefab
-    heading: Principles
-    prefab: card-grid
-    args:
-      items:
-        from: design.principles
-        map: {body: rationale}
-      columns: 2
-
-  - id: components
-    type: prefab
-    heading: Components
+    heading: Principles, components and constraints
     intro: |
-      Grouped by subject rather than by type: the four headings and paragraphs below are the
-      `groups:` declared in design.yaml itself, resolved by `group_by: group`, so the same framing
-      would appear on any other page that groups this doc. Each card names the code that implements
-      the component and what it depends on.
+      One section per subject, not per type. The four headings and paragraphs are the `groups:`
+      declared in design.yaml itself, and each holds everything that belongs to that subject: the
+      principles it is built on, the components that implement it, and the constraints it has to
+      live within. That is the point - a reader asking "how does presentation work?" gets one
+      answer instead of three passes over the same page.
+
+      The binding reads `design.$items`, the whole doc's items at once, so `group_by: group` can
+      span type arrays; every item carries `_type`, which is both the filter above and the small
+      grey word above each card title.
     prefab: group-sections
     args:
       groups:
-        from: design.components
+        from: design.$items
+        where: {_type: [principles, components, constraints]}
         group_by: group
         map:
-          title: name
-          badge: kind
-          body: responsibility
+          kicker: "{% if _type == 'principles' %}principle{% elif _type == 'components' %}component{% else %}constraint{% endif %}"
+          # A constraint's whole `text` is its title, and some of it is literal angle brackets
+          # (`/<repo>/`). `card` escapes the title itself, so this template must not escape it
+          # first - the other map values below either name safe fields or land in a markdown slot.
+          title: "{% autoescape false %}{{ name or title or text }}{% endautoescape %}"
+          badge: "{{ kind or status or source or '' }}"
+          body: "{{ rationale or responsibility or '' }}"
           subtitle: "{{ 'depends on ' ~ (depends_on | join(', ')) if depends_on else '' }}"
           meta: "{{ (code or []) | join(' · ') }}"
-      item_args: {columns: 3}
+      item_args: {columns: 2}
 
   - id: interfaces
     type: prefab
@@ -60,15 +60,6 @@ sections:
     prefab: steps
     args:
       flows: {from: design.flows}
-
-  - id: constraints
-    type: prefab
-    heading: Constraints
-    prefab: bullet-list
-    args:
-      items:
-        from: design.constraints
-        map: {text: "{{ text }} _({{ source }})_", badge: status}
 
   - id: alternatives
     type: prefab

@@ -4,7 +4,7 @@ id: glossary
 title: Glossary
 summary: The words the toolchain and its skills use.
 status: active
-updated: 2026-09-03
+updated: 2026-09-04
 
 terms:
   - term: structured doc
@@ -26,7 +26,7 @@ terms:
     aliases: [UI prefab, component]
     definition: A reusable HTML fragment defined in YAML - declared params, a Jinja2 template, optional CSS/JS and examples. Built-ins live in `yss/prefabs/`, site ones in `site/prefabs/`.
   - term: binding
-    definition: "A mapping with `from` (and optionally where, sort, limit, map, fields, group_by) that pulls a value out of the docs for a prefab arg or a markdown section."
+    definition: "A mapping with `from` (and optionally where, sort, limit, map, fields, group_by) that pulls a value out of the docs for a prefab arg or a markdown section. `from` names a doc path, a virtual root, or `<doc>.$items` - every item of every type array in one doc, each tagged `_type`."
     see_also: [prefab, section]
   - term: inflate
     definition: What the build does to a page - resolve its bindings, render its prefabs and wrap the result in a layout.
@@ -72,6 +72,6 @@ terms:
   - term: verdict
     definition: The human's answer to a worksheet question, carried in the built instruction and applied to the docs by an agent, then written back onto the question as its `resolution`.
   - term: nav group
-    definition: The category a page declares for the top bar (`nav.group`, from the `nav_group` vocabulary). What the group is called, what order it sits in and whether it hides behind a disclosure is site.yaml's `nav.groups`; whether a page appears at all is derived from the docs it presents.
+    definition: "One cluster in the top bar. A page joins one with `nav.group`; site.yaml's `nav.groups` labels it, orders it and can fold it behind a disclosure. `collections` is reserved - its members are the site's collections, not pages (adr-028). Whether a page appears is derived from its docs."
     see_also: [worksheet]
 

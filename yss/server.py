@@ -18,7 +18,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from .build import BuildError, build, load_all
+from .build import BuildError, build, load_all, missing_output_message, output_ok
 from .config import Config
 from .dynamic import is_stale, write_source
 
@@ -168,6 +168,11 @@ def rebuild(cfg: Config, targets: list[str], run_dynamic: bool = True) -> bool:
         try:
             report = build(cfg, target, loaded=loaded, run_dynamic=run_dynamic)
             print(f"[build] {report.summary()}")
+            if not output_ok(report):
+                # Someone else is building into the same dist/. Say so, but do NOT write the
+                # error page: that would clobber the other builder's output in turn (gh-19).
+                ok = False
+                print("[build] " + missing_output_message(report))
             for warning in report.warnings:
                 print(f"[build] warning: {warning}")
             for flag in report.flags:

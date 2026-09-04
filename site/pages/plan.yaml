@@ -33,11 +33,17 @@ sections:
       groups:
         from: plan.milestones
         sort: priority
+        # `id` is remapped last, and deliberately: the board and the task list below present the
+        # same milestones, so both cards would otherwise claim the anchor `m7-hardening` and a
+        # `[[plan#m7-hardening]]` link would land on whichever the browser met first (gh-12).
+        # The detail entry keeps the plain id; the board card gets a `board-` one. `href` is
+        # computed before this line and so still points at the detail entry.
         map:
           badge: status
           body: summary
           href: "#{{ id }}"
           meta: "{% set who = (tasks or []) | selectattr('owner') | rejectattr('status', 'equalto', 'done') | map(attribute='owner') | unique | list %}{{ 'P' ~ priority if priority else '' }}{{ ' · target ' ~ target_date if target_date else '' }}{{ ' · @' ~ who | join(', @') if who else '' }}"
+          id: "board-{{ id }}"
         group_by: status
       order: [active, blocked, planned, done, dropped]
 

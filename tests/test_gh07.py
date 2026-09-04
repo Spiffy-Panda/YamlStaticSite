@@ -3,10 +3,10 @@
 The design landed on: item_base.status stays an open string (no x-vocab, no enum) because a
 JSON Schema `allOf` composes by intersection - giving item_base.status its own enum would also
 constrain every item that already has a kind-specific status (plan milestones/tasks: work_status,
-risks: risk_status, questions: question_status, design components / codemap modules: work_status,
-decision entries: record_status), and their existing values would stop validating. Kinds that want
-a real, enum-checked status for items that previously had none (design principles, interfaces,
-flows, constraints, alternatives) declare it locally with `x-vocab: claim_status`
+risks: risk_status, questions: question_status, codemap modules: work_status, decision entries:
+record_status), and their existing values would stop validating. Kinds that want a real,
+enum-checked status declare it locally: every design list - components, principles, interfaces,
+flows, constraints, alternatives - uses `x-vocab: claim_status`
 (live, decided, open, superseded - config.py DEFAULTS["vocabularies"]["claim_status"]).
 
 Run with: python -m unittest discover -s tests -v

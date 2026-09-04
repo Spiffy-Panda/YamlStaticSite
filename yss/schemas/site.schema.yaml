@@ -70,6 +70,30 @@ properties:
         redact: {type: boolean, description: Fail the build if forbidden strings appear in the output.}
         description: {type: string}
       additionalProperties: false
+  nav:
+    type: object
+    description: |
+      The top bar (adr-022). Without this key the defaults in yss/config.py apply. Note that this
+      schema shipped without it, so `nav:` in site.yaml was rejected outright until gh-18 - adr-022
+      documented a knob nobody could turn.
+    properties:
+      groups:
+        type: array
+        description: |
+          Ordered nav groups. A page joins one by declaring `nav.group`; a page naming a group that
+          is not listed falls into the first one. `collections` is a reserved id whose members are
+          the site's collections, not pages (gh-18) - list it to label, reorder or fold away the
+          collection pills, omit it and they are appended after the page groups as before. A page
+          declaring `nav.group: collections` falls back to the first page group.
+        items:
+          type: object
+          required: [id]
+          properties:
+            id: {type: string, description: "Group id: a value pages use in `nav.group`, or the reserved `collections`."}
+            label: {type: string, description: What a reader sees. Empty means the group needs no heading.}
+            menu: {type: boolean, description: "true puts the group behind a disclosure instead of spelling every item out."}
+          additionalProperties: false
+    additionalProperties: false
   vocabularies:
     type: object
     additionalProperties: {type: array, items: {type: string}}

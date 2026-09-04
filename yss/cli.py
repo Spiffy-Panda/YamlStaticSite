@@ -8,7 +8,7 @@ from pathlib import Path
 
 from . import __version__
 from .binding import BindError, resolve_binding
-from .build import BuildError, build, load_all
+from .build import BuildError, build, load_all, missing_output_message, output_ok
 from .config import Config, ConfigError
 from .dynamic import write_all
 from .evidence import check as evidence_check, format_report
@@ -63,6 +63,11 @@ def cmd_build(args) -> int:
             rc = 1
             continue
         print(report.summary())
+        # The summary is composed from in-memory counts; only the filesystem can say whether the
+        # output is still there (gh-19).
+        if not output_ok(report):
+            print(missing_output_message(report))
+            rc = 1
         for warning in report.warnings:
             print("  warning: " + warning)
         for flag in report.flags:

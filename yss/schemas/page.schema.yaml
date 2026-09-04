@@ -50,7 +50,7 @@ $defs:
     type: object
     required: [from]
     properties:
-      from: {type: string, description: "`<doc-id>.<path>` or `$docs` / `$pages` / `$site` / `$prefabs`."}
+      from: {type: string, description: "`<doc-id>.<path>`, or `<doc-id>.$items` for every item of every type array in one doc (each tagged `_type: <array>`, so one `group_by` can span them), or a virtual root: `$docs` / `$pages` / `$site` / `$prefabs` / `$collections` / `$evidence` / `$build`."}
       where:
         type: object
         description: "field: value | [any, of] | {not: x} | {contains: x} | {exists: true} | {gte: n} | {lte: n}"

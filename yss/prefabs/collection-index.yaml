@@ -1,8 +1,8 @@
 name: collection-index
-description: "Cards for every collection (musing, sub-project): emblem, title, summary, doc count, evidence badge and the card links declared in collection.yaml. Collections marked `hero: true` are rendered first, full width. Bind `collections` from `$collections`."
+description: "Cards for every collection (musing, sub-project): emblem, title, summary, doc count, evidence badge and the card links declared in collection.yaml. Collections marked `hero: true` are rendered first, full width. Bind `collections` from `$collections`. The doc and page counts are target-filtered, so on the public build a collection whose docs and pages are all private reads `0 docs · 0 pages` by design - the card still links to a real collection."
 category: list
 params:
-  collections: {type: list, required: true, item: {id: folder name, title: required, summary: optional, emblem: emoji or asset path, href: landing url, hero: "true puts it in the hero panel", links: "[{label, href, kind}] - kind play renders as a button", docs: list of doc ids, evidence: "ok|warn|stale", tags: list}}
+  collections: {type: list, required: true, item: {id: folder name, title: required, summary: optional, emblem: "emoji glyph, or the authored asset path", emblem_url: "resolved href when the emblem is a path (null for a glyph); $collections supplies it, route prefix included", href: landing url, hero: "true puts it in the hero panel", links: "[{label, href, kind}] - kind play renders as a button", docs: list of doc ids, evidence: "ok|warn|stale", tags: list}}
   columns: {type: integer, default: 3}
   hero: {type: boolean, default: true, description: Render collections marked `hero` in a full-width panel above the grid. False puts every collection in the grid.}
   empty: {type: string, default: No collections yet.}
@@ -10,10 +10,10 @@ template: |
   {% macro card(c, is_hero) %}
     <article class="card collection-card tone-{{ c.evidence or 'ok' }}{% if is_hero %} collection-hero{% endif %}" id="collection-{{ c.id }}">
       <div class="card-head">
-        <h3 class="card-title"><a href="{{ c.href }}">{% if c.emblem and c.emblem|length <= 4 %}<span class="collection-card-emblem">{{ c.emblem }}</span>{% endif %}{{ c.title }}</a></h3>
+        <h3 class="card-title"><a href="{{ c.href }}">{% if c.emblem and not c.emblem_url and c.emblem|length <= 4 %}<span class="collection-card-emblem">{{ c.emblem }}</span>{% endif %}{{ c.title }}</a></h3>
         {% if c.evidence and c.evidence != 'ok' %}{{ prefab('badge', text=c.evidence) }}{% endif %}
       </div>
-      {% if c.emblem and c.emblem|length > 4 %}<img class="collection-card-image" src="{{ url(c.id ~ '/' ~ c.emblem) }}" alt="">{% endif %}
+      {% if c.emblem_url %}<img class="collection-card-image" src="{{ c.emblem_url }}" alt="">{% endif %}
       {% if c.summary %}<div class="card-body prose">{{ c.summary | md }}</div>{% endif %}
       {% if c.links %}
       <ul class="collection-card-links">
@@ -22,7 +22,7 @@ template: |
       {% endfor %}
       </ul>
       {% endif %}
-      <ul class="card-meta"><li>{{ (c.docs or []) | length }} docs</li><li>{{ (c.pages or []) | length }} pages</li>{% if c.status %}<li>{{ c.status }}</li>{% endif %}</ul>
+      {% set n_docs = (c.docs or []) | length %}{% set n_pages = (c.pages or []) | length %}<ul class="card-meta"><li>{{ n_docs }} doc{{ '' if n_docs == 1 else 's' }}</li><li>{{ n_pages }} page{{ '' if n_pages == 1 else 's' }}</li>{% if c.status %}<li>{{ c.status }}</li>{% endif %}</ul>
       {% if c.tags %}{{ prefab('tag-list', tags=c.tags) }}{% endif %}
     </article>
   {% endmacro %}
