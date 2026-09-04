@@ -55,6 +55,10 @@ terms:
     definition: "A schema key starting with `x-` that the loader or checker acts on: x-vocab, x-limit, x-ref, x-evidence."
   - term: vocabulary
     definition: A named list of allowed words (work_status, record_status, risk_status, link_kind...) defined in site.yaml and overridable per collection; a schema field points at one with x-vocab rather than spelling out an enum.
+  - term: convention
+    aliases: [agent rule, non-negotiable]
+    definition: "A repo-level rule constraining any agent working here - where knowledge goes, what stays private, how ids and output are named. Stated under `conventions:` in the code map with a `cv-` id and an `enforced_by` naming the surface that catches a breach; `none` means the rule holds by discipline alone."
+    see_also: [redaction scan, visibility, evidence]
   - term: collection
     aliases: [musing]
     definition: A folder with its own docs, pages, prefabs, schemas, assets, `collection.yaml` and optional `hooks.py`, discovered from a glob in site.yaml. Ids are prefixed by the folder name; routes by `/<folder>/`.

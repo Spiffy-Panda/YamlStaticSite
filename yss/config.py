@@ -45,6 +45,7 @@ DEFAULTS: dict[str, Any] = {
         "claim_status": ["live", "decided", "open", "superseded"],
         "link_kind": ["repo", "issue", "pr", "doc", "page", "play", "external", "file"],
         "nav_group": ["content", "decide", "meta"],
+        "enforcement": ["validate", "check", "build", "scan", "test", "none"],
     },
     # What the top bar looks like. `groups` is an ordered list of {id, label, menu}: the id comes
     # from the nav_group vocabulary, the label is what a reader sees (rename it for a plainer

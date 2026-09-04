@@ -68,4 +68,10 @@ properties:
         id: {$ref: "#/$defs/slug"}
         rule: {type: string, x-limit: summary}
         rationale: {type: string, x-limit: summary}
+        enforced_by:
+          type: string
+          x-vocab: enforcement
+          description: >-
+            Which surface fails when the rule is broken - `validate`, `check`, `build`, `scan`
+            or `test`. `none` means the rule holds by discipline and nothing catches a breach.
       unevaluatedProperties: false

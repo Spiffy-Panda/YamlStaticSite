@@ -63,7 +63,7 @@ doc; `-v` lists passing claims; a stale claim means fix the doc or the code, the
 
 - **plan**: `goals[]`, `non_goals[]`, `milestones[] {id, title, status, priority 1-5, target_date, depends_on[], done_when, tasks[] {id, title, status, owner, estimate, depends_on[], done_when, verify, evidence[]}}`, `risks[] {id, title, likelihood, impact, mitigation, status}`, `open_questions[] {id, question, context, options[], owner, status, answer}`. Milestones and tasks use `work_status`; risks `risk_status`; questions `question_status`. **Open work only** - see Archive.
 - **design**: `overview` (markdown), `principles[]`, `components[] {id, name, kind, responsibility, inputs[], outputs[], depends_on[], code[] (evidence), status}`, `interfaces[] {id, name, kind, signature, description, component}`, `flows[] {id, title, trigger, steps[] {actor, action, produces}}`, `constraints[]`, `alternatives[]`. Every design list's `status` is `claim_status` (live|decided|open|superseded), components included - a component that exists in the code is `live`, not `active`.
-- **codemap**: `roots[] {path (evidence), purpose}`, `modules[] {id, path (evidence), purpose, language, status, exports[], depends_on[], tests[] (evidence)}`, `entrypoints[] {id, name, command, module, description}`, `conventions[] {id, rule, rationale}`.
+- **codemap**: `roots[] {path (evidence), purpose}`, `modules[] {id, path (evidence), purpose, language, status, exports[], depends_on[], tests[] (evidence)}`, `entrypoints[] {id, name, command, module, description}`, `conventions[] {id, rule, rationale, enforced_by}`. A convention is a repo-level rule on any agent working here; `enforced_by` names the surface that catches a breach (`validate`|`check`|`build`|`scan`|`test`) or `none` when the rule holds by discipline alone.
 - **decisions**: `entries[] {id, date, title, status (record_status: proposed|accepted|rejected|superseded), context, decision, consequences[], alternatives[], supersedes, superseded_by}`. Append only; supersede instead of editing.
 - **glossary**: `terms[] {id, term, definition (one paragraph), aliases[], see_also[]}`.
 - **changelog**: `releases[] {version, date, status, summary, changes[] {type, text, refs[]}}`, newest first. This is the record of shipped work.
@@ -73,7 +73,7 @@ doc; `-v` lists passing claims; a stale claim means fix the doc or the code, the
 ## Vocabularies and limits are data
 
 Defaults (site.yaml `vocabularies`, `limits`) - `lifecycle`, `work_status` (planned|active|blocked|done|dropped),
-`record_status`, `risk_status`, `question_status`, `release_status`; `title` 120, `summary` 300, `line` 240,
+`record_status`, `risk_status`, `question_status`, `release_status`, `enforcement`; `title` 120, `summary` 300, `line` 240,
 `markdown` 2400 characters. A collection overrides them in its `collection.yaml`. Never edit a schema to
 change a word list; change the data.
 

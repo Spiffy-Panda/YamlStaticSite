@@ -41,4 +41,4 @@ sections:
     args:
       items:
         from: codemap.conventions
-        map: {text: "**{{ id }}** - {{ rule }}{{ ' _' ~ rationale ~ '_' if rationale else '' }}"}
+        map: {text: "**{{ id }}** - {{ rule }}{{ ' _' ~ rationale ~ '_' if rationale else '' }}{{ ' (checked by `' ~ enforced_by ~ '`)' if enforced_by and enforced_by != 'none' else ' (by discipline - nothing checks it)' if enforced_by else '' }}"}
