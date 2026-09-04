@@ -100,6 +100,8 @@ releases:
         text: "A build into a `dist/` another process owns no longer reports success after its output was cleared: `yss build` exits 1 and `yss serve` reports the collision instead of writing its error page over the other builder's tree (gh-19)."
       - type: added
         text: "An advisory build lock `dist/.<target>.build-lock`, a sibling of the output so nothing clears it and Pages never carries it, released in a `finally`; a lock older than 600s is replaced with a warning (gh-19, adr-029)."
+      - type: changed
+        text: "Milestone m13-sweep-two closed and moved to docs/_archive/; every issue in the 2026-09-04 sweep is fixed and closed."
   - version: 0.2.0
     date: 2026-09-02
     status: released

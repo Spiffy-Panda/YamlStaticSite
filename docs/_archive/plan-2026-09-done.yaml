@@ -69,3 +69,9 @@ milestones:
     summary: Three things authors could not say - an item's own status (gh-7), a subject grouping with authored prose (gh-8), and a card's tone or eyebrow without a badge (gh-10).
     tasks: [m9-item-status, m9-groups, m9-card-slots]
 
+  - id: m13-sweep-two
+    title: Second GitHub issue sweep, issues 12-19
+    status: done
+    archived: 2026-09-04
+    summary: Eight issues from the Game Design Musings migration - a binding root that could not span type arrays (gh-12), a vocabulary that made a component's status a work state (gh-13), collection assets emitted off their own route (gh-14), a nav group nobody could configure (gh-18), a build that reported success over cleared output (gh-19), and three rendering defects (gh-15, gh-16, gh-17).
+    tasks: [m13-items-root, m13-component-status, m13-routed-assets, m13-title-dedup, m13-card-plurals, m13-scroll-offset, m13-nav-collections, m13-build-race]
