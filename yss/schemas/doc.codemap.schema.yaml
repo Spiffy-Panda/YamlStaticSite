@@ -37,7 +37,7 @@ properties:
             type: object
             required: [name]
             properties:
-              name: {type: string}
+              name: {type: string, x-evidence: export}
               kind: {type: string, enum: [function, class, command, constant, type, template, schema]}
               signature: {type: string}
               description: {type: string, x-limit: line}

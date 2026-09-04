@@ -60,7 +60,7 @@ def source_doc(expr: str, ctx: dict) -> dict | None:
 
 
 def resolve_from(expr: str, ctx: dict) -> Any:
-    """`plan.milestones` -> docs['plan']['milestones']; `$docs`, `$pages`, `$site` are virtual roots."""
+    """`plan.milestones` -> docs['plan']['milestones']; `$docs`, `$pages`, `$site`, `$build` are virtual roots."""
     expr = expr.strip()
     if expr.startswith("$"):
         head, _, rest = expr[1:].partition(".")
@@ -71,9 +71,10 @@ def resolve_from(expr: str, ctx: dict) -> Any:
             "prefabs": lambda: list(ctx.get("prefabs", {}).values()),
             "collections": lambda: list(ctx.get("collections") or []),
             "evidence": lambda: list(ctx.get("evidence") or []),
+            "build": lambda: ctx.get("build") or {},
         }
         if head not in roots:
-            raise BindError(f"unknown virtual root '${head}' (use $docs, $pages, $site, $prefabs, $collections, $evidence)")
+            raise BindError(f"unknown virtual root '${head}' (use $docs, $pages, $site, $prefabs, $collections, $evidence, $build)")
         base = roots[head]()
         try:
             return get_path(base, rest)

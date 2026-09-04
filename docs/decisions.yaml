@@ -471,3 +471,51 @@ entries:
       - A validate-time error (validate does not render, so it would have to predict the output).
       - Leaving it to review (this is precisely the class of thing adr-009 says should be checked rather than remembered).
 
+
+  - id: adr-024
+    date: 2026-09-03
+    title: Code map exports deep-link by parsed line range, pinned to a commit
+    status: accepted
+    context: |
+      The code map lists every module's exports, but a reader who wants to see one has only a name
+      and a file. The obvious fix - embed the hosting service's blob page in an iframe - is not
+      available: `github.com` sends `x-frame-options: deny` and `frame-ancestors 'none'`, so a
+      framed blob renders an empty box. Rendering our own copy of the tree into `dist/` would work
+      offline and need no network, but it duplicates the whole package into the public build and
+      pushes every source line through the redaction scan.
+
+      Two smaller problems sit underneath. Nothing in the pipeline knew which commit a build
+      represented, and a line number is only true of one revision. And `_check_symbol` proved a
+      symbol by importing its module and calling `hasattr`, which runs module-level code and is
+      always false for a dotted member such as `Config.evidence_for` - half the code map's exports
+      were unprovable.
+    decision: |
+      Resolve each export to a line range by parsing the module with `ast` (yss/symbols.py), never
+      by importing it, and pin the resulting link to a commit. The range is resolved at render time
+      through a `symbol_range` template global, so the static HTML carries a real
+      `<repo>/blob/<sha>/<path>#L<start>-L<end>` anchor and the page is complete with JavaScript
+      off (p-static-first). The `module-list` prefab's own `js:` block then upgrades that anchor
+      into an in-page source pane, and lets the click through to the link on any failure.
+
+      The source text comes from whichever origin the target has: the private build reads the
+      working tree through a `symbolsource` dynamic source declared `targets: [private]`, and the
+      public build fetches `raw.githubusercontent.com` at the pinned commit, which sends
+      `access-control-allow-origin: *`. A `symbols` source publishes the index itself on both
+      targets. `GITHUB_SHA` names the commit in CI; locally `git rev-parse HEAD` does, and a dirty
+      tree is reported so the prefab falls back to a `main` link with no line anchor rather than
+      publishing a number measured against uncommitted work.
+
+      The same resolver now backs `x-evidence: export` on `exports[].name` and is tried before the
+      import in `_check_symbol`, so a vanished or moved export is a stale claim rather than a dead
+      link.
+    consequences:
+      - Every code map export is proved by `yss check` - 89 claims where there were 26 - including dotted class members that `hasattr` can never answer.
+      - The public reader depends on a third-party origin at runtime, which is new for this site - it fails when the repo is private, offline, or under `file://`, and falls back to the permalink every time.
+      - Line anchors are only published when the build is pinned and clean, so a local preview of the public target links to `main` without a range.
+      - "Providers now receive `_target` alongside `_collection`, so a module marked private is absent from the public index."
+      - Only Python is parsed. A javascript or jinja module in the code map gets a plain file link and no range.
+    alternatives:
+      - An iframe of the hosting service's blob page (impossible - framing is denied).
+      - A generated static mirror of the tree in dist/ (works offline and needs no network, but duplicates the package into the public build and sends every source line through the redaction scan; kept as the fallback if the repo goes private).
+      - A `/_source` endpoint on the dev server (rejected - `serve.watch` already rebuilds the index when a cited file changes, and reading arbitrary paths from disk is a traversal surface for a feature two dynamic sources already cover).
+      - "`importlib` plus `inspect.getsourcelines` (runs module-level code, and answers for neither constants nor dotted members)."

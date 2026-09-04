@@ -52,6 +52,14 @@ dynamic:
       targets: [private]              # author names are repo-local information
       ttl: 60
       description: Recent commits and working-tree state.
+    symbols:
+      provider: yss.providers.symbols:collect
+      description: Line range of every code map export, resolved by parsing (adr-023).
+    symbolsource:
+      provider: yss.providers.symbols:collect_source
+      targets: [private]              # the source text itself never reaches the public build
+      ttl: 30
+      description: The same ranges plus the lines, read from the working tree.
     evidence:
       provider: yss.providers.evidence:collect
       run_commands: true              # the Evidence page's private section runs command claims

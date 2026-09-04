@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
+import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -19,6 +21,29 @@ from .visibility import filter_for_target, is_visible, scan_tree
 
 class BuildError(Exception):
     pass
+
+
+def git_commit(root: Path) -> dict:
+    """The commit this build represents, and whether the tree had uncommitted changes.
+
+    Anything that deep-links into a hosting service by line number has to name a commit: line 191
+    is only true of one revision, so a link pinned to a branch drifts silently (adr-024). CI is
+    authoritative via GITHUB_SHA; locally we ask git and report `dirty` so callers can decline to
+    pin. Never raises - a build outside a checkout simply has no commit.
+    """
+    env_sha = os.environ.get("GITHUB_SHA")
+    if env_sha:
+        return {"commit": env_sha, "commit_short": env_sha[:7], "dirty": False}
+    try:
+        rev = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True, timeout=10)
+        if rev.returncode != 0:
+            return {"commit": None, "commit_short": None, "dirty": False}
+        sha = rev.stdout.strip()
+        status = subprocess.run(["git", "status", "--porcelain"], cwd=root, capture_output=True, text=True, timeout=10)
+        dirty = bool(status.returncode == 0 and status.stdout.strip())
+        return {"commit": sha, "commit_short": sha[:7], "dirty": dirty}
+    except (OSError, subprocess.SubprocessError):
+        return {"commit": None, "commit_short": None, "dirty": False}
 
 
 @dataclass
@@ -216,6 +241,8 @@ def build(
         "version": __version__,
         "site": cfg.site.get("name"),
         "base_url": cfg.base_url(target),
+        "repo": cfg.site.get("repo"),
+        **git_commit(cfg.root),
     }
     renderer = Renderer(cfg, target, docs_t, pages_t, loaded.prefabs, list(loaded.docs), build_info, evidence_rows)
 

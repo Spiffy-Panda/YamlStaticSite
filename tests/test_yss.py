@@ -22,6 +22,10 @@ from yss.build import BuildError, build, load_all  # noqa: E402
 from yss.config import Config  # noqa: E402
 from yss.render import Renderer  # noqa: E402
 from yss.visibility import filter_for_target, scan_text  # noqa: E402
+from yss.build import git_commit  # noqa: E402
+from yss.evidence import Claim, _check_export, _check_symbol, collect_claims  # noqa: E402
+from yss.providers import symbols as symbols_provider  # noqa: E402
+from yss.symbols import SymbolError, file_index, index_for, lookup, supported  # noqa: E402
 
 
 def temp_site() -> Path:
@@ -327,6 +331,174 @@ class CliTests(TempSiteCase):
         self.assertIn("more-decisions", loaded.docs)
         self.assertIn("shiny", loaded.prefabs)
 
+
+class SymbolResolverTests(unittest.TestCase):
+    """The AST index behind code map deep links (adr-024). Parsing only - nothing is imported."""
+
+    def test_top_level_function_and_class(self):
+        names = index_for(REPO, "yss/symbols.py")
+        start, end, file = names["index_for"]
+        self.assertLess(start, end)
+        self.assertEqual(file, "yss/symbols.py")
+        self.assertIn("SymbolError", names)
+
+    def test_dotted_class_member(self):
+        """`Config.evidence_for` is the case `hasattr` can never answer."""
+        span = lookup(REPO, "yss/config.py", "Config.evidence_for")
+        self.assertIsNotNone(span)
+        line = (REPO / "yss/config.py").read_text(encoding="utf-8").splitlines()[span[0] - 1]
+        self.assertIn("def evidence_for", line)
+
+    def test_module_level_constant(self):
+        span = lookup(REPO, "yss/config.py", "DEFAULTS")
+        self.assertIsNotNone(span)
+        first = (REPO / "yss/config.py").read_text(encoding="utf-8").splitlines()[span[0] - 1]
+        self.assertTrue(first.startswith("DEFAULTS"))
+
+    def test_package_directory_submodule_export(self):
+        """A module entry may name a directory; the range belongs to a file inside it."""
+        span = lookup(REPO, "yss/providers/", "buildinfo.collect")
+        self.assertIsNotNone(span)
+        self.assertEqual(span[2], "yss/providers/buildinfo.py")
+
+    def test_non_python_module_is_unsupported(self):
+        self.assertFalse(supported("yss/assets/yss.js"))
+        self.assertTrue(supported("yss/config.py"))
+        self.assertTrue(supported("yss/providers/"))
+        self.assertEqual(index_for(REPO, "yss/assets/yss.js"), {})
+
+    def test_missing_name_resolves_to_none(self):
+        self.assertIsNone(lookup(REPO, "yss/config.py", "no_such_export"))
+
+    def test_nested_helper_does_not_shadow_a_real_export(self):
+        """A function defined inside another function is not an export and must not be indexed."""
+        tmp = Path(tempfile.mkdtemp(prefix="yss-sym-"))
+        try:
+            f = tmp / "m.py"
+            f.write_text("def outer():\n    def collect():\n        pass\n    return collect\n", encoding="utf-8")
+            names = file_index(f, "m.py")
+            self.assertIn("outer", names)
+            self.assertNotIn("collect", names)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_unparsable_file_reports_a_relative_path(self):
+        tmp = Path(tempfile.mkdtemp(prefix="yss-sym-"))
+        try:
+            f = tmp / "broken.py"
+            f.write_text("def (:\n", encoding="utf-8")
+            with self.assertRaises(SymbolError) as caught:
+                file_index(f, "pkg/broken.py")
+            self.assertEqual(caught.exception.rel, "pkg/broken.py")
+            self.assertNotIn(str(tmp), str(caught.exception))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
+class SymbolProviderTests(TempSiteCase):
+    """The dynamic sources that carry the index, and privately the source text."""
+
+    def test_public_index_has_ranges_and_no_absolute_paths(self):
+        data = symbols_provider.collect(self.cfg, {"_target": "public"})
+        self.assertTrue(data["modules"])
+        self.assertEqual(data["errors"], [])
+        self.assertNotIn(str(self.root), json.dumps(data))
+        for spans in data["modules"].values():
+            for span in spans.values():
+                self.assertEqual(len(span), 3)
+                self.assertLessEqual(span[0], span[1])
+                self.assertTrue((self.root / span[2]).is_file(), f"{span[2]} should be a real file")
+
+    def test_every_pilot_export_resolves(self):
+        data = symbols_provider.collect(self.cfg, {"_target": "public"})
+        self.assertEqual(data["unresolved"], [], "a code map export no longer exists where the doc says")
+
+    def test_private_module_is_absent_from_the_public_index(self):
+        codemap = self.root / "docs" / "codemap.yaml"
+        text = codemap.read_text(encoding="utf-8")
+        marked = text.replace("  - id: config\n", "  - id: config\n    visibility: private\n", 1)
+        self.assertNotEqual(text, marked, "expected a `config` module in the pilot code map")
+        codemap.write_text(marked, encoding="utf-8")
+        cfg = Config.load(self.root)
+        public = symbols_provider.collect(cfg, {"_target": "public"})
+        private = symbols_provider.collect(cfg, {"_target": "private"})
+        self.assertNotIn("yss/config.py", public["modules"])
+        self.assertIn("yss/config.py", private["modules"])
+
+    def test_source_text_is_private_only(self):
+        data = symbols_provider.collect_source(self.cfg, {"_target": "private"})
+        self.assertTrue(data["text"])
+        sample = next(iter(next(iter(data["text"].values())).values()))
+        self.assertEqual(len(sample["lines"]), sample["end"] - sample["start"] + 1)
+        with self.assertRaises(RuntimeError):
+            symbols_provider.collect_source(self.cfg, {"_target": "public"})
+
+
+class ExportEvidenceTests(TempSiteCase):
+    """`x-evidence: export` proves each code map export still sits where the site links to it."""
+
+    def test_export_claim_resolves_against_the_enclosing_path(self):
+        claim = Claim("codemap", None, "f", "export", "yss/config.py::Config.evidence_for")
+        _check_export(self.cfg, claim)
+        self.assertEqual(claim.status, "ok")
+        self.assertIn("yss/config.py:", claim.detail)
+
+    def test_vanished_export_is_stale(self):
+        claim = Claim("codemap", None, "f", "export", "yss/config.py::gone_away")
+        _check_export(self.cfg, claim)
+        self.assertEqual(claim.status, "stale")
+
+    def test_non_python_export_is_skipped_not_stale(self):
+        claim = Claim("codemap", None, "f", "export", "yss/assets/yss.js::whatever")
+        _check_export(self.cfg, claim)
+        self.assertEqual(claim.status, "skipped")
+
+    def test_symbol_claim_resolves_a_dotted_member_without_importing(self):
+        claim = Claim("x", None, "f", "symbol", "yss.config:Config.evidence_for")
+        _check_symbol(self.cfg, claim)
+        self.assertEqual(claim.status, "ok")
+
+    def test_entrypoint_names_do_not_become_export_claims(self):
+        """The annotation is per field name, so `entrypoints[].name` must not be claimed."""
+        loaded = load_all(self.cfg)
+        exports = [c for c in collect_claims(loaded.docs, loaded.registry) if c.kind == "export"]
+        self.assertTrue(exports)
+        self.assertEqual([c for c in exports if c.field.startswith("entrypoints")], [])
+        self.assertTrue(all("::" in c.target for c in exports))
+
+
+class BuildCommitTests(TempSiteCase):
+    """Deep links are only true of one commit, so the build has to know which (adr-024)."""
+
+    def test_build_info_shape(self):
+        info = git_commit(self.root)
+        self.assertEqual(set(info), {"commit", "commit_short", "dirty"})
+        self.assertIsInstance(info["dirty"], bool)
+
+    def test_github_sha_wins_over_the_working_tree(self):
+        os.environ["GITHUB_SHA"] = "a" * 40
+        try:
+            info = git_commit(self.root)
+        finally:
+            os.environ.pop("GITHUB_SHA", None)
+        self.assertEqual(info["commit"], "a" * 40)
+        self.assertEqual(info["commit_short"], "aaaaaaa")
+        self.assertFalse(info["dirty"])
+
+    def test_a_dirty_build_does_not_publish_line_anchors(self):
+        """An unpinned build still links to the file; it just must not claim a line range."""
+        html = Renderer(
+            self.cfg, "public", {}, [], load_all(self.cfg).prefabs, [], {"commit": None, "dirty": True}, []
+        ).prefab(
+            "module-list",
+            modules=[{"id": "cfg", "path": "yss/config.py", "purpose": "x", "exports": [{"name": "deep_merge"}]}],
+            repo_url="https://example.invalid/r",
+            commit=None,
+            dirty=True,
+        )
+        self.assertIn("/blob/main/yss/config.py", html)
+        self.assertNotIn("#L", html)
+        self.assertIn('data-pinned="0"', html)
 
 if __name__ == "__main__":
     unittest.main()

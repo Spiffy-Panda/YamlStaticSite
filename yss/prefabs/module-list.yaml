@@ -1,15 +1,20 @@
 name: module-list
-description: Code map modules with path, purpose, exports (collapsible) and dependencies. Bind `modules` from `codemap.modules`.
+description: Code map modules with path, purpose, exports (collapsible) and dependencies. Bind `modules` from `codemap.modules`. With `repo_url` and `commit`, each export deep-links to its own lines and can be read in place.
 category: list
 params:
   modules: {type: list, required: true, item: {id: anchor, path: required, purpose: required, exports: "list of {name, kind, signature, description}", depends_on: list, tests: list, status: optional}}
-  repo_url: {type: string, description: "If set, paths link to <repo_url>/blob/main/<path>."}
+  repo_url: {type: string, description: "If set, paths link to <repo_url>/blob/<commit>/<path> and exports to their own line range."}
+  commit: {type: string, description: "Commit the links are pinned to; bind {from: $build.commit}. Falls back to `main`, which is not line-accurate."}
+  dirty: {type: boolean, default: false, description: "The build had uncommitted changes; bind {from: $build.dirty}. Line numbers came from the working tree, so links fall back to `main` and the reader says so."}
+  source_reader: {type: boolean, default: true, description: "Upgrade export links into an in-page source pane. Falls back to the link when the source cannot be fetched."}
 template: |
-  <div class="module-list">
+  {% set pinned = commit and not dirty %}
+  {% set ref = commit if pinned else 'main' %}
+  <div class="module-list" data-source-reader="{{ '1' if (source_reader and repo_url) else '0' }}" data-repo="{{ repo_url or '' }}" data-ref="{{ ref }}" data-pinned="{{ '1' if pinned else '0' }}">
   {% for m in modules %}
     <div class="module tone-{{ (m.status or 'active') | slug }}" id="{{ m.id }}">
       <div class="module-head">
-        <code class="module-path">{% if repo_url %}<a href="{{ repo_url }}/blob/main/{{ m.path }}">{{ m.path }}</a>{% else %}{{ m.path }}{% endif %}</code>
+        <code class="module-path">{% if repo_url %}<a href="{{ repo_url }}/blob/{{ ref }}/{{ m.path }}">{{ m.path }}</a>{% else %}{{ m.path }}{% endif %}</code>
         {% if m.status %}{{ prefab('badge', text=m.status) }}{% endif %}
         {% if m._evidence and m._evidence.status != 'ok' %}{{ prefab('badge', text=m._evidence.status) }}{% endif %}
         {% if m.language %}<span class="module-lang">{{ m.language }}</span>{% endif %}
@@ -20,7 +25,25 @@ template: |
       {% if m.exports %}
       <details class="module-exports"><summary>{{ m.exports | length }} exports</summary>
         <table class="table">
-          {% for e in m.exports %}<tr><td><code>{{ e.name }}</code>{% if e.kind %} <span class="module-kind">{{ e.kind }}</span>{% endif %}</td><td>{% if e.signature %}<code>{{ e.signature }}</code><br>{% endif %}{{ e.description or '' }}</td></tr>{% endfor %}
+          {% for e in m.exports %}
+          {% set span = symbol_range(m.path, e.name) %}
+          <tr>
+            <td>
+              {% if repo_url and span %}
+                {# A line anchor is only true of the commit it was measured on, so an unpinned build links to the file (adr-024). #}
+                {# span[2] is the file the export is defined in - a module entry may name a package directory. #}
+                <a class="export-link" href="{{ repo_url }}/blob/{{ ref }}/{{ span[2] }}{% if pinned %}#L{{ span[0] }}-L{{ span[1] }}{% endif %}"
+                   data-path="{{ m.path }}" data-file="{{ span[2] }}" data-symbol="{{ e.name }}" data-start="{{ span[0] }}" data-end="{{ span[1] }}"><code>{{ e.name }}</code></a>
+              {% elif repo_url %}
+                <a class="export-link is-plain" href="{{ repo_url }}/blob/{{ ref }}/{{ m.path }}"><code>{{ e.name }}</code></a>
+              {% else %}
+                <code>{{ e.name }}</code>
+              {% endif %}
+              {% if e.kind %} <span class="module-kind">{{ e.kind }}</span>{% endif %}
+            </td>
+            <td>{% if e.signature %}<code>{{ e.signature }}</code><br>{% endif %}{{ e.description or '' }}</td>
+          </tr>
+          {% endfor %}
         </table>
       </details>
       {% endif %}
@@ -38,5 +61,153 @@ css: |
   .module-exports { margin-top: .3rem; font-size: .88rem; }
   .module-exports summary { cursor: pointer; color: var(--accent); }
   .module-exports table { margin-top: .3rem; }
+  .export-link { text-decoration: none; border-bottom: 1px dashed var(--line); }
+  .export-link:hover { border-bottom-style: solid; }
+  .source-pane { margin: .4rem 0 .6rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); overflow: hidden; }
+  .source-pane-bar { display: flex; gap: .8rem; align-items: baseline; flex-wrap: wrap; padding: .3rem .6rem; border-bottom: 1px solid var(--line); font-size: .78rem; color: var(--fg-2); background: var(--bg-2); }
+  .source-pane-bar .source-pane-path { font-family: var(--code, monospace); color: var(--fg); }
+  .source-pane-bar button { margin-left: auto; font-size: .78rem; cursor: pointer; background: none; border: 1px solid var(--line); border-radius: var(--radius); color: var(--fg-2); padding: 0 .4rem; }
+  .source-pane pre { margin: 0; padding: .4rem 0; overflow-x: auto; font-size: .8rem; line-height: 1.5; }
+  .source-pane .source-row { display: grid; grid-template-columns: 3.4rem 1fr; }
+  .source-pane .source-num { text-align: right; padding-right: .8rem; color: var(--muted); user-select: none; font-variant-numeric: tabular-nums; }
+  .source-pane .source-text { white-space: pre; padding-right: .8rem; }
+  .source-pane-status { padding: .4rem .6rem; font-size: .82rem; color: var(--fg-2); }
+js: |
+  /* Click-to-source for code map exports (adr-024).
+     The link in the HTML is already correct and line-pinned; this only upgrades it into an
+     in-page pane. Anything unexpected - no index, a failed fetch, an unpinned build - lets the
+     click through to the hosting service, which is why the anchor is real markup and not built here. */
+  (function () {
+    var lists = document.querySelectorAll('.module-list[data-source-reader="1"]');
+    if (!lists.length || !window.fetch) return;
+    var base = document.documentElement.dataset.base || (window.yss && window.yss.base) || "/";
+    var localSource = null;   // private target: {file: {symbol: {start, end, lines}}}
+    var localTried = false;
+
+    function loadLocal() {
+      if (localTried) return Promise.resolve(localSource);
+      localTried = true;
+      return fetch(base + "dynamic/symbolsource.json")
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (env) { localSource = (env && env.ok && env.data && env.data.text) || null; return localSource; })
+        .catch(function () { return null; });
+    }
+
+    function row(n, text) {
+      var line = document.createElement("div");
+      line.className = "source-row";
+      var num = document.createElement("span");
+      num.className = "source-num";
+      num.textContent = n;
+      var src = document.createElement("span");
+      src.className = "source-text";
+      src.textContent = text;
+      line.appendChild(num);
+      line.appendChild(src);
+      return line;
+    }
+
+    function pane(link, start, lines) {
+      var wrap = document.createElement("div");
+      wrap.className = "source-pane";
+      var bar = document.createElement("div");
+      bar.className = "source-pane-bar";
+      var path = document.createElement("span");
+      path.className = "source-pane-path";
+      path.textContent = (link.dataset.file || link.dataset.path) + ":" + start;
+      var sym = document.createElement("span");
+      sym.textContent = link.dataset.symbol;
+      var close = document.createElement("button");
+      close.type = "button";
+      close.textContent = "close";
+      close.addEventListener("click", function () { wrap.remove(); link.setAttribute("aria-expanded", "false"); });
+      bar.appendChild(path);
+      bar.appendChild(sym);
+      bar.appendChild(close);
+      var pre = document.createElement("pre");
+      lines.forEach(function (text, i) { pre.appendChild(row(start + i, text)); });
+      wrap.appendChild(bar);
+      wrap.appendChild(pre);
+      return wrap;
+    }
+
+    function status(link, message) {
+      var wrap = document.createElement("div");
+      wrap.className = "source-pane";
+      var note = document.createElement("div");
+      note.className = "source-pane-status";
+      note.textContent = message + " ";
+      var open = document.createElement("a");
+      open.href = link.href;
+      open.textContent = "open on the repository";
+      note.appendChild(open);
+      wrap.appendChild(note);
+      return wrap;
+    }
+
+    function show(link, node) {
+      var row = link.closest("tr");
+      var host = row && row.parentNode;
+      if (!host) return;
+      var existing = host.parentNode.querySelector(".source-pane-holder");
+      if (existing) existing.remove();
+      var holder = document.createElement("tr");
+      holder.className = "source-pane-holder";
+      var cell = document.createElement("td");
+      cell.colSpan = 2;
+      cell.appendChild(node);
+      holder.appendChild(cell);
+      row.insertAdjacentElement("afterend", holder);
+      link.setAttribute("aria-expanded", "true");
+    }
+
+    function remoteUrl(list, link) {
+      var repo = list.dataset.repo.replace(/\/+$/, "");
+      var slug = repo.replace(/^https?:\/\/github\.com\//, "");
+      if (slug === repo) return null;   // not a github remote: no raw origin we can guess
+      return "https://raw.githubusercontent.com/" + slug + "/" + list.dataset.ref + "/" + (link.dataset.file || link.dataset.path);
+    }
+
+    lists.forEach(function (list) {
+      list.addEventListener("click", function (event) {
+        var link = event.target.closest("a.export-link[data-start]");
+        if (!link || !list.contains(link)) return;
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.button) return;   // let people open a tab
+        event.preventDefault();
+
+        var start = parseInt(link.dataset.start, 10);
+        var end = parseInt(link.dataset.end, 10);
+
+        loadLocal().then(function (local) {
+          var file = link.dataset.file || link.dataset.path;
+          var hit = local && local[file] && local[file][link.dataset.symbol];
+          if (hit) { show(link, pane(link, hit.start, hit.lines)); return; }
+
+          var url = remoteUrl(list, link);
+          if (!url) { show(link, status(link, "No source origin for this repository.")); return; }
+          if (list.dataset.pinned !== "1") {
+            show(link, status(link, "This build is not pinned to a commit, so line numbers may have moved."));
+            return;
+          }
+          fetch(url).then(function (r) {
+            if (r.status === 404) throw new Error("not-found");
+            if (!r.ok) throw new Error("http-" + r.status);
+            return r.text();
+          }).then(function (text) {
+            var lines = text.split("\n").slice(start - 1, end);
+            show(link, pane(link, start, lines));
+          }).catch(function (err) {
+            show(link, status(link, err.message === "not-found"
+              ? "That file is not readable at this commit - the repository may be private."
+              : "Could not fetch the source."));
+          });
+        });
+      });
+    });
+  })();
 examples:
   - args: {modules: [{id: cli, path: yss/cli.py, purpose: Command line., exports: [{name: main, kind: function}]}]}
+  - args:
+      repo_url: https://github.com/Spiffy-Panda/YamlStaticSite
+      commit: 0000000000000000000000000000000000000000
+      modules: [{id: symbols, path: yss/symbols.py, purpose: Resolve an export to its line range., exports: [{name: index_for, kind: function}, {name: SymbolError, kind: class}]}]

@@ -88,7 +88,9 @@ def write_source(cfg: Config, target: str, out_dir: Path, name: str) -> dict:
     sources = cfg.dynamic_sources_for(target)
     if name not in sources:
         raise DynamicError(f"dynamic source '{name}' is not enabled for target '{target}'")
-    envelope = collect_envelope(cfg, name, sources[name])
+    # `_target` alongside the `_collection` the config already injects: a provider that reads docs
+    # must apply the same visibility filter as the build, or a private module reaches a public file.
+    envelope = collect_envelope(cfg, name, dict(sources[name], _target=target))
     path = out_dir / "dynamic" / f"{name}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(envelope, indent=2, default=str), encoding="utf-8")

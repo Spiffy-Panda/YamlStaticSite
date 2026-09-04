@@ -5,10 +5,12 @@ Claims come from two places:
        - {path: yss/build.py}                      file or folder exists (globs allowed)
        - {path: yss/build.py, contains: "def build("}  and contains the text
        - {glob: "yss/prefabs/*.yaml", min: 10}     at least `min` matches
-       - {symbol: "yss.build:build"}               importable module attribute
+       - {symbol: "yss.build:build"}               module attribute (parsed, then imported)
        - {command: "python -m yss validate", expect: 0}   exit code (only with --run-commands)
-  2. schema annotations `x-evidence: path|glob|command|symbol` on fields such as codemap
-     modules.path or design components.code, so common fields are checked for free.
+  2. schema annotations `x-evidence: path|glob|command|symbol|export` on fields such as codemap
+     modules.path or design components.code, so common fields are checked for free. An `export`
+     field is resolved against the nearest enclosing `path`, which is how every code map export
+     is proved to still exist at the line the site links to (adr-024).
 
 Git recency: if any path cited by a doc changed after the doc's `updated` date, the doc gets a
 `warn` claim ("possibly stale"). Statuses: ok | stale | warn | unknown | skipped.
@@ -28,6 +30,7 @@ from typing import Any
 
 from .config import Config
 from .loader import SchemaRegistry
+from .symbols import SymbolError, index_for, supported
 
 STATUS_ORDER = {"stale": 0, "warn": 1, "unknown": 2, "skipped": 3, "ok": 4}
 
@@ -103,9 +106,13 @@ def collect_claims(docs: dict[str, dict], reg: SchemaRegistry) -> list[Claim]:
         ann = reg.annotations(f"doc.{doc.get('kind')}")["evidence"]
         source = doc.get("_source", doc_id)
 
-        def walk(value: Any, path: str, item_id: str | None) -> None:
+        def walk(value: Any, path: str, item_id: str | None, base: str | None) -> None:
             if isinstance(value, dict):
                 current = value.get("id") if isinstance(value.get("id"), str) and path else item_id
+                # The nearest enclosing `path` travels down with the walk so a field annotated
+                # `x-evidence: export` knows which module it belongs to (a code map export).
+                own = value.get("path")
+                here_base = own.strip() if isinstance(own, str) and own.strip() else base
                 for key, sub in value.items():
                     if isinstance(key, str) and key.startswith("_"):
                         continue
@@ -121,13 +128,21 @@ def collect_claims(docs: dict[str, dict], reg: SchemaRegistry) -> list[Claim]:
                         for i, v in enumerate(values):
                             if isinstance(v, str) and v.strip():
                                 loc = f"{here}/{i}" if isinstance(sub, list) else here
-                                claims.append(Claim(doc_id, current, loc, ann[key], v.strip(), source=source))
-                    walk(sub, here, current)
+                                target = v.strip()
+                                if ann[key] == "export":
+                                    # Annotations are per field name across a whole schema, so the
+                                    # same `name` appears on entrypoints too. An export is only an
+                                    # export when something above it says which module it lives in.
+                                    if not here_base:
+                                        continue
+                                    target = f"{here_base}::{target}"
+                                claims.append(Claim(doc_id, current, loc, ann[key], target, source=source))
+                    walk(sub, here, current, here_base)
             elif isinstance(value, list):
                 for i, entry in enumerate(value):
-                    walk(entry, f"{path}/{i}", item_id)
+                    walk(entry, f"{path}/{i}", item_id, base)
 
-        walk(doc, "", None)
+        walk(doc, "", None, None)
     return claims
 
 
@@ -188,8 +203,57 @@ def _check_glob(cfg: Config, doc: dict, claim: Claim, extra: dict) -> None:
     claim.detail = f"fewer than {minimum} match(es) for {claim.target}"
 
 
+def _module_to_rel(root: Path, module_name: str) -> str | None:
+    """`yss.config` -> `yss/config.py`; `yss.providers` -> `yss/providers`. None when neither exists."""
+    rel = module_name.replace(".", "/")
+    if (root / f"{rel}.py").is_file():
+        return f"{rel}.py"
+    if (root / rel).is_dir():
+        return rel
+    return None
+
+
+def _check_export(cfg: Config, claim: Claim) -> None:
+    """An `x-evidence: export` claim: `<path>::<name>`, resolved by parsing that module.
+
+    Reports the line it resolved to, which is the same number the code map's reader links to -
+    so a stale claim here is exactly the case where a published deep link would be wrong.
+    """
+    rel, _, name = claim.target.rpartition("::")
+    if not supported(rel):
+        claim.status = "skipped"
+        claim.detail = f"{rel} is not parsed for exports"
+        return
+    try:
+        index = index_for(cfg.root, rel)
+    except SymbolError as exc:
+        claim.status = "stale"
+        claim.detail = f"cannot parse {exc.rel}: {exc.reason}"
+        return
+    span = index.get(name)
+    if span:
+        claim.status = "ok"
+        claim.detail = f"{span[2]}:{span[0]}-{span[1]}"
+        return
+    claim.status = "stale"
+    claim.detail = f"{rel} does not define {name}"
+
+
 def _check_symbol(cfg: Config, claim: Claim) -> None:
     module_name, _, attr = claim.target.partition(":")
+    # Parse first: importing runs module-level code, and `hasattr` cannot answer for a dotted
+    # member like `Config.evidence_for` or for a constant. Import remains the fallback so a name
+    # that only exists at runtime (a re-export, a generated attribute) still checks out.
+    rel = _module_to_rel(cfg.root, module_name)
+    if rel is not None and attr:
+        try:
+            span = index_for(cfg.root, rel).get(attr)
+        except SymbolError:
+            span = None
+        if span:
+            claim.status = "ok"
+            claim.detail = f"{span[2]}:{span[0]}-{span[1]}"
+            return
     if str(cfg.root) not in sys.path:
         sys.path.insert(0, str(cfg.root))
     try:
@@ -259,6 +323,8 @@ def evaluate(cfg: Config, docs: dict[str, dict], claims: list[Claim],
             _check_glob(cfg, doc, claim, extra)
         elif claim.kind == "symbol":
             _check_symbol(cfg, claim)
+        elif claim.kind == "export":
+            _check_export(cfg, claim)
         elif claim.kind == "command":
             _check_command(cfg, claim, extra, _policy(cfg, doc, "run_commands", run_commands, False))
         else:

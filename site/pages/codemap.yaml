@@ -26,10 +26,13 @@ sections:
   - id: modules
     type: prefab
     heading: Modules
-    intro: Expand a module to see its exports.
+    intro: Expand a module to see its exports; an export opens its own source at the lines it occupies.
     prefab: module-list
     args:
       modules: {from: codemap.modules}
+      repo_url: {from: $site.repo}
+      commit: {from: $build.commit}
+      dirty: {from: $build.dirty}
 
   - id: conventions
     type: prefab

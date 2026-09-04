@@ -4,7 +4,7 @@ Annotations understood in schemas (resolved per collection from site.yaml / coll
   x-vocab: <name>      -> enum from `vocabularies.<name>`
   x-limit: <name>      -> maxLength from `limits.<name>`
   x-ref: item | doc    -> value(s) must resolve to an item id (same doc, or `doc/item`) or a doc id
-  x-evidence: path | glob | command | symbol -> checked by `yss check` (see evidence.py)
+  x-evidence: path | glob | command | symbol | export -> checked by `yss check` (see evidence.py)
 
 Files and folders whose name starts with `_` are never loaded (archives, scratch).
 Inline references `[[doc]]`, `[[doc#item]]`, `[[#item]]` in any string are validated too.

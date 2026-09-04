@@ -20,7 +20,7 @@ roots:
   - path: yss/assets/
     purpose: Base stylesheet and client runtime copied into every build.
   - path: yss/providers/
-    purpose: Built-in dynamic data providers (buildinfo, testruns, gitlog, evidence).
+    purpose: Built-in dynamic data providers (buildinfo, testruns, gitlog, evidence, symbols).
   - path: yss/skills/
     purpose: Canonical agent skills, shipped with the package; `yss init` / `yss skills --install` copy them into a repo.
   - path: docs/
@@ -78,6 +78,20 @@ modules:
       - {name: check_refs, kind: function, signature: "(docs, reg, pages) -> [errors]", description: x-ref fields and inline references.}
       - {name: resolve_doc_id, kind: function, signature: "(ref, collection_id, docs) -> id | None", description: "Collection-local first, then exact; `/doc` forces root."}
     tests: [tests/test_yss.py]
+  - id: symbols
+    path: yss/symbols.py
+    purpose: Resolve a code map export name to its line range by parsing the module, never importing it; handles dotted class members, module constants and package directories (adr-024).
+    language: python
+    status: active
+    exports:
+      - {name: index_for, kind: function, signature: "(root, rel) -> {name: (start, end)}", description: A file or a package directory; results cached by mtime.}
+      - {name: file_index, kind: function, signature: "(path, rel=None) -> {name: (start, end)}"}
+      - {name: lookup, kind: function, signature: "(root, rel, name) -> (start, end) | None"}
+      - {name: supported, kind: function, signature: "(rel) -> bool", description: Only Python carries line ranges; anything else gets a plain file link.}
+      - {name: SymbolError, kind: class, description: Carries a repo-relative path only - the message reaches build output.}
+      - {name: SUPPORTED_SUFFIXES, kind: constant}
+    tests: [tests/test_yss.py]
+
   - id: evidence
     path: yss/evidence.py
     purpose: Collect and evaluate evidence claims; git recency; inject `_evidence` freshness; format reports. Policy resolves per doc - CLI flag, then collection.yaml, then site.yaml.
@@ -88,6 +102,7 @@ modules:
       - {name: check, kind: function, signature: "(cfg, docs, reg, run_commands=None, git_recency=None) -> EvidenceReport", description: "None means use the configured policy for each doc's collection."}
       - {name: inject, kind: function, signature: "(docs, report) -> None"}
       - {name: Claim, kind: class}
+      - {name: _check_export, kind: function, signature: "(cfg, claim) -> None", description: "`x-evidence: export` - resolves `<path>::<name>` by parsing (adr-024)."}
     tests: [tests/test_yss.py]
   - id: visibility
     path: yss/visibility.py
@@ -142,7 +157,7 @@ modules:
       - {name: write_all, kind: function, signature: "(cfg, target, out_dir, names=None, only_on_build=False) -> {name: envelope}"}
   - id: providers
     path: yss/providers/
-    purpose: buildinfo (counts), testruns (unittest in a subprocess), gitlog (recent commits), evidence (claims incl. commands).
+    purpose: buildinfo (counts), testruns (unittest in a subprocess), gitlog (recent commits), evidence (claims incl. commands), symbols (code map export line ranges).
     language: python
     status: active
     depends_on: [dynamic, evidence]
@@ -150,6 +165,8 @@ modules:
       - {name: buildinfo.collect, kind: function}
       - {name: testruns.collect, kind: function, description: "Also runnable: python -m yss.providers.testruns tests"}
       - {name: gitlog.collect, kind: function}
+      - {name: symbols.collect, kind: function, description: "Export line ranges for the target's visible code map modules."}
+      - {name: symbols.collect_source, kind: function, description: "The same ranges plus the lines; refuses a redacting target."}
       - {name: evidence.collect, kind: function}
   - id: server
     path: yss/server.py

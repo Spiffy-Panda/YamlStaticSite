@@ -21,6 +21,7 @@ from .binding import BindError, is_binding, resolve_binding
 from .config import PKG_DIR, Collection, Config
 from .hooks import call, load_hooks
 from .loader import CODE_SPAN_RE, find_inline_refs, index_ids, iter_strings, resolve_doc_id
+from .symbols import lookup as symbol_lookup, supported as symbols_supported
 from .visibility import slugify
 
 _md = MarkdownIt("commonmark", {"html": True}).enable("table").enable("strikethrough")
@@ -106,6 +107,7 @@ class Renderer:
             "all_doc_ids": list(all_doc_ids or docs),
             "collections": [self._collection_summary(c) for c in self.collections if not c.is_root],
             "evidence": evidence or [],
+            "build": self.build_info,
             "collection": None,
         }
         layouts = [str(cfg.path("layouts")), str(PKG_DIR / "templates")]
@@ -130,11 +132,25 @@ class Renderer:
             docs=docs,
             base_url=self.base_url,
             collections=self.ctx["collections"],
+            build=self.build_info,
+            symbol_range=self.symbol_range,
         )
         self.nav = self._nav()
         self._doc_pages = self._index_doc_pages()
 
     # --- helpers ---------------------------------------------------------
+    def symbol_range(self, path: str, name: str) -> list | None:
+        """`{{ symbol_range(m.path, e.name) }}` -> [start, end] for a code map export, or None.
+
+        Resolved at render time so a deep link carries real line anchors in the static HTML and
+        works with JavaScript off (p-static-first). Parsing is cached by mtime in yss.symbols, so
+        a page with many exports parses each module once.
+        """
+        if not path or not name or not symbols_supported(path):
+            return None
+        span = symbol_lookup(self.cfg.root, str(path), str(name))
+        return list(span) if span else None
+
     @staticmethod
     def _fail(message: str) -> str:
         """`{{ fail('...') }}` - a prefab rejecting its own arguments.

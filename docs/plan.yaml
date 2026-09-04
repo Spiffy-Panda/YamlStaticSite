@@ -30,6 +30,58 @@ non_goals:
   - Supporting XML or XSLT pipelines (rejected after earlier repos, see the decision log).
 
 milestones:
+  - id: m9-source-reader
+    title: Click-to-source in the code map
+    status: active
+    priority: 2
+    summary: An export in the code map opens its own source at the lines it occupies, without a copy of the tree in dist/.
+    done_when: Every code map export links to its own line range at a pinned commit, opens in place on both targets, and a moved export fails `yss check`.
+    notes: |
+      Shipped by [[decisions#adr-024]]. The line range is parsed, never imported, so constants and
+      dotted members such as `Config.evidence_for` resolve; the public target fetches the source at
+      the pinned commit and the private target reads the working tree. Reviewed against the
+      alternatives before building - an iframe of the hosting service is impossible, a generated
+      mirror duplicates the package into the public build.
+    tasks:
+      - id: m9-resolver
+        title: Parse a module to a symbol line range, shared by the checker and the site
+        status: done
+        owner: agent
+        verify: python -m unittest tests.test_yss.SymbolResolverTests -v
+        evidence: [{path: yss/symbols.py, contains: "def index_for"}]
+      - id: m9-sources
+        title: Publish the index on both targets and the source text on the private target only
+        status: done
+        owner: agent
+        verify: python -m yss build --target all && ls dist/public/dynamic dist/private/dynamic
+        evidence: [{path: yss/providers/symbols.py, contains: "def collect_source"}]
+      - id: m9-pinning
+        title: Give the build its commit so a line anchor is only published when pinned and clean
+        status: done
+        owner: agent
+        verify: python -m unittest tests.test_yss.BuildCommitTests -v
+        evidence: [{path: yss/build.py, contains: "def git_commit"}]
+      - id: m9-reader
+        title: Upgrade the export link into an in-page source pane, falling back to the link
+        status: done
+        owner: agent
+        verify: python -m yss build --target public --no-dynamic && grep -c export-link dist/public/codemap/index.html
+        evidence: [{path: yss/prefabs/module-list.yaml, contains: "export-link"}]
+      - id: m9-export-evidence
+        title: Prove every code map export with `yss check` rather than leaving a dead link
+        status: done
+        owner: agent
+        verify: python -m yss check -v
+        evidence: [{path: yss/evidence.py, contains: "def _check_export"}]
+      - id: m9-offline
+        title: Decide whether a generated source mirror is worth shipping for the offline case
+        status: planned
+        owner: panda
+        notes: |
+          Deliberately unanswered. The reader needs the network on the public target and dies if the
+          repository ever goes private; a mirror in `dist/` fixes both and costs the duplication
+          [[decisions#adr-024]] declined. No mirror is built until that trade is actually felt.
+
   - id: m6-prototypes
     title: Prototype hosting
     status: planned

@@ -191,7 +191,7 @@ components:
     group: g-pipeline
     name: Dynamic sources
     kind: data
-    responsibility: Collect runtime JSON from providers (including hooks providers), commands or files into a uniform envelope; built-in providers for build info, test runs, git log and evidence.
+    responsibility: Collect runtime JSON from providers, commands or files into a uniform envelope; providers for build info, test runs, git log, evidence and code map symbols, each given `_target`.
     outputs: [dist/<target>/dynamic/<name>.json]
     depends_on: [c-config, c-hooks]
     code: [yss/dynamic.py, yss/providers/]
