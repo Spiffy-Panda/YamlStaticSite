@@ -19,6 +19,14 @@ docs: [plan]                       # doc ids presented here (enables doc_url lin
 sections: [...]
 ```
 
+**Where a region came from.** With `build.attribution: true` in site.yaml (default off), every
+section carries a `title=""` naming the query that filled it - "milestones in `docs/plan.yaml`,
+where status = active - showing 4 of 17" - and a "show sources" toggle in the footer reveals the
+same sentence as a printed caption. It is derived from the section spec, so you get it for free;
+there is nothing to author. A section binding two docs names both rather than picking one, which
+is usually a sign the section wants splitting. The doc and its path appear on both targets; the
+filter half is private-only, so a `where:` clause naming a person is not published.
+
 `nav.hidden: true` keeps a page out of the bar entirely. `nav.group` must name a group declared in
 site.yaml's `nav.groups`, or the build warns and the page is drawn in the first declared group -
 or, if none is declared, in a trailing unlabelled one. Collection pages are exempt: the loader

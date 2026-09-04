@@ -109,6 +109,15 @@ properties:
       strict:
         type: boolean
         description: Fail the build on flagged strings and stale evidence. Default false; the CI public build sets it here rather than on the command line.
+      attribution:
+        type: boolean
+        default: false
+        description: >-
+          Say where each rendered region came from (gh-29). Off by default. When on, every section
+          carries a `title=""` naming the query that filled it, and a "show sources" toggle in the
+          footer reveals the same sentence as a printed caption. The doc and its file are named on
+          both targets; the filter half - where, sort, limit, group_by - is private-only, because a
+          `where:` clause is authored in page YAML and one naming a person has never reached dist/.
     additionalProperties: false
   evidence:
     type: object

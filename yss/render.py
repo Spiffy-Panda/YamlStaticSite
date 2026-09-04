@@ -17,6 +17,7 @@ import jinja2
 from markdown_it import MarkdownIt
 from markupsafe import Markup, escape
 
+from .attribution import attribute
 from .binding import BindError, is_binding, resolve_binding
 from .config import PKG_DIR, Collection, Config
 from .hooks import call, load_hooks
@@ -116,6 +117,13 @@ class Renderer:
         # Non-fatal things a binding noticed while rendering; the build folds these into
         # report.warnings, so a page that quietly renders the wrong shape still says so (gh-12).
         self.warnings: list[str] = []
+        # Off unless site.yaml says otherwise (gh-29). The filter half of an attribution is
+        # private-only: `where:` clauses are authored in page YAML and have never reached dist/.
+        self.attribution = bool((cfg.data.get("build") or {}).get("attribution"))
+        self.attribution_detail = target != "public"
+        # Per-section selection counts, keyed by arg name, collected while the handlers bind so the
+        # phrase can say "showing 4 of 17" without resolving anything a second time.
+        self._section_counts: dict[str | None, tuple[int, int]] = {}
         self.ctx = {
             "docs": docs,
             "pages": pages,
@@ -426,8 +434,8 @@ class Renderer:
     def render_str(self, source: str, ctx: dict) -> str:
         return self.env.from_string(source).render(**ctx)
 
-    def _bind(self, spec: dict, sid: str | None = None) -> Any:
-        return resolve_binding(spec, self.ctx, self.render_str, self._binding_warner(sid))
+    def _bind(self, spec: dict, sid: str | None = None, stats: dict | None = None) -> Any:
+        return resolve_binding(spec, self.ctx, self.render_str, self._binding_warner(sid), stats)
 
     def _binding_warner(self, sid: str | None) -> Callable[[str], None]:
         """Prefix a binding's own complaint with the page and section a human would go and edit."""
@@ -586,8 +594,26 @@ class Renderer:
         handler = getattr(self, f"_section_{stype}", None)
         if handler is None:
             raise RenderError(f"unknown section type '{stype}'")
+        self._section_counts = {}
         inner = handler(page, sec, sid)
-        parts = [Markup(f'<section id="{escape(sid)}" class="section section-{escape(stype)} {escape(sec.get("class", ""))}">')]
+        attribution = self._attribution_for(page, sec, sid)
+        open_tag = (
+            f'<section id="{escape(sid)}" class="section section-{escape(stype)} '
+            f'{escape(sec.get("class", ""))}"'
+        )
+        if attribution:
+            # `title` is the whole zero-JS baseline: a native tooltip on desktop, harmless on
+            # touch, and present with JavaScript off - which p-static-first requires.
+            open_tag += f' title="{escape(attribution.full())}"'
+            if attribution.src:
+                open_tag += f' data-src="{escape(attribution.src)}"'
+        parts = [Markup(open_tag + ">")]
+        if attribution:
+            parts.append(
+                Markup('<p class="section-source" hidden>')
+                + escape(attribution.full())
+                + Markup("</p>")
+            )
         if sec.get("heading"):
             parts.append(Markup(f'<h2 class="section-heading"><a href="#{escape(sid)}">{escape(sec["heading"])}</a></h2>'))
         if sec.get("intro"):
@@ -596,10 +622,32 @@ class Renderer:
         parts.append(Markup("</section>"))
         return Markup("").join(parts)
 
+    def _attribution_for(self, page: dict, sec: dict, sid: str):
+        """The one line this section shows about its own provenance, or nothing when off."""
+        if not self.attribution:
+            return None
+        cid = self.current_collection.id if self.current_collection and not self.current_collection.is_root else None
+        return attribute(
+            {**sec, "id": sec.get("id", sid)},
+            page,
+            self.docs,
+            cid,
+            self._section_counts,
+            self.attribution_detail,
+        )
+
+    def _counted(self, spec: Any, sid: str, name: str | None) -> Any:
+        """Bind, remembering how much was selected out of how much."""
+        stats: dict = {}
+        value = self._bind(spec, sid, stats)
+        if "candidates" in stats and "shown" in stats:
+            self._section_counts[name] = (stats["shown"], stats["candidates"])
+        return value
+
     def _section_markdown(self, page: dict, sec: dict, sid: str) -> Markup:
         if "from" in sec:
             spec = {k: v for k, v in sec.items() if k in ("from", "where", "sort", "limit", "map", "fields")}
-            text = self._bind(spec, sid)
+            text = self._counted(spec, sid, None)
             if isinstance(text, list):
                 text = "\n".join(f"- {t}" for t in text)
             elif not isinstance(text, str):
@@ -613,7 +661,7 @@ class Renderer:
     def _section_prefab(self, page: dict, sec: dict, sid: str) -> Markup:
         args = {}
         for key, value in (sec.get("args") or {}).items():
-            args[key] = self._bind(value, sid) if is_binding(value) else value
+            args[key] = self._counted(value, sid, key) if is_binding(value) else value
         return self.prefab(sec["prefab"], args)
 
     def _resolve_source(self, name: str) -> str | None:
@@ -741,6 +789,10 @@ class Renderer:
                 sub_nav=sub_nav,
                 collection=next((c for c in self.ctx["collections"] if c["id"] == cid), None) if cid else None,
                 theme=theme,
+                attribution=self.attribution,
+                # The private target is where an author is checking their own bindings, so the
+                # captions start visible there; a reader of the public site opts in (gh-29).
+                attribution_default=self.attribution_detail,
                 head=head,
                 build=self.build_info,
                 current_route=page["route"],

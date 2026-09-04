@@ -187,7 +187,11 @@ class CollectionTests(TempSiteCase):
         self.assertTrue((priv.out_dir / "demo-musing" / "generated-by-hook.txt").exists())  # after_build
         self.assertTrue((pub.out_dir / "demo-musing" / "assets" / "theme.css").exists())
         html = (pub.out_dir / "demo-musing" / "index.html").read_text(encoding="utf-8")
-        self.assertIn("--accent:#7a3e9d", html)
+        # The two theme colours are a generated stylesheet rule now, not an inline style on
+        # <body>, so a collection's own theme.css can override them in a media query (adr-030).
+        self.assertNotIn("--accent:#7a3e9d", html)
+        css = (pub.out_dir / "assets" / "collections.css").read_text(encoding="utf-8")
+        self.assertIn(".collection-demo-musing { --accent: #7a3e9d; }", css)
         self.assertIn("collection-bar", html)
         self.assertIn("watching", html)  # local vocabulary rendered
         self.assertIn("play/index.html", html)  # generated doc bound as `inventory`

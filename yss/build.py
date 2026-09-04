@@ -209,7 +209,11 @@ def _mount(cfg: Config, out: Path, base: Path, spec: dict, target: str, prefix: 
         _copy_tree(src, dst)
 
 
-LINK_RE = re.compile(r'\b(?:href|src)="([^"]*)"')
+# `\b` matches across a hyphen, so `data-src="docs/plan.yaml"` read as a link and the dead-link
+# gate went looking for a file that was never meant to be one. `data-src` carries a repo-relative
+# *source* path - the attribution captions emit it (gh-29), and gh-30 reserves it for per-item
+# attribution too - so the boundary must exclude a preceding hyphen or word character.
+LINK_RE = re.compile(r'(?<![-\w])(?:href|src)="([^"]*)"')
 LINK_SKIP_PREFIXES = ("http://", "https://", "//", "mailto:", "data:", "javascript:", "#")
 
 

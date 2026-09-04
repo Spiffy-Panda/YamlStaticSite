@@ -77,14 +77,21 @@ class DeadLinkGateTests(TempSiteCase):
         self.assertTrue(any("deadlinks/assets/missing.css" in w for w in found), found)
         self.assertTrue(all("/deadlinks/" in w for w in found), found)
 
-    def test_strict_fails_the_build_and_removes_the_output(self):
+    def test_strict_fails_the_build_and_keeps_the_output(self):
+        """The gate still fails; it stopped deleting the tree (gh-21, adr-034).
+
+        A dead link makes the output *wrong*, not hazardous, and the emitted HTML is exactly what
+        you need in order to find the link. Only the forbidden-string scan still deletes, because
+        it is the only failure with something to contain.
+        """
         cfg = self.write_page("deadlinks.yaml", self.PAGE)
         with self.assertRaises(BuildError) as caught:
             build(cfg, "private", run_dynamic=False, strict=True)
         message = str(caught.exception)
         self.assertIn("dead link", message)
         self.assertIn("2 dead link(s)", message)
-        self.assertFalse((self.root / "dist" / "private").exists())
+        self.assertIn("left in place for inspection", message)
+        self.assertTrue((self.root / "dist" / "private" / "deadlinks" / "index.html").is_file())
 
     def test_a_link_into_a_mount_resolves(self):
         """Mount *contents* are not checked, but a page's link into one is like any other link."""

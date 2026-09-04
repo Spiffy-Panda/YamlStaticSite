@@ -295,7 +295,15 @@ def resolve_binding(
     ctx: dict,
     render: Callable[[str, dict], str] | None = None,
     warn: Callable[[str], None] | None = None,
+    stats: dict | None = None,
 ) -> Any:
+    """Resolve a binding. Pass `stats` to learn how much was selected out of how much (gh-29).
+
+    It is filled with `candidates` (the item count *after* normalisation - the dict-of-dicts
+    conversion and `$items` flattening both change it, so it means "candidate items", not "entries
+    in the file") and `shown` (what survived the list ops). Attribution needs both and the numbers
+    are free here; recomputing them would mean resolving the binding twice.
+    """
     unknown = set(spec) - set(BINDING_KEYS)
     if unknown:
         raise BindError(
@@ -313,6 +321,8 @@ def resolve_binding(
             f"'{spec['from']}' resolves to {type(value).__name__}, but {', '.join(list_ops)} need a list"
         )
     items = _stamped(list(value), stamp)
+    if stats is not None:
+        stats["candidates"] = len(items)
     if "where" in spec:
         items = [it for it in items if match(it, spec["where"])]
     if "sort" in spec:
@@ -335,4 +345,6 @@ def resolve_binding(
             if message:
                 warn(message)
         items = grouped
+    if stats is not None:
+        stats["shown"] = sum(len(g.get("items") or []) for g in items) if "group_by" in spec else len(items)
     return items

@@ -120,10 +120,21 @@ modules:
     language: python
     status: active
     exports:
-      - {name: resolve_binding, kind: function, signature: "(spec, ctx, render=None, warn=None) -> value"}
+      - {name: resolve_binding, kind: function, signature: "(spec, ctx, render=None, warn=None, stats=None) -> value", description: "Pass `stats` to learn candidates/shown without resolving twice (gh-29)."}
       - {name: doc_items, kind: function, signature: "(doc) -> [item + _type]", description: "Every item of every type array in one doc, tagged with the array it came from (adr-025)."}
       - {name: is_binding, kind: function, signature: "(value) -> bool"}
-    tests: [tests/test_yss.py, tests/test_gh12.py]
+    tests: [tests/test_yss.py, tests/test_gh12.py, tests/test_gh30.py]
+  - id: attribution
+    path: yss/attribution.py
+    purpose: Turn a section spec into a sentence naming the doc, the query and the counts behind a rendered region. Pure - no rendering, no re-resolution - so the phrasing is unit tested on spec dictionaries.
+    language: python
+    status: active
+    depends_on: [binding]
+    exports:
+      - {name: attribute, kind: function, signature: "(sec, page, docs, collection, counts, detail) -> Attribution", description: "Picks a headline among several bindings, or names them all rather than choosing silently."}
+      - {name: describe, kind: function, signature: "(spec, docs, collection, counts, detail) -> str", description: "One binding as a phrase; `detail=False` drops the filter half for the public target."}
+      - {name: binding_specs, kind: function, signature: "(sec) -> [(arg_name, spec)]"}
+    tests: [tests/test_gh29.py]
   - id: render
     path: yss/render.py
     purpose: Renderer - Jinja env, prefab(), section handlers, inline reference expansion, pluggable markdown, collection context, render_page.

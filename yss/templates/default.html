@@ -78,6 +78,9 @@
     · <a href="{{ url('data/evidence.json') }}">evidence.json</a>
     · <a href="{{ url('build.json') }}">build.json</a>
     · built {{ build.built_at }} ({{ target }}, yss {{ build.version }})
+    {% if attribution %}
+    · <button type="button" class="source-toggle" aria-pressed="false" data-default="{{ '1' if attribution_default else '0' }}">Show sources</button>
+    {% endif %}
   </div>
 </footer>
 <script src="{{ url('assets/yss.js') }}"></script>

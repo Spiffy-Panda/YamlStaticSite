@@ -824,3 +824,78 @@ entries:
       - "Bless it unconditionally with no source check (rejected - it leaves any folder on the machine mountable, and the redaction scan catches forbidden strings, not arbitrary contents)."
       - "Reject the escape symmetrically with the destination check (rejected - it breaks eight shipped collections and needs a replacement that does not exist)."
       - "Warn on every escaping mount (rejected - see above; the affordance is documented instead)."
+
+  - id: adr-033
+    date: 2026-09-04
+    title: A region says where it came from in a title attribute and an opt-in caption, not a hover pill
+    status: accepted
+    context: |
+      A reader looking at a rendered region had no way to see which structured query produced it.
+      The page header prints the doc set, which is per-page and cannot answer "why these four?".
+
+      The original proposal was a fixed bottom-left pill updated on hover. It does not survive
+      contact with the requirements: there is no `mouseover` on touch; `focusin` fires only on
+      focusable elements and `<section>`, `.card` and `<tr>` are not, so adding `tabindex` to make
+      them so would wreck the tab order; a `pointer-events: none` pill is invisible to assistive
+      tech unless it is an `aria-live` region, and a live region updating on every mouse movement
+      is an anti-pattern; `yss.css` had no `@media print` at all, so it would print as a page-one
+      artefact; and it would have been the first `position: fixed` rule in the stylesheet, fighting
+      the sticky header below 720px and overlapping the prototype embeds.
+    decision: |
+      Attribution is computed in `render_section` from the section spec, not in `_bind` - which is
+      not the chokepoint it looks like, since four of the six section types never reach it. The
+      phrasing lives in `yss/attribution.py` as a pure function, unit tested without rendering.
+
+      Two presentations, both static. The baseline is a `title=""` on the section wrapper: a native
+      tooltip, harmless on touch, present with JavaScript off, which p-static-first requires. The
+      opt-in is a "show sources" button in the footer that reveals a printed caption per section,
+      persisted in localStorage and defaulting on for the private target. The captions are emitted
+      with `hidden`, so nothing shifts when JavaScript is unavailable.
+
+      Region-level, with doc-level as an automatic fallback rather than a superseded alternative: a
+      section binding only scalars, or several docs, has no single query to name. A section binding
+      two docs names both and stops - a confidently wrong attribution is worse than none.
+
+      `build.attribution` in site.yaml gates it, defaulting off.
+    consequences:
+      - "The filter half is private-only: `where`, `sort`, `limit` and `group_by` are authored in page YAML and had never reached dist/, and one naming a person would have started to. The doc and its path were already public in data/docs.json."
+      - "`resolve_binding` takes an optional `stats` dict so counts are free rather than a second resolution."
+      - "`data-src` on a section made the dead-link gate chase a repo-relative source path, because LINK_RE's word boundary matched across a hyphen; the boundary is now explicit, which also protects the `data-src` convention gh-30 reserved."
+      - yss.css has an @media print block for the first time.
+    alternatives:
+      - "A fixed hover pill (rejected for the six reasons above; the issue itself reversed on it)."
+      - "Recording provenance inside `_bind` (rejected - it is reached only by the markdown and prefab handlers, so dynamic, include, embed and html would silently have no attribution)."
+      - "Per-item attribution on every card (deferred - gh-30 reserves `_src`/`_doc` so prefabs written meanwhile stay compatible; the eleven-prefab emission waits until a $docs-fed grid needs it)."
+
+  - id: adr-034
+    date: 2026-09-04
+    title: Only a leak deletes the output; every other strict failure leaves the tree
+    status: accepted
+    context: |
+      Six failure paths in `build_target` each did the same two lines - `rmtree` the output, then
+      raise. Only one of them had anything to contain. A forbidden string in `dist/` is material
+      that must not sit on disk where a later step could upload it. A duplicate anchor id, a dead
+      reference, a dead link, a flagged string or a stale evidence claim produces output that is
+      merely *wrong*, and deleting it removes the one artefact needed to diagnose the failure.
+
+      The deletion bought nothing in either environment. In CI the non-zero exit gates the upload,
+      not the tree's existence. Locally, a strict failure is the moment you most want to open the
+      emitted HTML, and it was the one moment yss guaranteed you could not.
+    decision: |
+      Strict failures are collected and raised once at the end, over an output tree that is whole
+      and has been scanned. The forbidden-string branch keeps its `rmtree` and still raises on the
+      spot, before the combined report.
+
+      The obvious version of this fix - deleting the five `rmtree` calls - would have been wrong.
+      The duplicate-id and dead-reference gates fire *before* the data export, the assets, the
+      mounts and the leak scan, so raising there leaves a partial tree that `scan_tree` never
+      looked at. On the public target that is precisely the tree the deletion exists to prevent.
+      Running to completion is what makes leaving the tree safe.
+    consequences:
+      - A failing strict build leaves dist/<target> to inspect, and the error says so.
+      - Every gate's complaint is reported in one error instead of one per re-run, because later gates are now reachable.
+      - "A build that is both wrong and leaking is still contained: the leak scan runs before the combined raise."
+      - "gh-14's test changed contract deliberately: it now asserts the tree survives."
+    alternatives:
+      - "Dropping the five rmtree calls where they stand (rejected - two gates fire before the leak scan, so a public build could be left partial and unscanned)."
+      - "Gating the deletion on the target rather than the failure (rejected - it keeps the local loop's worst case for no gain; the failure kind is what determines whether anything is hazardous)."

@@ -227,6 +227,21 @@ components:
     code: [yss/skills/, yss/skillpack.py, .claude/skills/]
     status: live
 
+  - id: c-attribution
+    group: g-presentation
+    name: Source attribution
+    kind: module
+    responsibility: Say which doc query produced a rendered region, in one sentence per section.
+    inputs: [section spec, docs, selection counts, target]
+    outputs: [section title attribute, printed caption]
+    depends_on: [c-binding]
+    status: live
+    notes: |
+      Computed from the section spec rather than from `_bind`, which four of the six section types
+      never reach. The phrasing is pure and unit tested; the presentation is a `title` attribute
+      plus an opt-in caption, never a hover pill ([[decisions#adr-033]]). The filter half of a
+      phrase is private-only, because a `where:` clause is authored in a page and had never
+      reached `dist/`.
 interfaces:
   - id: i-cli
     name: python -m yss

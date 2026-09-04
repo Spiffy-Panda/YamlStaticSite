@@ -166,3 +166,18 @@ blockquote { border-left: 3px solid var(--accent); margin: 1rem 0; padding: .2re
 .sub-nav a { text-decoration: none; color: var(--on-accent-2-muted, var(--fg-2)); padding: .25rem .55rem; border-radius: 6px; font-size: .92rem; }
 .sub-nav a.active, .sub-nav a:hover { color: var(--accent); background: var(--on-accent-2-surface, var(--bg-2)); }
 .site-nav a.nav-collection { border: 1px dashed var(--line); }
+
+/* Where a region came from (gh-29). The `title` attribute is the zero-JS baseline; this is the
+   opt-in mode that prints and that a screen reader can reach, because a hover pill can do neither.
+   `.section-source` is emitted with `hidden`, so with JavaScript off nothing shows and nothing
+   shifts - the toggle removes the attribute rather than fighting a display rule. */
+.section-source { margin: 0 0 .4rem; font-size: .78rem; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  border-left: 2px solid var(--line); padding-left: .5rem; overflow-wrap: anywhere; }
+.source-toggle { font: inherit; font-size: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
+.source-toggle[aria-pressed="true"] { font-weight: 600; }
+
+@media print {
+  /* Sources are worth keeping on paper once they are switched on; the controls are not. */
+  .source-toggle, .nav-toggle, .skip { display: none !important; }
+  .section-source { color: #444; border-left-color: #999; }
+}

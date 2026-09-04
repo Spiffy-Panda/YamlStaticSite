@@ -143,8 +143,8 @@ $defs:
     type: object
     required: [text]
     properties:
-      text: {type: string, x-limit: line, description: The alternative itself, stated as a choice somebody could take.}
-      why: {type: string, x-limit: summary, description: What choosing this lets you say, or costs you.}
+      text: {type: string, x-limit: line, description: "The alternative itself, stated as a choice somebody could take."}
+      why: {type: string, x-limit: summary, description: "What choosing this lets you say, or costs you."}
       pros: {type: array, items: {type: string, x-limit: line}}
       cons: {type: array, items: {type: string, x-limit: line}}
     additionalProperties: false

@@ -23,6 +23,7 @@ targets:
 
 build:
   strict: false                       # local builds warn; CI passes --strict for the public deploy (adr-014)
+  attribution: true                   # every region says which query filled it (gh-29, adr-033)
 
 # limits and the status vocabularies use the yss defaults (python -m yss ls kinds); a collection.yaml
 # can override any of them. link_kind is spelled out here because one list now serves both the doc

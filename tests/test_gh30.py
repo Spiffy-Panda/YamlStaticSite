@@ -29,6 +29,7 @@ sys.path.insert(0, str(REPO))
 
 from yss.binding import resolve_binding  # noqa: E402
 from yss.build import build, load_all  # noqa: E402
+from yss.config import Config  # noqa: E402
 
 from test_features import TempSiteCase  # noqa: E402
 
@@ -116,6 +117,38 @@ class NoMutationTests(TempSiteCase):
         for milestone in data["milestones"]:
             self.assertNotIn("_src", milestone)
             self.assertNotIn("_doc", milestone)
+
+
+class MetadataStaysOutOfSightTests(TempSiteCase):
+    """Stamping is only free if nothing renders the stamp by accident.
+
+    `table` derives its columns from `rows[0].keys()` when the page gives none, so the moment
+    `_src` and `_doc` arrived they became two visible columns on every such table - including the
+    demo collection's generated inventory. Derived columns skip `_`-prefixed keys, which is the
+    same rule that already made `_type` and `_evidence` invisible.
+    """
+
+    def test_derived_columns_skip_item_metadata(self):
+        build(self.cfg, "private", run_dynamic=False)
+        html = (self.root / "dist" / "private" / "demo-musing" / "index.html").read_text(encoding="utf-8")
+        self.assertIn("<th>name</th>", html, "the real columns should still be there")
+        self.assertNotIn("<th>_src</th>", html)
+        self.assertNotIn("<th>_doc</th>", html)
+        self.assertNotIn("<th>_type</th>", html)
+
+    def test_an_explicit_column_list_is_honoured_as_written(self):
+        """An author who names `_src` gets it; only the derived list filters."""
+        (self.root / "site" / "pages" / "cols.yaml").write_text(
+            "id: cols\nroute: /cols/\ntitle: Cols\ndocs: [plan]\n"
+            "sections:\n"
+            "  - id: t\n    type: prefab\n    prefab: table\n"
+            "    args:\n"
+            "      rows: {from: plan.milestones}\n"
+            "      columns: [id, _src]\n",
+            encoding="utf-8")
+        build(Config.load(self.root), "private", run_dynamic=False)
+        html = (self.root / "dist" / "private" / "cols" / "index.html").read_text(encoding="utf-8")
+        self.assertIn("<th>_src</th>", html)
 
 
 class ConventionIsDocumentedTests(unittest.TestCase):

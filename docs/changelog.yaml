@@ -7,6 +7,45 @@ status: active
 updated: 2026-09-04
 
 releases:
+  - version: 0.4.0
+    date: 2026-09-04
+    status: released
+    summary: The third issue sweep - a build that fails still leaves you something to look at, a collection theme reaches dark mode, and every region can say which query filled it.
+    changes:
+      - type: added
+        text: "Doc-source attribution: with `build.attribution` in site.yaml (default off) every section carries a `title` naming the query that filled it, and a footer toggle reveals the same sentence as a printed caption. Computed from the section spec, so all six section types have one (gh-29, adr-033)."
+      - type: added
+        text: "`yss/attribution.py` - a pure section-spec-to-sentence formatter with its own unit tests, plus an optional `stats` out-parameter on `resolve_binding` so counts cost nothing."
+      - type: changed
+        text: "Attribution's filter half (`where`, `sort`, `limit`, `group_by`) is private-only; the doc and its path appear on both targets, as they already did in data/docs.json."
+      - type: added
+        text: "Bound dict items carry `_src` and `_doc` alongside `_type`, stamped onto copies so the JSON exports stay clean. `fields:` drops them by design; virtual roots never have them (gh-30)."
+      - type: fixed
+        text: "The `table` prefab's derived columns skip `_`-prefixed item metadata, so stamping does not turn `_src` and `_doc` into two visible columns. An explicit `columns:` list is still honoured as written."
+      - type: changed
+        text: "Strict-mode deletion is recorded as adr-034; gh-14's regression test changed contract with it and now asserts the tree survives."
+      - type: changed
+        text: "A `--strict` failure no longer deletes `dist/<target>`. The build runs to completion, reports every gate's complaint in one error and leaves the tree for inspection; the forbidden-string scan keeps its containment deletion, because it is the only failure with something to contain (gh-21)."
+      - type: fixed
+        text: "An evidence row for a root-owned doc linked into the collection it was rendered in: a generated global doc id was being pushed back through a scope-relative resolver. `doc_url`/`ref_url` take `exact=` and four generated-id call sites pass it (gh-23)."
+      - type: fixed
+        text: "A `nav.groups` list declaring only the reserved `collections` id dropped every page from the top bar with no diagnostic. A page naming an undeclared group is now a build warning, and ungrouped items are drawn in a trailing unlabelled group instead of vanishing (gh-28)."
+      - type: changed
+        text: "A collection's `theme.accent`/`theme.background` are a generated rule in `assets/collections.css` rather than an inline style on `<body>`, so a collection's own `theme.css` can set `--bg`/`--accent` in a dark-mode media query and win. Both keys are now pattern-checked as colours (gh-24, adr-030)."
+      - type: added
+        text: "On-accent tokens `--collection-bar-bg`, `--on-accent-2`, `--on-accent-2-muted` and `--on-accent-2-surface`, consumed with the old values as `var()` fallbacks so stock palettes are unchanged. The collection bar previously drew 1.06:1 sub-nav links on a saturated theme (gh-26, adr-031)."
+      - type: added
+        text: "Tables scroll horizontally inside their own container - all five table-emitting prefabs and the default markdown renderer - instead of overflowing the column or force-wrapping into a stack (gh-25)."
+      - type: added
+        text: "`options[] {text, why, pros, cons}` on design items, so an item at `status: open` can enumerate what it is open between. A shared `$defs/option` referenced by the six design arrays, not `item_base` - which would break every worksheet (gh-27)."
+      - type: changed
+        text: "A mount's source `path` may point outside its collection - supported and documented, for migrations that mount another generator's output - but not outside the site root, which is where `include` sections already draw the line (gh-22, adr-032)."
+      - type: fixed
+        text: "The dead-link gate treated `data-src` as a link, because its word boundary matched across the hyphen."
+      - type: added
+        text: "`conventions[].enforced_by` in the code map, from a new `enforcement` vocabulary, so a rule nothing checks says so; `convention` is defined in the glossary. `cv-release` and tests/test_gh20.py make a half-bump fail (gh-20)."
+      - type: added
+        text: "yss.css has an `@media print` block for the first time."
   - version: 0.3.0
     date: 2026-09-04
     status: released

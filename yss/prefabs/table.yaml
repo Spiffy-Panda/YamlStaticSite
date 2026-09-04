@@ -15,7 +15,10 @@ template: |
   {% endmacro %}
   {% if rows %}
   {% set cols = [] %}
-  {% for c in (columns or rows[0].keys()) %}{% set _ = cols.append(c if c is mapping else {'key': c, 'label': c}) %}{% endfor %}
+  {# Derived columns skip `_`-prefixed keys: those are item metadata the binding stamped on
+     (`_type`, `_src`, `_doc`, `_evidence`), not data the page asked to show. An explicit
+     `columns:` is honoured as written, including a metadata key if the author wants one. #}
+  {% for c in (columns or rows[0].keys()) %}{% if columns or not (c is string and c.startswith('_')) %}{% set _ = cols.append(c if c is mapping else {'key': c, 'label': c}) %}{% endif %}{% endfor %}
   <div class="table-scroll"><table class="table prefab-table">
     {% if caption %}<caption>{{ caption }}</caption>{% endif %}
     <thead><tr>{% for c in cols %}<th>{{ c.label or c.key }}</th>{% endfor %}</tr></thead>

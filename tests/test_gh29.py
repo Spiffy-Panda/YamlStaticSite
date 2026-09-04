@@ -27,6 +27,10 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
 from yss.attribution import VIRTUAL_ROOTS, Attribution, attribute, binding_specs, describe  # noqa: E402
+from yss.build import build  # noqa: E402
+from yss.config import Config  # noqa: E402
+
+from test_features import TempSiteCase  # noqa: E402
 
 DOCS = {
     "plan": {"id": "plan", "_source": "docs/plan.yaml", "milestones": []},
@@ -225,6 +229,126 @@ class FallbackTests(unittest.TestCase):
     def test_an_attribution_is_falsy_when_it_has_nothing_to_say(self):
         self.assertFalse(Attribution())
         self.assertTrue(Attribution(text="something"))
+
+
+class RenderedAttributionTests(TempSiteCase):
+    """The wiring half: every section type, both targets, and the flag that gates all of it."""
+
+    def build_with(self, attribution: bool, target: str = "private"):
+        path = self.root / "site.yaml"
+        text = path.read_text(encoding="utf-8")
+        text = re.sub(r"(?m)^  attribution: .*$", f"  attribution: {str(attribution).lower()}", text)
+        if "attribution:" not in text:
+            text = text.replace("build:\n", f"build:\n  attribution: {str(attribution).lower()}\n", 1)
+        path.write_text(text, encoding="utf-8")
+        cfg = Config.load(self.root)
+        build(cfg, target, run_dynamic=False)
+        return self.root / "dist" / target
+
+    def test_the_flag_is_off_by_default(self):
+        """`additionalProperties: false` top to bottom, so this had to be a schema change - and a
+        site that never asked for it must render exactly as before."""
+        self.assertIs(Config.load(self.root).data["build"].get("attribution"), True)  # the pilot opts in
+        out = self.build_with(False)
+        html = (out / "plan" / "index.html").read_text(encoding="utf-8")
+        self.assertNotIn("section-source", html)
+        self.assertNotIn("source-toggle", html)
+
+    def test_a_prefab_section_names_its_query(self):
+        out = self.build_with(True)
+        html = (out / "plan" / "index.html").read_text(encoding="utf-8")
+        self.assertIn("milestones in docs/plan.yaml", html)
+
+    def test_the_baseline_is_a_title_attribute_and_needs_no_javascript(self):
+        out = self.build_with(True)
+        html = (out / "plan" / "index.html").read_text(encoding="utf-8")
+        self.assertRegex(html, r'<section id="[^"]*" class="section section-prefab [^"]*" title="[^"]+"')
+
+    def test_the_captions_ship_hidden_so_nothing_moves_without_the_toggle(self):
+        out = self.build_with(True)
+        html = (out / "plan" / "index.html").read_text(encoding="utf-8")
+        self.assertIn('<p class="section-source" hidden>', html)
+
+    def test_every_section_type_gets_an_attribution(self):
+        """`_bind` is reached by two of the six; scanning the spec reaches all of them."""
+        (self.root / "site" / "pages" / "kinds.yaml").write_text(
+            "id: kinds\nroute: /kinds/\ntitle: Kinds\ndocs: [plan]\n"
+            "sections:\n"
+            "  - {id: lit, type: markdown, markdown: literal text}\n"
+            "  - {id: bound, type: markdown, from: design.overview}\n"
+            "  - {id: pre, type: prefab, prefab: bullet-list, args: {items: {from: plan.goals}}}\n"
+            "  - {id: raw, type: html, html: '<p>hi</p>'}\n"
+            "  - {id: inc, type: include, path: README.md}\n",
+            encoding="utf-8")
+        out = self.build_with(True)
+        html = (out / "kinds" / "index.html").read_text(encoding="utf-8")
+        for sid, expected in (
+            ("lit", "site/pages/kinds.yaml"),
+            ("bound", "docs/design.yaml"),
+            ("pre", "goals in docs/plan.yaml"),
+            ("raw", "site/pages/kinds.yaml"),
+            ("inc", "README.md"),
+        ):
+            with self.subTest(section=sid):
+                section = re.search(rf'<section id="{sid}"[^>]*>', html)
+                self.assertIsNotNone(section, f"section {sid} missing")
+                self.assertIn("title=", section.group(0), f"section {sid} has no attribution")
+                self.assertIn(expected, section.group(0).replace("&quot;", '"'))
+
+    def test_the_public_target_drops_the_filter_and_keeps_the_source(self):
+        """A `where:` is authored in page YAML and has never reached dist/; one naming a person
+        would start to. The redaction scan is the backstop, not the mitigation."""
+        self.build_with(True, "private")
+        private = (self.root / "dist" / "private" / "plan" / "index.html").read_text(encoding="utf-8")
+        self.build_with(True, "public")
+        public = (self.root / "dist" / "public" / "plan" / "index.html").read_text(encoding="utf-8")
+        self.assertIn("docs/plan.yaml", public)
+        self.assertIn("grouped by", private)
+        self.assertNotIn("grouped by", public)
+
+    def test_the_toggle_defaults_on_for_private_and_off_for_public(self):
+        self.build_with(True, "private")
+        private = (self.root / "dist" / "private" / "plan" / "index.html").read_text(encoding="utf-8")
+        self.build_with(True, "public")
+        public = (self.root / "dist" / "public" / "plan" / "index.html").read_text(encoding="utf-8")
+        self.assertIn('class="source-toggle" aria-pressed="false" data-default="1"', private)
+        self.assertIn('data-default="0"', public)
+
+    def test_a_source_path_is_not_mistaken_for_a_link(self):
+        """`data-src` carries a repo-relative source path; the dead-link gate must not chase it."""
+        report = build(Config.load(self.root), "private", run_dynamic=False)
+        self.assertEqual([w for w in report.warnings if "dead link" in w and ".yaml" in w], [])
+
+
+class PresentationTests(unittest.TestCase):
+    """The pill was rejected for cause; these pin what replaced it."""
+
+    CSS = (REPO / "yss" / "assets" / "yss.css").read_text(encoding="utf-8")
+    JS = (REPO / "yss" / "assets" / "yss.js").read_text(encoding="utf-8")
+
+    def test_there_is_a_print_rule(self):
+        """yss.css had no @media print at all, which is one reason a fixed pill was wrong."""
+        self.assertIn("@media print", self.CSS)
+        self.assertIn(".source-toggle", self.CSS[self.CSS.index("@media print"):])
+
+    def test_nothing_is_position_fixed(self):
+        """A fixed pill would fight the sticky header at <=720px and overlap .embed-frame."""
+        self.assertNotIn("position: fixed", self.CSS)
+
+    def test_the_toggle_is_a_button_not_a_hover_handler(self):
+        self.assertIn("source-toggle", self.JS)
+        self.assertIn("aria-pressed", self.JS)
+        self.assertNotIn("mouseover", self.JS)
+
+    def test_storage_failures_do_not_break_the_page(self):
+        """A private window throws on localStorage; the toggle still has to work."""
+        block = self.JS[self.JS.index("function sources()"):]
+        self.assertGreaterEqual(block.count("catch"), 2)
+
+    def test_the_javascript_is_not_inline_in_the_template(self):
+        """default.html has no inline script today, and inline JS would bypass prefab_js()."""
+        html = (REPO / "yss" / "templates" / "default.html").read_text(encoding="utf-8")
+        self.assertNotIn("<script>", html)
 
 
 if __name__ == "__main__":

@@ -146,6 +146,28 @@
     });
   }
 
+  // "Show sources" (gh-29): reveal the per-section provenance captions the build emitted.
+  // A button and a class, not a hover pill - hover has no touch equivalent, <section> is not
+  // focusable, and a pointer-following live region is an anti-pattern for assistive tech.
+  (function sources() {
+    var toggle = document.querySelector(".source-toggle");
+    if (!toggle) return;
+    var KEY = "yss.showSources";
+    function apply(on) {
+      document.querySelectorAll(".section-source").forEach(function (node) { node.hidden = !on; });
+      toggle.setAttribute("aria-pressed", on ? "true" : "false");
+      toggle.textContent = on ? "Hide sources" : "Show sources";
+    }
+    var stored = null;
+    try { stored = localStorage.getItem(KEY); } catch (e) { stored = null; }
+    apply(stored === null ? toggle.getAttribute("data-default") === "1" : stored === "1");
+    toggle.addEventListener("click", function () {
+      var on = toggle.getAttribute("aria-pressed") !== "true";
+      apply(on);
+      try { localStorage.setItem(KEY, on ? "1" : "0"); } catch (e) { /* private mode: this session only */ }
+    });
+  })();
+
   document.querySelectorAll("[data-dynamic]").forEach(function (node) { load(node, false); });
   window.yss = { base: base, loadDynamic: load, el: el, getPath: getPath };
 })();
