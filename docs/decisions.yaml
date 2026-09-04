@@ -784,3 +784,43 @@ entries:
       - "Declaring the tokens on :root with var() defaults (rejected on the substitution rule above - it defeats collection theming, which is the only case that fails today)."
       - "Stop painting the bar with --accent-2 entirely (rejected as the whole answer - --collection-bar-bg makes the role explicit and separately themeable while keeping the current look)."
       - "Hard-code a contrast-safe colour per bar (rejected - a theme author must be able to choose, and no formula survives every palette)."
+
+  - id: adr-032
+    date: 2026-09-04
+    title: A mount source may leave its collection and may not leave the site
+    status: accepted
+    context: |
+      `_mount` validated the mount *destination* against the output root and had no counterpart
+      check for the *source*, so a collection could mount a folder outside its own root and it
+      worked silently. The schema description said "Folder relative to the collection root", which
+      reads as *within*, but nothing enforced that reading.
+
+      The behaviour existed by the absence of a check rather than by a decision, which is what made
+      it worth ruling on. A hardening commit adding the symmetric check would have looked obviously
+      correct in review and would have broken any downstream site relying on the escape with no
+      deprecation window - and the flagship consumer now does rely on it: all eight of its
+      not-yet-ported collections carry a `path: ../site/musings/<slug>` mount on the public target,
+      so that the strict build's dead-link gate sees a complete tree instead of 34 dead links.
+      Without it that repo either publishes a knowingly incomplete tree with dead-link checking
+      switched off, or copies megabytes of generated output under source-control paths.
+    decision: |
+      Bless the escape from the collection root and draw the line at the *site* root instead.
+      `_mount` resolves the source and requires it to sit under `cfg.root`, raising with both the
+      offending path and the rule when it does not. The schema description says outright that
+      pointing outside the collection is supported and deliberate.
+
+      The site root is the boundary because a mount is a copy instruction whose bytes are
+      published, and `include` sections already draw the line in exactly that place
+      (`render.py`: "path escapes the site root"). The two now match, which is the symmetry worth
+      having - not the one between source and destination, which are guarding different things.
+
+      No build warning for an escaping mount: eight collections times every build is noise, and
+      noise trains people past warnings.
+    consequences:
+      - The migration shape the consumer depends on is supported by decision and pinned by a test, so a future hardening pass fails loudly instead of silently breaking it.
+      - "An absolute path, or `../../outside`, now fails the build; that was previously silent and copied whatever it found."
+      - "The redaction scan is unchanged and still covers the whole output tree, so it remains the backstop for mount *contents* regardless of where they came from."
+    alternatives:
+      - "Bless it unconditionally with no source check (rejected - it leaves any folder on the machine mountable, and the redaction scan catches forbidden strings, not arbitrary contents)."
+      - "Reject the escape symmetrically with the destination check (rejected - it breaks eight shipped collections and needs a replacement that does not exist)."
+      - "Warn on every escaping mount (rejected - see above; the affordance is documented instead)."

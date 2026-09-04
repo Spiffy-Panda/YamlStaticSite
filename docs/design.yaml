@@ -378,6 +378,24 @@ constraints:
     text: Development happens on Windows with Git Bash and PowerShell; no shell-specific tooling in the pipeline.
     source: platform
     status: live
+  - id: k-on-accent
+    group: g-presentation
+    text: Text drawn on a coloured surface takes a token defined against that surface, never one defined against the page.
+    source: user
+    status: open
+    notes: |
+      Stated as a rule after [[decisions#adr-031]] fixed the collection bar, which broke it. How far
+      the rule reaches is what is open: the bar has its four tokens, `.nav-count` still hard-codes
+      `#fff`, and nothing has reported the latter. The options below are the shape of that call.
+    options:
+      - text: Extend the token set to every on-colour surface in the stylesheet.
+        why: One rule, no exceptions to remember, and a theme can reach every surface it paints.
+        pros: ["A theme author learns the pattern once.", "No component is silently unthemeable."]
+        cons: ["More tokens than any shipped palette declares.", "Paid for a component nobody has complained about."]
+      - text: Add a token only where a theme has actually been unable to reach.
+        why: Keeps the token set as small as the evidence justifies.
+        pros: ["The roster stays readable.", "Every token has a reported failure behind it."]
+        cons: ["The rule is real but unenforced, so the next component repeats the bug.", "Fixes arrive one bug report at a time."]
 
 alternatives:
   - id: a-xslt

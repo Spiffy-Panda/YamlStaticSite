@@ -11,6 +11,13 @@ params:
   href: {type: string, description: Makes the title a link.}
   meta: {type: any, description: "A string, or a list of strings / {label, value} mappings, shown as small lines under the body."}
   tags: {type: list}
+  options:
+    type: list
+    description: >-
+      Alternatives the item is open between - a list of {text, why?, pros?, cons?} as `doc.design`
+      items declare them (gh-27). Rendered as a list under the body, with pros and cons folded
+      away. Arrives for free through a `map:`, which starts from the whole item and only renames
+      the keys it is given, so a page binding design items needs no extra wiring.
   id: {type: string, description: Anchor id so other pages can link to this card.}
   level: {type: integer, default: 3, description: "Heading level for the card title. Drop it to 4 when the cards sit under a heading of their own, as `group-sections` does, so the document outline nests properly."}
   _known_tones:
@@ -36,6 +43,28 @@ template: |
       {% endif %}
     </ul>
     {% endif %}
+    {% if options %}
+    <div class="card-options">
+      <div class="card-options-head">{{ options | length }} option{{ '' if options | length == 1 else 's' }}</div>
+      <ol class="card-options-list">
+        {% for o in options %}
+        <li>
+          <span class="option-text">{{ o.text }}</span>
+          {% if o.why %}<span class="option-why">{{ o.why | md_inline }}</span>{% endif %}
+          {% if o.pros or o.cons %}
+          <details class="option-procon"><summary>pros and cons</summary>
+            {% for label, entries in [('pros', o.pros), ('cons', o.cons)] %}{% if entries %}
+            <div class="option-{{ label }}"><span class="option-label">{{ label }}</span>
+              <ul>{% for e in entries %}<li>{{ e }}</li>{% endfor %}</ul>
+            </div>
+            {% endif %}{% endfor %}
+          </details>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ol>
+    </div>
+    {% endif %}
     {% if tags %}{{ prefab('tag-list', tags=tags) }}{% endif %}
   </article>
 css: |
@@ -50,9 +79,27 @@ css: |
   .card-body p { margin: .25rem 0; }
   .card-meta { list-style: none; margin: 0; padding: 0; font-size: .8rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: .25rem .9rem; }
   .meta-label { font-weight: 600; }
+  .card-options { border-top: 1px dashed var(--line); padding-top: .45rem; margin-top: .1rem; }
+  .card-options-head { font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .card-options-list { margin: .3rem 0 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: .35rem; font-size: .9rem; }
+  .option-text { font-weight: 600; }
+  .option-why { color: var(--fg-2); display: block; font-size: .87rem; }
+  .option-procon summary { cursor: pointer; color: var(--muted); font-size: .8rem; }
+  .option-procon ul { margin: .15rem 0 .3rem; padding-left: 1.1rem; font-size: .85rem; }
+  .option-label { font-weight: 600; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 examples:
   - args: {title: Build pipeline, badge: active, body: "Validates, renders and **scans** the output.", meta: [{label: owner, value: agent}], tags: [python]}
   - note: tone set directly, no badge shown
     args: {title: Frozen exhibit, kicker: "archive · read-only", tone: muted, subtitle: "Kept for reference; not maintained.", body: "This musing is closed out."}
   - note: kicker above the title, alongside a badge
     args: {title: Live prototype, kicker: "current · what the build is", badge: active, body: "Start here - the only one that is right."}
+  - note: an open item enumerating what it is open between
+    args:
+      title: The clip is recessed in one host and proud in another
+      badge: open
+      body: The room shows the difference, and the published hand height depends on which way it goes.
+      options:
+        - {text: The cover takes a boss., why: "Keeps the published hand height; adds geometry to the cover."}
+        - text: The clip sits deeper and the hand height moves.
+          why: Cover unchanged.
+          cons: ["The hand height stops matching the published figure."]

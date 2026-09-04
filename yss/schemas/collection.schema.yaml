@@ -106,7 +106,15 @@ properties:
       type: object
       required: [path, at]
       properties:
-        path: {type: string, description: "Folder relative to the collection root (a built playable, exports, data)."}
+        path:
+          type: string
+          description: >-
+            Folder relative to the collection root (a built playable, exports, data). It **may**
+            point outside the collection - `../../site/musings/<slug>` is supported and deliberate,
+            so a placeholder collection can mount another generator's output during a migration and
+            keep the dead-link gate armed (adr-032). It may **not** point outside the site root:
+            a mount is a copy instruction whose bytes are published, and `include` sections draw
+            the same line.
         at: {type: string, description: "URL path under the collection, e.g. play/ -> /<collection>/play/"}
         targets: {type: array, items: {type: string}, description: "Defaults to [private]."}
         include:

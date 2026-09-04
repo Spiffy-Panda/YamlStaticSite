@@ -127,6 +127,27 @@ $defs:
         x-limit: markdown
         description: Markdown. One paragraph telling a reader what the items in this group are collectively about.
     unevaluatedProperties: false
+  option:
+    description: |
+      One alternative an item is open between. Narrowed from `doc.worksheet`'s
+      `questions[].options[]` rather than invented separately, so the two shapes stay recognisable
+      as the same thing (gh-27). Dropped from the worksheet's version: `value`, which exists for
+      form submission, and `recommended`/`prompt`, which exist to steer a human towards an answer -
+      a design item is *documenting* a live choice, not asking for one.
+
+      Deliberately not on `item_base`. `doc.plan`'s `open_questions[].options` is an array of
+      strings and `doc.worksheet`'s is an object requiring `value`; a JSON Schema `allOf` composes
+      by intersection, so an `item_base` declaration would apply to those too and fail every
+      worksheet and every plan question in the repository. This is the same trap the note on
+      `status` describes. A kind that wants this shape references it here.
+    type: object
+    required: [text]
+    properties:
+      text: {type: string, x-limit: line, description: The alternative itself, stated as a choice somebody could take.}
+      why: {type: string, x-limit: summary, description: What choosing this lets you say, or costs you.}
+      pros: {type: array, items: {type: string, x-limit: line}}
+      cons: {type: array, items: {type: string, x-limit: line}}
+    additionalProperties: false
   item_base:
     description: Fields any list item may carry in addition to its own.
     type: object

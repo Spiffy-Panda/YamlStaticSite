@@ -25,6 +25,15 @@ properties:
         title: {type: string, x-limit: title}
         rationale: {type: string, x-limit: summary}
         status: {type: string, x-vocab: claim_status}
+        options:
+          type: array
+          items: {$ref: "#/$defs/option"}
+          description: >-
+            The alternatives this item is open between. An item at `status: open` is by definition
+            a decision not yet made, and the alternatives are the most useful thing about it; with
+            nowhere to put them they degrade to prose, which no page can table, count or link.
+            `alternatives[]` below is the closed case - it requires `rejected_because` and is not
+            attached to any item.
       unevaluatedProperties: false
   components:
     type: array
@@ -42,6 +51,15 @@ properties:
         depends_on: {type: array, items: {$ref: "#/$defs/slug"}, x-ref: item}
         code: {type: array, items: {type: string}, x-evidence: path, description: Paths implementing this component (checked).}
         status: {type: string, x-vocab: claim_status}
+        options:
+          type: array
+          items: {$ref: "#/$defs/option"}
+          description: >-
+            The alternatives this item is open between. An item at `status: open` is by definition
+            a decision not yet made, and the alternatives are the most useful thing about it; with
+            nowhere to put them they degrade to prose, which no page can table, count or link.
+            `alternatives[]` below is the closed case - it requires `rejected_because` and is not
+            attached to any item.
       unevaluatedProperties: false
   interfaces:
     type: array
@@ -57,6 +75,15 @@ properties:
         description: {type: string, x-limit: summary}
         component: {$ref: "#/$defs/slug", x-ref: item}
         status: {type: string, x-vocab: claim_status}
+        options:
+          type: array
+          items: {$ref: "#/$defs/option"}
+          description: >-
+            The alternatives this item is open between. An item at `status: open` is by definition
+            a decision not yet made, and the alternatives are the most useful thing about it; with
+            nowhere to put them they degrade to prose, which no page can table, count or link.
+            `alternatives[]` below is the closed case - it requires `rejected_because` and is not
+            attached to any item.
       unevaluatedProperties: false
   flows:
     type: array
@@ -79,6 +106,15 @@ properties:
               produces: {type: string, x-limit: line}
             additionalProperties: false
         status: {type: string, x-vocab: claim_status}
+        options:
+          type: array
+          items: {$ref: "#/$defs/option"}
+          description: >-
+            The alternatives this item is open between. An item at `status: open` is by definition
+            a decision not yet made, and the alternatives are the most useful thing about it; with
+            nowhere to put them they degrade to prose, which no page can table, count or link.
+            `alternatives[]` below is the closed case - it requires `rejected_because` and is not
+            attached to any item.
       unevaluatedProperties: false
   constraints:
     type: array
@@ -91,6 +127,15 @@ properties:
         text: {type: string, x-limit: summary}
         source: {type: string, description: "Where the constraint comes from (platform, policy, user)."}
         status: {type: string, x-vocab: claim_status}
+        options:
+          type: array
+          items: {$ref: "#/$defs/option"}
+          description: >-
+            The alternatives this item is open between. An item at `status: open` is by definition
+            a decision not yet made, and the alternatives are the most useful thing about it; with
+            nowhere to put them they degrade to prose, which no page can table, count or link.
+            `alternatives[]` below is the closed case - it requires `rejected_because` and is not
+            attached to any item.
       unevaluatedProperties: false
   alternatives:
     type: array
@@ -103,4 +148,13 @@ properties:
         option: {type: string, x-limit: line}
         rejected_because: {type: string, x-limit: summary}
         status: {type: string, x-vocab: claim_status}
+        options:
+          type: array
+          items: {$ref: "#/$defs/option"}
+          description: >-
+            The alternatives this item is open between. An item at `status: open` is by definition
+            a decision not yet made, and the alternatives are the most useful thing about it; with
+            nowhere to put them they degrade to prose, which no page can table, count or link.
+            `alternatives[]` below is the closed case - it requires `rejected_because` and is not
+            attached to any item.
       unevaluatedProperties: false

@@ -35,6 +35,11 @@ every gate's complaint in one error, and **leaves `dist/<target>` in place** so 
 page that caused it. Every build stamps freshness from the fast evidence checks (paths, globs,
 symbols, git recency) and writes `data/evidence.json`.
 
+A mount's `path` may point outside its collection - that is supported and deliberate, so a
+placeholder collection can mount another generator's output during a migration and keep the
+dead-link gate armed - but it may not point outside the site root (adr-032). The `at` destination
+is checked against the output root as before.
+
 A rendered page's own local links are checked against the output too: an href/src that lands on
 nothing, or an absolute path outside `base_url`, is a build warning and a `--strict` failure. Mount
 contents are exempt; a page's link into a mount is not.

@@ -183,6 +183,21 @@ def _mount(cfg: Config, out: Path, base: Path, spec: dict, target: str, prefix: 
     dst = (out / at).resolve()
     if dst != out and out not in dst.parents:
         raise BuildError(f"mount '{spec['at']}' escapes the output directory")
+    # A mount source may leave its collection and may not leave the site (adr-032, gh-22). Leaving
+    # the collection is a supported affordance, not an accident: during a migration a placeholder
+    # collection mounts the legacy generator's output so the dead-link gate sees a complete tree.
+    # The site root is the boundary because a mount is a copy instruction whose bytes end up
+    # published, and `include` sections already draw the line in exactly this place - the check
+    # below is worded to match `render.py`'s. This was previously enforced by nothing at all, which
+    # meant any folder on the machine was mountable and a later symmetry fix would have broken
+    # every consumer relying on the escape with no deprecation window.
+    try:
+        src.relative_to(cfg.root.resolve())
+    except ValueError as exc:
+        raise BuildError(
+            f"mount '{spec['path']}' escapes the site root: {src}\n"
+            f"  a mount source may sit outside its collection but not outside the site"
+        ) from exc
     if not src.is_dir():
         warnings.append(f"mount {spec['path']} -> /{at}/: source folder missing, skipped")
         return
