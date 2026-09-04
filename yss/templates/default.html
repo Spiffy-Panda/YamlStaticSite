@@ -8,9 +8,10 @@
 {% for key, value in (head.meta or {}).items() %}<meta name="{{ key }}" content="{{ value }}">{% endfor %}
 <link rel="stylesheet" href="{{ url('assets/yss.css') }}">
 <link rel="stylesheet" href="{{ url('assets/prefabs.css') }}">
+<link rel="stylesheet" href="{{ url('assets/collections.css') }}">
 {% for href in css_links %}<link rel="stylesheet" href="{{ href }}">{% endfor %}
 </head>
-<body class="target-{{ target }}{% if collection %} in-collection collection-{{ collection.id }}{% endif %}"{% if theme.accent or theme.background %} style="{% if theme.accent %}--accent:{{ theme.accent }};{% endif %}{% if theme.background %}--bg:{{ theme.background }};{% endif %}"{% endif %}>
+<body class="target-{{ target }}{% if collection %} in-collection collection-{{ collection.id }}{% endif %}">
 <a class="skip" href="#main">Skip to content</a>
 <header class="site-header">
   <div class="wrap">

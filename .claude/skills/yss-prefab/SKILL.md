@@ -44,6 +44,12 @@ examples:
 
 - CSS is concatenated into `assets/prefabs.css`; scope every rule under a class named after the prefab.
 - Use the shared variables: `--bg`, `--bg-2`, `--fg`, `--fg-2`, `--line`, `--accent`, `--accent-2`, `--ok`, `--warn`, `--bad`, `--muted`, `--code`, `--radius`.
+- Painting a large surface with `--accent-2`? Text on it needs `var(--on-accent-2, var(--fg))` and
+  `var(--on-accent-2-muted, var(--fg-2))`, not `--fg`/`--fg-2` - those are defined against `--bg`
+  and read at about 1:1 on a saturated accent. Anything sitting *on* that surface takes
+  `var(--on-accent-2-surface, var(--bg-2))`. Always with the fallback, never as a `:root` default:
+  a custom property resolves `var()` on the element that declares it, so a `:root` default would
+  freeze the site's value and ignore a collection that themes the token on its own body class.
 - Status colouring: add class `tone-<slug>` (done, active, blocked, planned, dropped, accepted, failed, ...) and read `var(--tone)`; `badge` and `card` already do this.
 - Dark mode comes from the variables; never hard-code colours.
 

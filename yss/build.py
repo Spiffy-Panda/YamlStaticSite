@@ -531,6 +531,9 @@ def build(
             # theme.css and emblem from /<at>/<id>/assets/, which is where the hrefs point (gh-14).
             _copy_tree(collection.assets_dir, out / collection.route_path("assets"))
         (assets_out / "prefabs.css").write_text(renderer.prefab_css(), encoding="utf-8")
+        # Linked after prefabs.css and before any collection's own theme.css, so the collection
+        # stylesheet wins on ordinary cascade order rather than losing to an inline attribute (gh-24).
+        (assets_out / "collections.css").write_text(renderer.collection_css(), encoding="utf-8")
         (assets_out / "prefabs.js").write_text(renderer.prefab_js(), encoding="utf-8")
         (out / ".nojekyll").write_text("", encoding="utf-8")
 

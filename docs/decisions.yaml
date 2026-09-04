@@ -706,3 +706,81 @@ entries:
       - "Liveness-checking the recorded pid with `os.kill(pid, 0)` (rejected outright - on Windows that terminates the process, and k-windows says this pipeline is developed there)."
       - "A lock file inside `dist/<target>/` (rejected - `_safe_clear` deletes it, and it would ship to Pages)."
       - Per-target output directories per process (rejected - the server and the CLI are meant to share one preview tree).
+
+  - id: adr-030
+    date: 2026-09-04
+    title: A collection's two theme colours are a generated stylesheet rule, not an inline style
+    status: accepted
+    context: |
+      `collection.yaml`'s `theme.accent` and `theme.background` were emitted as a `style` attribute
+      on `<body>`. An inline style attribute outranks every author stylesheet, media queries
+      included, so a collection shipping both keys and a `theme.css` got a half-applied theme: a
+      light `--bg` and `--accent` from the attribute underneath a dark `--fg` and `--bg-2` from the
+      stylesheet. Near-white text on a near-white ground, and `<code>` chips as black boxes - less
+      usable than either theme applied consistently.
+
+      The two keys were a trap for exactly the author who needed them most. Someone whose palette
+      outgrows two colours adds a `theme.css`; the keys they already had set sabotage its dark half
+      for those two tokens only, in a way that looks like a broken stylesheet rather than a
+      conflict. `examples/demo-musing/collection.yaml` has the same shape and escaped it only by
+      declaring no `prefers-color-scheme` block.
+    decision: |
+      The colours are emitted as `.collection-<id> { --accent: ...; --bg: ...; }` into a generated
+      `assets/collections.css`, built by `Renderer.collection_css()` alongside `prefab_css()` and
+      linked after `prefabs.css` and before every `css_links` entry. A collection's own `theme.css`
+      is already linked last, so ordinary cascade order gives it the win - which is the precedence
+      that was wanted. The `style` attribute is gone from the template.
+
+      Because the value now reaches a stylesheet rather than an autoescaped attribute, both keys
+      are pattern-constrained in `collection.schema.yaml` to a colour value: a hex, a bare keyword
+      or a single functional notation, with no semicolons or braces. `collection_css()` is built
+      from the renderer's already target-filtered collection list, so a private collection's
+      colours never appear in the public build.
+    consequences:
+      - "A collection's theme.css can now set --bg and --accent in a dark-mode media query and have it apply; the two keys become defaults rather than an override nothing can beat."
+      - "The emitted HTML changes for every collection page: `<body>` no longer carries a style attribute."
+      - "A theme.accent that was previously any string is now validated; a value that would break out of the rule fails to load."
+      - "One more stylesheet request per page, generated even when it is empty, so the link in the template is unconditional."
+    alternatives:
+      - "Keep the attribute and document the two keys as light-mode-only and unoverridable (rejected - it documents a trap instead of removing it, and would need a build warning to be safe at all)."
+      - "Emit the rule into prefabs.css (rejected - that file is prefab CSS by name and by contract; collection colours are not a prefab)."
+      - "Drop the two keys and require a theme.css (rejected - two colours is the right amount of ceremony for a collection that only wants a tint)."
+
+  - id: adr-031
+    date: 2026-09-04
+    title: Text on an accent surface takes an on-accent token, defaulted at the point of use
+    status: accepted
+    context: |
+      `.collection-bar` paints a full-width surface with `--accent-2` and coloured everything on it
+      with `--fg` and `--fg-2`, which the token set defines for use against `--bg`. No on-accent
+      foreground existed; the only on-accent colour in the stylesheet was a hard-coded `#fff` on
+      `.nav-count`. The stock palettes hid the problem because both default `--accent-2` values are
+      near-neutral tints, measuring around 6:1. A theme using `--accent-2` as an actual secondary
+      accent measured 1.06:1 for sub-nav links and 1.63:1 for the collection title, in both colour
+      schemes - and every page inside a collection carries this bar.
+
+      The active pill is a separate failure of the same kind. Its own text-on-pill pair is fine at
+      8.54:1; the problem is that `--bg-2` is the *page* surface, so the pill is a barely-visible
+      tint on a `--bg` page and a near-black hole punched in a saturated bar. It was specified
+      against a surface it is not on.
+    decision: |
+      Four optional tokens - `--collection-bar-bg`, `--on-accent-2`, `--on-accent-2-muted` and
+      `--on-accent-2-surface` - consumed as `var(--token, var(--old-value))` at each use site.
+
+      The fallback lives at the point of use and the tokens are *not* declared on `:root`. A custom
+      property resolves its `var()` on the element that declares it, so `:root { --on-accent-2:
+      var(--fg) }` would compute the site's `--fg` once and inherit that literal colour, ignoring a
+      collection that themes `--fg` on its own body class - which is precisely the case the token
+      exists to serve. Declared defaults would have looked correct and quietly broken collection
+      theming.
+
+      They are recorded in `docs/palettes.yaml` under `optional_tokens`, kept out of the `tokens`
+      roster that drives the theme playground, since a palette need not declare any of them.
+    consequences:
+      - A theme has one place to say what reads on its accent, and the stock palettes render exactly as before.
+      - "A theme that overrides --on-accent-2-surface may also want its own colour for the pill text, which still takes --accent; that is a stylesheet line, not another token."
+      - "`.nav-count`'s hard-coded #fff is the same class of defect in a different component and is left for a follow-up; nothing has reported it."
+    alternatives:
+      - "Declaring the tokens on :root with var() defaults (rejected on the substitution rule above - it defeats collection theming, which is the only case that fails today)."
+      - "Stop painting the bar with --accent-2 entirely (rejected as the whole answer - --collection-bar-bg makes the role explicit and separately themeable while keeping the current look)."
+      - "Hard-code a contrast-safe colour per bar (rejected - a theme author must be able to choose, and no formula survives every palette)."

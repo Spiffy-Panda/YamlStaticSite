@@ -47,6 +47,18 @@ data:
     - {key: muted, label: Muted, role: Timestamps, source paths, the footer.}
     - {key: code, label: Code background, role: Inline code and pre blocks.}
 
+  # Optional, and deliberately absent from `tokens` above: a palette does not have to declare any
+  # of them, and the playground does not ask for them. They name roles the twelve cannot express -
+  # a foreground for an accent-coloured *surface*, and a surface sitting on that surface. Every use
+  # carries the old value as its var() fallback, so leaving them unset renders exactly as before
+  # (gh-26). A theme only needs them when it uses --accent-2 as a real secondary accent rather than
+  # as the near-neutral wash the stock palettes make it.
+  optional_tokens:
+    - {key: collection-bar-bg, label: Collection bar, role: "Background of the per-collection sub-header. Falls back to --accent-2."}
+    - {key: on-accent-2, label: On accent, role: "Text drawn on --accent-2 - the collection title. Falls back to --fg, which is defined against --bg and is why the bar failed contrast."}
+    - {key: on-accent-2-muted, label: On accent, secondary, role: "Resting sub-nav links on the bar. Falls back to --fg-2."}
+    - {key: on-accent-2-surface, label: On-accent surface, role: "The active/hover pill drawn on the bar. Falls back to --bg-2, which is the page surface and so reads as a hole punched in a saturated bar."}
+
   palettes:
     # --- Shipped presets ----------------------------------------------------------------------
     - id: trans-pride

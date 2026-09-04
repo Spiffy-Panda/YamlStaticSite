@@ -538,6 +538,30 @@ class Renderer:
         except jinja2.TemplateError as exc:
             raise RenderError(f"prefab '{name}': template error: {exc}") from exc
 
+    def collection_css(self) -> str:
+        """`theme.accent`/`theme.background` as ordinary CSS, one rule per collection (gh-24).
+
+        These were an inline `style` attribute on `<body>`, which outranks every author stylesheet
+        - media queries included - so a collection shipping both these keys and a `theme.css` got a
+        half-applied theme: light `--bg` from the attribute under dark `--fg` from the stylesheet.
+        Emitting them as a rule scoped to the collection class puts them back in the cascade, where
+        the collection's own stylesheet (linked last, `css_links`) wins as it should.
+
+        Built from `self.collections`, which is already target-filtered, so a private collection's
+        colours never reach the public build.
+        """
+        parts = []
+        for collection in self.collections:
+            if collection.is_root:
+                continue
+            theme = collection.data.get("theme") or {}
+            decls = [f"--{var}: {theme[key]};" for key, var in (("accent", "accent"), ("background", "bg")) if theme.get(key)]
+            if decls:
+                parts.append(f".collection-{collection.id} {{ {' '.join(decls)} }}")
+        if not parts:
+            return "/* no collection declares theme.accent or theme.background */\n"
+        return "\n".join(parts) + "\n"
+
     def prefab_css(self) -> str:
         parts = [f"/* prefab: {n} */\n{p['css'].strip()}" for n, p in sorted(self.prefabs.items()) if p.get("css")]
         return "\n\n".join(parts) + "\n"

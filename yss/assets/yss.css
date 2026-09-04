@@ -139,13 +139,23 @@ blockquote { border-left: 3px solid var(--accent); margin: 1rem 0; padding: .2re
 .tone-warn { --tone: var(--warn); }
 .tone-unknown { --tone: var(--muted); }
 
-/* collections */
-.collection-bar { background: var(--accent-2); border-bottom: 1px solid var(--line); }
+/* collections.
+   The bar paints a large surface with --accent-2 and used to colour everything on it with --fg
+   and --fg-2, which are defined against --bg. The stock palettes hid it because both default
+   --accent-2 values are near-neutral tints; a theme that uses --accent-2 as an actual secondary
+   accent got a title and sub-nav links at around 1:1 against their own background (gh-26).
+   The four tokens below name the roles the token set could not express - a foreground for an
+   accent surface, and a surface for something sitting on that surface. Each is consumed with the
+   old value as its var() fallback, so a theme that declares none of them renders exactly as
+   before. The fallback belongs at the point of use, not as a :root default: a custom property
+   resolves var() on the element that declares it, so `:root { --on-accent-2: var(--fg) }` would
+   freeze the *site's* --fg and ignore a collection that themes --fg on its own body class. */
+.collection-bar { background: var(--collection-bar-bg, var(--accent-2)); border-bottom: 1px solid var(--line); }
 .collection-bar .wrap { display: flex; align-items: center; gap: .75rem; min-height: 2.6rem; flex-wrap: wrap; }
 .collection-emblem { font-size: 1.3rem; line-height: 1; }
 .collection-emblem img { height: 1.6rem; width: auto; vertical-align: middle; }
-.collection-title { font-weight: 700; text-decoration: none; color: var(--fg); }
+.collection-title { font-weight: 700; text-decoration: none; color: var(--on-accent-2, var(--fg)); }
 .sub-nav { display: flex; gap: .2rem; flex-wrap: wrap; margin-left: auto; }
-.sub-nav a { text-decoration: none; color: var(--fg-2); padding: .25rem .55rem; border-radius: 6px; font-size: .92rem; }
-.sub-nav a.active, .sub-nav a:hover { color: var(--accent); background: var(--bg-2); }
+.sub-nav a { text-decoration: none; color: var(--on-accent-2-muted, var(--fg-2)); padding: .25rem .55rem; border-radius: 6px; font-size: .92rem; }
+.sub-nav a.active, .sub-nav a:hover { color: var(--accent); background: var(--on-accent-2-surface, var(--bg-2)); }
 .site-nav a.nav-collection { border: 1px dashed var(--line); }

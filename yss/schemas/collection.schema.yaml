@@ -55,8 +55,18 @@ properties:
     type: object
     properties:
       css: {type: array, items: {type: string}, description: "Stylesheets under the collection's assets/, applied to every page in it."}
-      accent: {type: string, description: CSS colour for the --accent variable on this collection's pages.}
-      background: {type: string}
+      accent:
+        type: string
+        pattern: '^(#[0-9A-Fa-f]{3,8}|[a-zA-Z]+|(rgb|rgba|hsl|hsla|oklch|oklab|lab|lch|color)\([^;{}()]*\))$'
+        description: >-
+          CSS colour for the --accent variable on this collection's pages. Emitted into the
+          generated assets/collections.css as `.collection-<id> { --accent: ... }`, so it must be
+          a colour value and nothing else - no semicolons, braces or trailing declarations (gh-24).
+          A collection's own theme.css is linked after it and overrides it, media queries included.
+      background:
+        type: string
+        pattern: '^(#[0-9A-Fa-f]{3,8}|[a-zA-Z]+|(rgb|rgba|hsl|hsla|oklch|oklab|lab|lch|color)\([^;{}()]*\))$'
+        description: "CSS colour for the --bg variable on this collection's pages; same rules as `accent`."
     additionalProperties: false
   vocabularies:
     type: object
