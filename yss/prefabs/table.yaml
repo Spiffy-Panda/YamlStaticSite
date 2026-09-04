@@ -16,7 +16,7 @@ template: |
   {% if rows %}
   {% set cols = [] %}
   {% for c in (columns or rows[0].keys()) %}{% set _ = cols.append(c if c is mapping else {'key': c, 'label': c}) %}{% endfor %}
-  <table class="table prefab-table">
+  <div class="table-scroll"><table class="table prefab-table">
     {% if caption %}<caption>{{ caption }}</caption>{% endif %}
     <thead><tr>{% for c in cols %}<th>{{ c.label or c.key }}</th>{% endfor %}</tr></thead>
     <tbody>
@@ -31,6 +31,7 @@ template: |
     {% endfor %}
     </tbody>
   </table>
+  </div>
   {% else %}<p class="empty">{{ empty }}</p>{% endif %}
 css: |
   .prefab-table caption { text-align: left; color: var(--fg-2); font-size: .85rem; padding-bottom: .3rem; }

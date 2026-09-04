@@ -23,12 +23,13 @@ template: |
   {% macro compare(q) %}{% set has_procon = (q.options or []) | selectattr('pros') | list or (q.options or []) | selectattr('cons') | list %}{% if has_procon or q.compare %}
   <details class="ws-compare"><summary>Compare all options</summary>
     {% if has_procon %}
-    <table class="table ws-compare-table">
+    <div class="table-scroll"><table class="table ws-compare-table">
       <thead><tr><th>option</th><th>pros</th><th>cons</th></tr></thead>
       <tbody>
       {% for o in q.options %}<tr><td>{{ o.text | md_inline }}{% if o.recommended %} <span class="ws-rec">recommended</span>{% endif %}</td><td><ul>{% for p in o.pros or [] %}<li>{{ p | md_inline }}</li>{% endfor %}</ul></td><td><ul>{% for c in o.cons or [] %}<li>{{ c | md_inline }}</li>{% endfor %}</ul></td></tr>{% endfor %}
       </tbody>
     </table>
+    </div>
     {% endif %}
     {% if q.compare %}<div class="prose">{{ q.compare | md }}</div>{% endif %}
   </details>

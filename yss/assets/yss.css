@@ -101,6 +101,13 @@ pre code { background: none; padding: 0; }
 .section-intro { color: var(--fg-2); margin-bottom: .8rem; }
 .section-intro p:first-child { margin-top: 0; }
 .prose > :first-child { margin-top: 0; }
+/* A table wider than the content column has nowhere to go: on a wide viewport it pushes past
+   the column, on a narrow one the browser force-wraps every cell into an unreadable stack. Wide
+   content gets its own horizontal scroller here - the same escape hatch `pre`, `.source-pane pre`
+   and `.status-board` already use. The wrapper is the conventional answer because the alternatives
+   are worse: `display: block` on the table makes it scrollable by destroying its table layout, and
+   `max-width` with `contain` behaves differently across engines (gh-25). */
+.table-scroll { overflow-x: auto; max-width: 100%; }
 .prose table, .table { border-collapse: collapse; width: 100%; font-size: .93rem; }
 .prose th, .prose td, .table th, .table td { border: 1px solid var(--line); padding: .4rem .6rem; text-align: left; vertical-align: top; }
 .prose th, .table th { background: var(--code); }

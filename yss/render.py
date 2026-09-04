@@ -49,7 +49,17 @@ class RenderError(Exception):
 
 
 def default_markdown(text: str) -> str:
-    return _md.render(text)
+    """Render markdown, giving every table its own horizontal scroller (gh-25).
+
+    A prefab wraps its own tables, but a markdown table has no template for an author to reach.
+    markdown-it's table output is machine-generated and cannot nest, so wrapping the tags is safe
+    here in a way it would not be over arbitrary HTML. A site that plugs in its own renderer via
+    `markdown.renderer` owns this for its own output.
+    """
+    html = _md.render(text)
+    if "<table>" not in html:
+        return html
+    return html.replace("<table>", '<div class="table-scroll"><table>').replace("</table>", "</table></div>")
 
 
 def default_markdown_inline(text: str) -> str:

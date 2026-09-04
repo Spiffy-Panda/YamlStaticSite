@@ -12,7 +12,7 @@ template: |
       <div class="gallery-body">
         <div class="gallery-source">{{ p._source }}</div>
         {% if p.params %}
-        <table class="table gallery-params">
+        <div class="table-scroll"><table class="table gallery-params">
           <thead><tr><th>param</th><th>type</th><th>required</th><th>default</th><th>description</th></tr></thead>
           <tbody>
           {% for name, def in p.params.items() %}
@@ -20,6 +20,7 @@ template: |
           {% endfor %}
           </tbody>
         </table>
+        </div>
         {% endif %}
         {% for ex in p.examples or [] %}
           <div class="gallery-example">

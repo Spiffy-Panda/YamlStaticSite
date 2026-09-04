@@ -71,16 +71,16 @@ template: |
               <span class="lab-badge line">planned</span>
             </p>
             <pre class="lab-pre">python -m yss build --target all</pre>
-            <table class="lab-table"><tbody>
+            <div class="table-scroll"><table class="lab-table"><tbody>
               <tr><th>id</th><td>t-default</td></tr>
               <tr><th>status</th><td>active</td></tr>
-            </tbody></table>
+            </tbody></table></div>
             <button type="button" class="lab-btn">Build the instruction</button>
           </div>
         </div>
 
         <h4 class="lab-h">Contrast</h4>
-        <table class="lab-contrast"><thead><tr><th>pair</th><th>ratio</th><th>AA</th></tr></thead><tbody></tbody></table>
+        <div class="table-scroll"><table class="lab-contrast"><thead><tr><th>pair</th><th>ratio</th><th>AA</th></tr></thead><tbody></tbody></table></div>
         <p class="lab-note"></p>
       </div>
     </div>

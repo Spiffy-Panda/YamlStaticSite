@@ -14,7 +14,7 @@ template: |
       <summary>{% set durl = doc_url(group.grouper, exact=true) %}{% if durl %}<a href="{{ durl }}">{{ group.grouper }}</a>{% else %}<code>{{ group.grouper }}</code>{% endif %} <span class="evidence-count">{{ group.list | length }} claim(s)</span>
         {% for s in ['stale', 'warn', 'skipped'] %}{% set n = group.list | selectattr('status', 'equalto', s) | list | length %}{% if n %}{{ prefab('badge', text=s ~ ' ' ~ n) }}{% endif %}{% endfor %}
       </summary>
-      <table class="table evidence-table">
+      <div class="table-scroll"><table class="table evidence-table">
         <thead><tr><th>status</th><th>kind</th><th>target</th><th>where</th><th>detail</th></tr></thead>
         <tbody>
         {% for c in group.list %}
@@ -22,6 +22,7 @@ template: |
         {% endfor %}
         </tbody>
       </table>
+      </div>
     </details>
   {% endfor %}
   </div>

@@ -24,7 +24,7 @@ template: |
       {% if m.tests %}<div class="module-deps">tests: {{ m.tests | join(', ') }}</div>{% endif %}
       {% if m.exports %}
       <details class="module-exports"><summary>{{ m.exports | length }} exports</summary>
-        <table class="table">
+        <div class="table-scroll"><table class="table">
           {% for e in m.exports %}
           {% set span = symbol_range(m.path, e.name) %}
           <tr>
@@ -45,6 +45,7 @@ template: |
           </tr>
           {% endfor %}
         </table>
+        </div>
       </details>
       {% endif %}
       {% if m.notes %}<div class="prose module-notes">{{ m.notes | md }}</div>{% endif %}
