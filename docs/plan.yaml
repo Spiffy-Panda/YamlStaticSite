@@ -205,6 +205,30 @@ milestones:
         owner: agent
         notes: Last in the m7 order (O.3, 2026-09-02); every m7 item is now wanted, none dropped.
         verify: cat .github/workflows/pages.yml
+      - id: m7-open-item-checks
+        title: "`yss check` rules for `options`: an `open` item with none, and options on a `live` one"
+        status: planned
+        owner: agent
+        notes: |
+          Deferred out of the gh-27 sweep on purpose (2026-09-04). An `open` item with no options
+          is an unfinished question and one carrying options at `status: live` is stale, so both
+          are checkable - but both would fail docs that are legal today, so adopting them is a
+          decision about existing content rather than a pure addition. Wanted, not urgent.
+        verify: python -m yss check -v
+      - id: m7-on-accent-rest
+        title: Finish the on-accent token pass - `.nav-count`'s hard-coded #fff, and the pill's own text colour
+        status: blocked
+        owner: agent
+        depends_on: [design/k-on-accent]
+        notes: |
+          Left out of gh-26 deliberately (2026-09-04): same class of defect as the collection bar,
+          different component, and nothing has reported it. `.nav-count` hard-codes `color: #fff`,
+          which no theme can reach; a theme overriding `--on-accent-2-surface` may also want its own
+          colour for the active pill's text, which still takes `--accent`.
+
+          Blocked on a call, not on code: [[design#k-on-accent]] is `status: open` and its two
+          options are exactly this question - extend the token set everywhere, or add a token only
+          where a theme has demonstrably been unable to reach. Answer that first ([[decisions#adr-031]]).
       - id: m7-flow-overrides
         title: "Config and CLI overrides for the flow: build.strict in site.yaml, --no-strict, evidence.git_recency per collection"
         status: done
@@ -269,6 +293,59 @@ milestones:
         title: Retire build_site.py once every musing renders through yss
         status: planned
         owner: panda
+
+  - id: m13-attribution
+    title: Per-item source attribution
+    status: planned
+    priority: 4
+    summary: A card says which file *it* came from, not just which query built the region around it.
+    done_when: A `$docs`-fed grid and a `group-sections` region both show per-card provenance, and each of the eleven item prefabs has a test for it.
+    notes: |
+      Region-level attribution shipped in 0.4.0 ([[decisions#adr-033]]) and is the honest unit
+      almost everywhere - a card grid *is* one query. It is wrong only where a region genuinely
+      spans several docs, which is a `$docs`-fed grid (site/pages/index.yaml) or a
+      `group-sections` region.
+
+      The cheap half is already done: [[#m13-reserved]] shipped with gh-30, so a prefab written
+      today can read `_src` without the emission existing yet. That was the whole point of doing it
+      early - the convention is written down in the `yss-prefab` skill, so prefabs authored during
+      the Musings port land compatible either way.
+
+      Deliberately not started (2026-09-04). Roughly a day for the set, half a day for the first
+      two; do it when a region demonstrably needs it, not before.
+    tasks:
+      - id: m13-reserved
+        title: Stamp `_src` and `_doc` onto bound items so prefabs can read them
+        status: done
+        owner: agent
+        notes: |
+          Shipped 2026-09-04 with gh-30. Stamped onto copies in `doc_items` and `resolve_binding`,
+          never in place - the build dumps docs to `data/docs/<id>.json` after rendering, so an
+          in-place stamp would have put `_src` in every export. `fields:` drops them by design and
+          virtual roots never carry them.
+        verify: python -m unittest discover -s tests -p test_gh30.py
+        evidence:
+          - {path: tests/test_gh30.py}
+          - {path: yss/binding.py, contains: _source_stamp}
+      - id: m13-emit
+        title: "Emit `data-src` from the eleven item prefabs that receive a whole item"
+        status: planned
+        owner: agent
+        depends_on: [m13-reserved]
+        notes: |
+          `card`, `table`, `module-list`, `task-list`, `decision-list`, `term-list`, `timeline`,
+          `changelog-list`, `status-board`, `bullet-list` and `steps` - a line each and a test each.
+          Only prefabs that receive the whole item dict get it for free; ones reading named fields
+          need the key threading through. `group_by` yields bucket dicts rather than items, so a
+          prefab rendering groups has to read through to `items`.
+        verify: python -m yss build --target all --no-dynamic
+      - id: m13-trigger
+        title: Decide whether a $docs-fed grid or a group-sections region actually needs per-card provenance
+        status: planned
+        owner: panda
+        notes: |
+          The gate on [[#m13-emit]], not a formality. Region-level attribution may simply be
+          enough; the answer is worth having from a real page rather than in advance.
 
 risks:
   - id: r-two-renderers
