@@ -9,7 +9,7 @@ template: |
   {% for d in docs %}
     {{ prefab('card', {
         'title': d.title,
-        'href': doc_url(d.id) or url('data/docs/' ~ d.id ~ '.json'),
+        'href': doc_url(d.id, exact=true) or url('data/docs/' ~ d.id ~ '.json'),
         'badge': d.kind,
         '_evidence': d._evidence,
         'subtitle': d.status ~ (' · updated ' ~ d.updated if d.updated else '') if d.status else d.updated,

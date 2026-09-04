@@ -493,7 +493,7 @@ def build(
                     "tags": doc.get("tags") or [],
                     "collection": doc.get("_collection", ""),
                     "evidence": (doc.get("_evidence") or {}).get("status", "ok"),
-                    "page": renderer.doc_url(doc_id) or None,
+                    "page": renderer.doc_url(doc_id, exact=True) or None,
                     "json": renderer.url(f"data/docs/{doc_id}.json"),
                     "source": doc.get("_source"),
                 }

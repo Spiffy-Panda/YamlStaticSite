@@ -251,22 +251,39 @@ class Renderer:
                 index.setdefault(page["id"], page["route"])
         return index
 
-    def doc_url(self, doc_ref: str) -> str:
+    def _resolve_doc_ref(self, doc_ref: str, exact: bool) -> str:
+        """Which doc a reference names, honouring whether it is authored or already global (gh-23).
+
+        `resolve_doc_id` is a *scope-relative* resolver: inside collection `c` it answers `c/plan`
+        for `plan`, which is right for a reference somebody wrote and wrong for an id the build
+        generated. `Claim.doc` and `$docs`' `id` are already the exact keys of `self.docs`, and
+        pushing one back through the resolver silently rewrites it to a collection-local doc that
+        merely shares the short name. The two cases are the same string, so the caller has to say
+        which it holds; `_expand_plain` makes the same distinction for the links it expands.
+        """
+        if exact and doc_ref in self.docs:
+            return doc_ref
         cid = self.current_collection.id if self.current_collection else None
-        doc_id = resolve_doc_id(doc_ref, cid, self.docs) or doc_ref
+        return resolve_doc_id(doc_ref, cid, self.docs) or doc_ref
+
+    def doc_url(self, doc_ref: str, exact: bool = False) -> str:
+        doc_id = self._resolve_doc_ref(doc_ref, exact)
         route = self._doc_pages.get(doc_id)
         return self.url(route) if route else ""
 
-    def ref_url(self, ref: str) -> str:
-        """`doc`, `doc#item` or `#item` -> href (empty when the doc has no page in this target)."""
+    def ref_url(self, ref: str, exact: bool = False) -> str:
+        """`doc`, `doc#item` or `#item` -> href (empty when the doc has no page in this target).
+
+        Pass `exact=True` when the doc half is a generated global id rather than an authored
+        reference - see `_resolve_doc_ref`.
+        """
         doc_ref, _, item = ref.partition("#")
-        base = self.doc_url(doc_ref) if doc_ref else (self.doc_url(self.current_doc) if self.current_doc else "")
+        base = self.doc_url(doc_ref, exact) if doc_ref else (self.doc_url(self.current_doc, True) if self.current_doc else "")
         if not base:
             return ""
         if not item:
             return base
-        cid = self.current_collection.id if self.current_collection else None
-        doc_id = (resolve_doc_id(doc_ref, cid, self.docs) if doc_ref else self.current_doc) or doc_ref
+        doc_id = (self._resolve_doc_ref(doc_ref, exact) if doc_ref else self.current_doc) or doc_ref
         self.note_ref(doc_id, item, base)
         return f"{base}#{item}"
 
