@@ -325,6 +325,20 @@ class Renderer:
             if state["archived"]:
                 continue  # a page whose docs are all archived is a record, not a destination
             group = nav.get("group") or default_group
+            # A page naming a group the site has not declared is a silent loss (gh-18 -> gh-23):
+            # with no page groups declared at all it falls out of the bar entirely, and with some
+            # declared it lands in `groups[0]` under a heading it has nothing to do with. Neither
+            # is an error - the page still renders at its route - but nothing else reports it.
+            # Collection pages are exempt: the loader defaults their group to the collection title
+            # (`load_pages`), and they are drawn by the collection's own sub-nav, not this bar.
+            declared = nav.get("group")
+            if declared and declared not in groups and not page.get("_collection"):
+                self.warnings.append(
+                    f"page {page['route']} declares nav.group '{declared}', which site.yaml's "
+                    f"nav.groups does not list ({', '.join(groups) or 'no page groups declared'}); "
+                    f"it is drawn "
+                    + (f"under '{default_group}' instead" if default_group else "in an unlabelled group")
+                )
             items.append(
                 {
                     "id": page["id"],
@@ -388,8 +402,15 @@ class Renderer:
                 out.append({**spec, "items": members, "waiting": sum(n.get("waiting") or 0 for n in members)})
         if collection_items and not any(s["id"] == COLLECTION_NAV_GROUP for s in specs):
             out.append({"id": COLLECTION_NAV_GROUP, "label": "", "items": collection_items, "waiting": 0})
-        if not out and items:
-            out.append({"id": "", "label": "", "items": items, "waiting": 0})
+        # Anything that matched no declared group is drawn in a trailing unlabelled group rather
+        # than dropped (gh-28). The old `not out` net could not fire once the reserved
+        # `collections` group had filled `out`, so a site declaring only that group rendered every
+        # page at its route and linked to none of them. Degrading to the pre-gh-18 shape - one
+        # unlabelled run of links - is the honest failure.
+        declared_ids = {spec["id"] for spec in specs}
+        orphans = [n for n in items if n["group"] not in declared_ids]
+        if orphans:
+            out.append({"id": "", "label": "", "items": orphans, "waiting": sum(n.get("waiting") or 0 for n in orphans)})
         return out
 
     def render_str(self, source: str, ctx: dict) -> str:

@@ -14,10 +14,15 @@ route: /plan/               # pretty URL, trailing slash; collections prefix it 
 title: Plan
 summary: One sentence - who this page is for and what it answers.
 visibility: public
-nav: {label: Plan, order: 10}      # hidden: true to keep out of the nav; collection pages get group = collection title
+nav: {label: Plan, order: 10, group: content}   # group must be one site.yaml nav.groups declares, or the build warns
 docs: [plan]                       # doc ids presented here (enables doc_url links and the freshness badge)
 sections: [...]
 ```
+
+`nav.hidden: true` keeps a page out of the bar entirely. `nav.group` must name a group declared in
+site.yaml's `nav.groups`, or the build warns and the page is drawn in the first declared group -
+or, if none is declared, in a trailing unlabelled one. Collection pages are exempt: the loader
+gives them `group = collection title` and the collection's own sub-nav draws them.
 
 Inside a collection, `plan` means the collection's own plan doc; `/plan` reaches the root doc.
 Relative `src`, `head.css` and `include` paths resolve against the collection folder first.
