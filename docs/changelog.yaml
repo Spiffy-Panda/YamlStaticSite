@@ -8,8 +8,8 @@ updated: 2026-09-04
 
 releases:
   - version: 0.3.0
-    date: 2026-09-02
-    status: unreleased
+    date: 2026-09-04
+    status: released
     summary: The card contract - a collection declares what a parent site shows for it, and the landing page renders whatever it finds.
     changes:
       - type: added

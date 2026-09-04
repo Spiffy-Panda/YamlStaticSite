@@ -311,3 +311,7 @@ conventions:
   - id: cv-prefab-css
     rule: Prefab CSS is scoped under a class named after the prefab and uses the shared tone variables.
     enforced_by: none
+  - id: cv-release
+    rule: "The commit that closes an issue sweep carries the version bump: pyproject.toml, yss/__init__.py and a released changelog entry move together, and the tag is cut on that commit."
+    rationale: Two materially different trees reporting the same version give a consumer no signal at all - no tag, no version, no error - which is how nineteen fixes stayed invisible behind v0.2.0.
+    enforced_by: test

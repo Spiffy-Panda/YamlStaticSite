@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "yss"
-version = "0.2.0"
+version = "0.3.0"
 description = "YAML static site: agent-first structured docs rendered into a human-first site with public and private targets."
 requires-python = ">=3.10"
 license = {text = "MIT"}
