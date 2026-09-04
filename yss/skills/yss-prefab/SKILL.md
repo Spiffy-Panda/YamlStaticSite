@@ -44,6 +44,12 @@ examples:
 
 - CSS is concatenated into `assets/prefabs.css`; scope every rule under a class named after the prefab.
 - Use the shared variables: `--bg`, `--bg-2`, `--fg`, `--fg-2`, `--line`, `--accent`, `--accent-2`, `--ok`, `--warn`, `--bad`, `--muted`, `--code`, `--radius`.
+- **Item metadata arrives on `_`-prefixed keys.** A bound item may carry `_type` (which array it
+  came from), `_evidence` (its freshness), and `_src`/`_doc` (the file and doc id it was read
+  from). `prefab()` copies every arg key into the template namespace and type-checks only
+  *declared* params, so these are readable without being declared. If your prefab receives an item
+  carrying `_src`, emit `data-src="{{ _src }}"` on your outer element. A `fields:` binding drops
+  them, and a virtual root (`$docs`, `$pages`) never has them - so always guard with `{% if _src %}`.
 - Painting a large surface with `--accent-2`? Text on it needs `var(--on-accent-2, var(--fg))` and
   `var(--on-accent-2-muted, var(--fg-2))`, not `--fg`/`--fg-2` - those are defined against `--bg`
   and read at about 1:1 on a saturated accent. Anything sitting *on* that surface takes

@@ -67,8 +67,30 @@ def doc_items(doc: dict) -> list[dict]:
             continue
         if not all(isinstance(item, dict) for item in value):
             continue
-        out += [dict(item, _type=key) for item in value]
+        out += [dict(item, _type=key, **_source_stamp(doc)) for item in value]
     return out
+
+
+def _source_stamp(doc: dict | None) -> dict:
+    """`_src` and `_doc` for items drawn from `doc`, or nothing for a virtual root (gh-30).
+
+    Reserved now rather than when per-item attribution ships, because `prefab()` copies every arg
+    key into the template namespace and only type-checks *declared* params - so a prefab written
+    before the names exist either happens to be compatible or is not, depending on a convention
+    nobody has written down. `card` already reads `_evidence` off items that never declared it.
+
+    Same `_`-prefix item-metadata convention as `_type`, and stamped the same way: onto a copy.
+    The doc's own lists must not be mutated - the build dumps them to `data/docs/<id>.json` after
+    rendering, so an in-place stamp would put `_src` in every export.
+    """
+    if not isinstance(doc, dict):
+        return {}
+    stamp = {}
+    if doc.get("_source"):
+        stamp["_src"] = doc["_source"]
+    if doc.get("id"):
+        stamp["_doc"] = doc["id"]
+    return stamp
 
 
 def source_doc(expr: str, ctx: dict) -> dict | None:
@@ -261,6 +283,13 @@ def _group_collapse_warning(spec: dict, items: list, groups: list[dict]) -> str 
     return message
 
 
+def _stamped(value: Any, stamp: dict) -> Any:
+    """Copy each dict item with `_src`/`_doc` added; anything else passes through untouched."""
+    if not stamp or not isinstance(value, list):
+        return value
+    return [dict(it, **stamp) if isinstance(it, dict) else it for it in value]
+
+
 def resolve_binding(
     spec: dict,
     ctx: dict,
@@ -273,16 +302,17 @@ def resolve_binding(
             f"binding has unknown keys: {', '.join(sorted(unknown))} (allowed: {', '.join(BINDING_KEYS)})"
         )
     value = resolve_from(spec["from"], ctx)
+    stamp = _source_stamp(source_doc(spec["from"], ctx))
     list_ops = [k for k in ("where", "sort", "limit", "map", "group_by", "fields") if k in spec]
     if not list_ops:
-        return value
+        return _stamped(value, stamp)
     if isinstance(value, dict) and value and all(isinstance(v, dict) for v in value.values()):
         value = [dict(v, id=v.get("id", k)) for k, v in value.items()]
     if not isinstance(value, list):
         raise BindError(
             f"'{spec['from']}' resolves to {type(value).__name__}, but {', '.join(list_ops)} need a list"
         )
-    items = list(value)
+    items = _stamped(list(value), stamp)
     if "where" in spec:
         items = [it for it in items if match(it, spec["where"])]
     if "sort" in spec:
