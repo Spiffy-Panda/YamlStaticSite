@@ -127,9 +127,10 @@ sections:
     type: prefab
     heading: Corrections from the fact-check
     intro: |
-      The adversarial verifiers never ran, so this is the record of the one pass that did: every
-      finding was re-read at its cited location by the main agent. Nothing was refuted; these are
-      the details it corrected.
+      Every detail a checker corrected without refuting the finding. For the first pass (architecture,
+      front end, code quality) the checker was the main agent re-reading each cited location; for
+      every dimension since, the three adversarial verifiers, whose severity moves are recorded here
+      as well.
     prefab: table
     args:
       rows: {from: audit.data.corrections}
@@ -137,3 +138,19 @@ sections:
         - {key: finding, label: Finding, md: true}
         - {key: correction, label: Correction, md: true}
       empty: Nothing needed correcting.
+
+  - id: refuted
+    type: prefab
+    heading: What the verifiers threw out
+    intro: |
+      Findings from the second pass that a majority of the three verifiers refuted, with the
+      reason: wrong on the facts, a recorded decision with no cost named, or no concrete scenario
+      at the stated severity. Listed so the next auditor does not re-raise them without new evidence.
+    prefab: table
+    args:
+      rows: {from: audit.data.refuted}
+      columns:
+        - {key: id, label: Id}
+        - {key: title, label: Claim}
+        - {key: reason, label: Why it was refuted, md: true}
+      empty: Nothing has been refuted yet.

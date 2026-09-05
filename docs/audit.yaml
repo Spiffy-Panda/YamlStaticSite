@@ -8,7 +8,7 @@ summary: |-
 shape: engineering-audit
 status: active
 visibility: public
-updated: '2026-09-04'
+updated: '2026-09-05'
 owners:
 - agent
 tags:
@@ -76,6 +76,12 @@ groups:
     The package is 5,783 lines across 22 files with 300 functions whose median length is 10 lines; only seven exceed 60. Type hints cover 84 percent of functions, there are no mutable default arguments, no cross-module use of underscore names, and every module owns one exception type. The 45 gh and adr citations in comments each resolve to a regression test or a decision entry, which makes them navigable rather than decorative. The hard logic (attribution, binding, visibility, symbols) is pure and constructor-injected, so it is tested without a filesystem.
 
     The weaknesses cluster in the orchestration layer, which is why they read as maintenance drag rather than risk: warnings are free-form strings so strict gating keeps parallel lists to remember their kind; reserved metadata keys and status ladders are bare literals with no single definition; the extension surface a musing author touches (providers, hooks) is the least typed and least documented code in the tree; and seven dead names survive. This is the shape of a codebase grown feature by feature through thirty issue sweeps without a consolidation pass.
+- id: security
+  title: Security and privacy guarantees
+  blurb: |-
+    The privacy design is layered and, for the pilot's current content, demonstrably working. Objects marked private and every private_notes key are stripped before rendering, every writer including hooks, mounts and dynamic sources runs before a whole-tree forbidden-string scan, a hit deletes the output and prints only masked patterns, and CI passes the secrets to one step under least-privilege permissions with --strict. The finder walked every exported JSON file in the public build and found no private key, no private item, and no occurrence of the checkout path or either flagged name. The code-execution surface is the repository itself: hooks.py, command sources, an unsandboxed Jinja environment and the symbol import fallback all run repo-authored code, YAML is loaded safely throughout, and the dev server binds loopback by default. None of that exceeds what a push to main already grants.
+
+    The gaps are in the backstop rather than the marking, and all eight findings survived adversarial verification. Collection-level visibility is enforced everywhere in build() except the dynamic pipeline, so a private collection's own sources and its codemap symbols would reach the public build and its id would land in the build manifest; that is the documented path to the Musings adoption. Binary and unlisted suffixes are copied but never scanned, while seven canonical documents say the scan covers everything. The scan is a raw substring match that JSON escaping defeats, a gap that CI's Linux runner happens to close for the checkout path. Exception text from the import fallback and from providers is stored unscrubbed, though the check gate keeps it off any deployed build. Score four reflects a sound design with cheap fixes left in the last line of defence.
 data:
   snapshot:
     commit: 33e8085 (`Put the sweep's deferred work in the plan`), working tree clean
@@ -86,7 +92,7 @@ data:
     tests: 336 test functions in 30 files; exit 0 in 573 seconds wall-clock
     installed package: |-
       `pip show yss` reports 0.2.0 from a stale editable install; pyproject, `yss/__init__.py`, the changelog and the git tag all say 0.4.0
-    coverage: 3 of 10 dimensions audited; 29 findings after merging, all fact-checked; 14 strengths
+    coverage: 4 of 10 dimensions audited; 37 findings, 0 refuted; 19 strengths
     agents: 13 launched in the first run, 105 in the second; 3 returned
   executive_summary: |-
     **Verdict on the third that was audited: sound engineering with a consolidation debt, not a correctness problem.** The package is layered the way its own design document says it is, the extension contract for collections holds in the code, the hard logic is pure and constructor-injected, and the hygiene basics (types, exception boundaries, no mutable defaults, no reaching through private names) are better than most codebases this size. The prefab examples are rendered twice, once by a test and once by the public Reference page, so the presentation layer cannot silently break.
@@ -97,7 +103,7 @@ data:
 
     On the front end, three small things fail the site's own standards: the primary navigation is unreachable on a phone without JavaScript, three controls draw white on the accent colour at 1.8 to 2.1 to 1 in dark mode, and the muted token colours 13-pixel text at 3.3 to 1 in the default light palette. Each is a one-line or one-decision fix.
 
-    Seven of ten dimensions were not audited. Their finders were cut off by the account's session limit on two attempts, and the adversarial verification stage never ran; every finding here was instead re-read at its cited location by the main agent, whose notes sit under each card. Error handling, tests, security and redaction, schemas, packaging, docs drift and performance are the unexamined seven, and they include the ones with the highest stakes for a public build. The second pass is the first task in the plan.
+    Six of ten dimensions remain unaudited. The first pass lost seven finders to the account's session limit, and its three surviving dimensions were fact-checked by the main agent rather than by independent verifiers; those notes sit under each card. Security was then audited with the full method: one finder, three adversarial verifiers per finding, eight findings kept and none refuted, three severities moved by the impact lens. Tests, error handling, schemas, packaging, docs drift and performance are the unexamined six; the second pass continues one dimension at a time as plan task m14-second-pass.
   overall_score: 3
   method: |-
     The audit was orchestrated as a workflow of read-only agents: ten dimension finders in parallel, a completeness critic naming gaps, a dedup editor, three adversarial verifiers per finding (fact, intent, impact; majority to survive) and a synthesis editor. Every agent was forbidden to write to the repository and told to cite repo-relative locations, to check docs/decisions.yaml and docs/design.yaml before calling a deliberate choice a defect, and that plan tasks m7-on-accent-rest and m13-emit depend on a design item on purpose.
@@ -107,6 +113,8 @@ data:
     What replaced the missing stages. Dedup was done by hand: three code-quality findings that restated an architecture finding were folded into it, with the second finder's facet appended to the observation. Verification was a single fact-lens pass by the main agent, which re-read every cited location at commit 33e8085, recomputed the four contrast ratios, and ran the `yss query` case live; its note sits under each finding as *Checked*. The intent lens was applied by the same agent using the decision log; no finding was refuted, two counts were corrected. The executive summary, scorecard verdicts, roadmap and worksheet questions were written by the main agent from the three reports.
 
     What this means for the reader. Each finding's factual claim has been checked twice, by the finder and the main agent, but not adversarially and not by an independent judge of severity. The severity ratings are the finders', unchanged. Seven dimensions have no findings because they were not examined, not because they are clean.
+
+    Second pass, security (2026-09-05, commit b691f67). The full method ran for the first time: one finder with the brief from this doc's private notes, then three verifiers per finding (fact, intent, impact, at most four agents at once; a finding survives two of three, an info-level one needs the fact lens only). All eight findings survived. The impact lens moved three severities and the fact lens corrected several details; every correction is in the table at the end, and each finding's *Checked* line names the lenses that upheld it.
   scorecard:
   - id: score-arch
     dimension: arch
@@ -148,11 +156,11 @@ data:
   - id: score-security
     dimension: security
     title: Security and privacy guarantees
-    score: not audited
-    findings: ''
-    high: ''
+    score: 4
+    findings: 8
+    high: 0
     verdict: |-
-      The finder for this dimension was cut off by the session limit before it returned. Scheduled as the first task of plan milestone m14-audit.
+      Audited at b691f67 with three verifiers per finding: layered redaction and a verifiably clean public output, with concrete holes in the backstop that a private collection or a binary asset would find.
   - id: score-schema
     dimension: schema
     title: Data model, schemas and validation
@@ -677,6 +685,144 @@ data:
       When a comment is next touched, keep the invariant and the `(gh-NN)`/`(adr-NNN)` pointer and drop the 'used to' clause; leave the rest alone - the density in render.py and build.py is appropriate for code whose behaviour is mostly boundary decisions.
     related_decision: ''
     checked: Confirmed by reading the cited comments; a judgement call, recorded as info.
+  - id: security-scan-misses-json-encoded-strings
+    title: The leak scan is a raw substring match, so JSON escaping hides backslash paths and non-ASCII names
+    group: security
+    severity: low
+    rank: 4
+    confidence: high
+    location: |-
+      yss/visibility.py:63-73 (scan_text); yss/config.py:447-449 (root path patterns); yss/build.py:503, :525, :534 and yss/dynamic.py:97 (json.dumps with default escaping)
+    observation: |-
+      scan_text lowercases each line and checks `needle in line`. Every JSON file the build writes (data/docs/*.json, data/*.json, dynamic/*.json, schemas/*.json, build.json) comes from json.dumps with defaults, which writes a backslash as `\\` and any non-ASCII character as `\uXXXX`. redaction_lists appends str(root) and root.as_posix(); on Windows str(root) is a backslash path and cannot match its doubled form in JSON, while the posix form only matches if the leaking string was already posix. A forbidden string containing an accented letter can never match in any JSON file on any platform. I confirmed both with a one-line json.dumps check. tests/test_yss.py:216-221 only writes root.as_posix() into a doc body, which lands unescaped in both HTML and JSON, so the suite does not exercise either gap. The same class applies to HTML: Jinja autoescape turns an apostrophe or ampersand inside a forbidden string into an entity.
+    why_it_matters: |-
+      adr-004 promises the scan catches what marking missed, per output file, and symbols.py:41-44 and tests/test_yss.py:405 both rely on the unscanned route. For this project the deploy gate holds: CI builds on ubuntu where the checkout path has no backslashes, the pilot's forbidden strings are ASCII, and the prescribed local check runs with --no-dynamic. The cost is a documentation-versus-behaviour gap that widens for the Musings adoption and for any non-ASCII forbidden string.
+    recommendation: |-
+      For files ending in .json, json.loads and scan the decoded strings (or write JSON with ensure_ascii=False and add each pattern's json.dumps(s)[1:-1] form to the needle list); add html.unescape to the HTML pass. Add a test that raises an exception containing str(cfg.root) from a public dynamic provider and asserts the public build fails.
+    related_decision: adr-004
+    checked: |-
+      Verified by three adversarial lenses (fact, intent, impact) at b691f67: fact upheld; intent upheld; impact upheld.
+  - id: security-dynamic-ignores-collection-visibility
+    title: A private collection's dynamic sources and codemap symbols still reach the public build
+    group: security
+    severity: medium
+    rank: 3
+    confidence: high
+    location: |-
+      yss/build.py:398-408, :443, :547, :563, :581 (hidden_collections applied) vs :574 (write_all, not applied); yss/config.py:404-420 (dynamic_sources merges every collection; targets default to all); yss/providers/symbols.py:36-41
+    observation: |-
+      build() computes hidden_collections for the public target and uses it to drop the collection's docs, pages, hooks, assets and mounts. The dynamic block at yss/build.py:574 calls write_all(cfg, target, out) with no such check; cfg.dynamic_sources merges every collection's `dynamic.sources` as `<cid>.<name>` regardless of the collection's visibility, and dynamic_sources_for defaults `targets` to every target (config.py:417). So a collection marked `visibility: private` that declares a source without a `targets` line has it collected into dist/public/dynamic/<cid>.<name>.json, running the private collection's hooks.py provider for the public target. Separately, the site-wide `symbols` source (site.yaml:59-61, public) rebuilds the doc set via load_all and filters only per-doc visibility at symbols.py:41, so a private collection's codemap module paths, export names and line ranges would be indexed into public dynamic/symbols.json; buildinfo likewise counts private docs. tests/test_gh18.py:139-147 checks only that the private collection leaves the nav.
+    why_it_matters: |-
+      The yss-publish skill promises a private collection is absent from public builds, adr-004 says private collections simply do not exist there, and dynamic.py:91-92 says a provider must apply the same visibility filter as the build. The concrete scenario is the documented path to m12: a musing copied from the demo collection (which carries a hooks:notes source) and marked private because unfinished; CI publishes its play-folder listing, its codemap symbols, and its id in build.json, which every public page footer links. The nav check passes, --strict passes, and the leak scan passes unless a forbidden string appears. tests/test_features.py:233-243 configures exactly this case but builds with dynamic off.
+    recommendation: |-
+      Compute the hidden set once and pass it (or docs_t itself) to write_all and into spec['_hidden']/spec['_docs'] for providers; make dynamic_sources_for drop sources whose `_collection` is private when the target redacts; add a test with a private collection carrying a dynamic source and a codemap doc, asserting nothing under dist/public/dynamic names it.
+    related_decision: adr-015
+    checked: |-
+      Verified by three adversarial lenses (fact, intent, impact) at b691f67: fact upheld; intent upheld; impact upheld.
+  - id: security-scan-skips-binary-and-unlisted-suffixes
+    title: Copied assets and mounts with binary or unlisted suffixes are never read by the scan
+    group: security
+    severity: medium
+    rank: 3
+    confidence: high
+    location: |-
+      yss/visibility.py:10-13, :268 (suffix gate); yss/build.py:545-551 (site and collection assets copied verbatim), :560-571 (mounts); docs/decisions.yaml adr-015 consequences; README.md:84
+    observation: |-
+      iter_text_files yields only files whose suffix is in TEXT_SUFFIXES or empty. `.wasm`, `.pck`, `.pdf`, `.png`/`.jpg`, `.zip`, `.woff2` and also text formats such as `.mjs`, `.cjs`, `.log`, `.jsonl` and `.webmanifest` are copied by _copy_tree/_copy_filtered and never opened. Site and collection assets/ folders are copied with no include/exclude at all. adr-015 states that a public mount's contents go through the redaction scan like every other output file, and README.md:84 says the build scans all of its output; neither is true for these suffixes. The demo mount opts into `include: ["*.html"]`, so the pilot is unaffected.
+    why_it_matters: |-
+      The backstop is the project's core promise, and at least seven canonical places (README.md:84, adr-015, adr-032, the yss-publish skill, design p-private-by-marking, codemap cv-no-abs-paths and a site.yaml comment) assert whole-output coverage that the code, in its own docstring at visibility.py:241-242, disclaims. The skill's recommended prototype path, site/assets/prototypes/, reaches the public site with neither the adr-015 private default nor a scan, and the Musings consumer already mounts legacy output on the public target. Images and PDF exports routinely carry creator or path metadata. No leak exists in the pilot today, whose assets are all text.
+    recommendation: |-
+      Either correct the adr-015 consequence and README wording, or scan every file under dist/<target> as bytes for the ASCII form of each pattern (bytes.lower().find is cheap at static-site sizes); at minimum add `.mjs`, `.cjs`, `.log`, `.jsonl`, `.webmanifest` to TEXT_SUFFIXES.
+    related_decision: adr-015
+    checked: |-
+      Verified by three adversarial lenses (fact, intent, impact) at b691f67: fact upheld; intent upheld; impact upheld.
+  - id: security-private-ids-survive-as-identifiers
+    title: References to private docs render their ids in public HTML and pages.json
+    group: security
+    severity: low
+    rank: 4
+    confidence: high
+    location: |-
+      yss/render.py:485-492 (_expand_plain fallback); yss/build.py:525 (pages.json exports p['docs'] unfiltered), :100-115 (cross_checks against unfiltered docs); yss/loader.py:276-311 (check_refs against all docs); yss/templates/default.html:66
+    observation: |-
+      check_refs and cross_checks validate against loaded.docs, not docs_t, so a public doc may reference a private doc and a public page may list one. In the public render, `[[secret-doc#item]]` with no label becomes a code span containing `secret-doc#item` (render.py:492). A public page listing a private doc has that id written to data/pages.json and linked from the page header as data/docs/<id>.json; the link is dead, so --strict fails the build, but with a dead-link message rather than a privacy one, and a non-strict local build only warns.
+    why_it_matters: |-
+      Ids are slugs and slugs are often descriptive; adr-004 says private things simply do not exist in the public build, which an author will read as covering the reference too.
+    recommendation: |-
+      In the public target render a reference to a filtered doc as its label only (empty when unlabelled) and record a warning; in build(), drop private ids from pages.json and page_docs with a warning naming the page and doc.
+    related_decision: adr-004
+    checked: |-
+      Verified by three adversarial lenses (fact, intent, impact) at b691f67: fact upheld; intent upheld; impact upheld.
+  - id: security-evidence-exception-text-unsanitized
+    title: |-
+      Deliberate per adr-036, but import-fallback and provider exception text carries absolute paths into output
+    group: security
+    severity: info
+    rank: 5
+    confidence: high
+    location: |-
+      yss/evidence.py:272-274 (claim.detail from str(exc)); yss/dynamic.py:84 (envelope error); yss/build.py:533 (data/evidence.json); yss/prefabs/evidence-list.yaml:21 (detail rendered on the public evidence page); contrast yss/symbols.py SymbolError, which keeps paths relative on purpose
+    observation: |-
+      The parse path was built to scrub paths (SymbolError carries a repo-relative path only, with a docstring citing adr-004), but the import fallback at evidence.py:272-274 copies str(exc) into claim.detail, and an ImportError raised when the imported module's own import fails carries the absolute file path (ModuleNotFoundError and SyntaxError do not). That detail reaches data/evidence.json and the public evidence page; the doc's own _evidence carries only status and counts. Any exception in a public dynamic provider is likewise copied verbatim into dynamic/<name>.json. Nothing scrubs these strings; the scan is the only backstop, and the JSON copy can evade it on Windows because json.dumps doubles the backslashes.
+    why_it_matters: |-
+      adr-036 accepted that the fallback runs code; the cost not recorded there is that its failure text carries machine-generated absolute paths. For this project the exposure is small: `yss check` runs before the CI build and exits 1 on any stale claim, so a failed import never reaches a deployed build, and a Windows-local public build still fails loudly on the HTML copy. What evades locally is a JSON-only channel (a dynamic error) or a path under the user profile but outside the repo root, and both stay inside the gitignored dist/ folder.
+    recommendation: |-
+      Route detail and error strings through one scrubber that replaces str(cfg.root), cfg.root.as_posix() and tempfile.gettempdir() with placeholders before they are stored; keep the scan as the backstop.
+    related_decision: adr-036
+    checked: |-
+      Verified by three adversarial lenses (fact, intent, impact) at b691f67: fact upheld; intent upheld; impact upheld.
+  - id: security-gitlog-relies-on-config-not-guard
+    title: |-
+      gitlog publishes author names if its targets line is dropped; symbolsource has a guard, gitlog does not
+    group: security
+    severity: low
+    rank: 4
+    confidence: high
+    location: |-
+      yss/providers/gitlog.py:1, :23 (author field); site.yaml:53-58 (targets: [private]); yss/config.py:417 (targets default to all); contrast yss/providers/symbols.py:114-122 (collect_source raises on a redacting target)
+    observation: |-
+      gitlog emits `%an` for each commit and its docstring calls it private-only by default, but the only thing keeping it private is the `targets: [private]` line in site.yaml; omitting that line enables it for every target (config.py:417) and `targets: [public]` publishes authors and subjects. collect_source, the other provider that reads repo-local material, refuses any target whose `redact` flag is set even when misconfigured. The forbidden-string scan catches an author name only if that exact string is in the list; commit subjects are free text.
+    why_it_matters: |-
+      Two providers with the same hazard have different protections, and the one that names people has the weaker one. For this repository nothing leaks: the commits carry the GitHub handle as author, the repo is public, and the output scan covers dynamic/gitlog.json. The defect is a false documented default: gitlog's docstring and the yss-publish skill promise private-only by default, config.py:417 makes an omitted or empty targets list mean every target, and no test pins it, so an agent migrating the Musings repo who trusts the skill gets a public gitlog.json with no warning.
+    recommendation: |-
+      Mirror collect_source: raise when cfg.targets[target].get('redact') unless the spec sets an explicit `allow_public: true`, or default gitlog's targets to private inside the provider.
+    related_decision: adr-006
+    checked: |-
+      Verified by three adversarial lenses (fact, intent, impact) at b691f67: fact upheld; intent upheld; impact upheld.
+  - id: security-repo-is-the-code-execution-boundary
+    title: |-
+      All code execution is by repository content; YAML loading is safe; CI never runs with secrets on fork PRs
+    group: security
+    severity: info
+    rank: 5
+    confidence: high
+    location: |-
+      yss/hooks.py:31-49 (exec_module in-process; sys.path.insert at :38 never removed); yss/dynamic.py:55-62 (command sources shell=True); yss/evidence.py:298 (command claims shell=True, only under --run-commands; yss/build.py:423 passes run_commands=False); yss/render.py:57-68 (markdown.renderer import); yss/loader.py:41-53 and yss/config.py:139, :431 (SafeLoader everywhere); .github/workflows/pages.yml:3-11, :35-39
+    observation: |-
+      Every YAML load uses yaml.safe_load or a SafeLoader subclass that only overrides the timestamp constructor, so no object construction is possible from docs. Code runs from four repo-authored places: hooks.py (in-process, at load time for every command including validate and query), `command:` dynamic sources and `command:` evidence claims (shell=True on strings from site.yaml, collection.yaml or doc content; claims run only with --run-commands), the markdown.renderer/provider import strings, and the adr-036 symbol import fallback. The workflow triggers on push to main and workflow_dispatch only, with permissions contents: read, pages: write, id-token: write, and the redaction secrets are scoped to the single build step, so a fork pull request never executes with them.
+    why_it_matters: |-
+      This is the honest exposure statement: anyone who can commit to main can run code on every builder and in the Pages job, which is exactly the trust a test suite already carries and is consistent with adr-036's reasoning. There is no escalation beyond what a git push grants. The residual is a documentation one: cloning a third-party yss repository and running any yss command executes its hooks.py.
+    recommendation: |-
+      No code change needed. Add one sentence to README and the yss-publish skill stating that any yss command runs the repository's hooks.py and that --run-commands executes every doc's command claims, so third-party repos should be read before being built.
+    related_decision: adr-036
+    checked: 'Verified by three adversarial lenses (fact, intent, impact) at b691f67: fact upheld.'
+  - id: security-dev-server-loopback-only-no-auth
+    title: |-
+      Dev server is loopback-only by default with no auth, directory listing on, and a refresh trigger that runs subprocesses
+    group: security
+    severity: info
+    rank: 5
+    confidence: high
+    location: |-
+      yss/server.py:28-63 (SiteHandler over SimpleHTTPRequestHandler with directory=), :65-102 (_refresh_dynamic; ?refresh=1 forces synchronous collection), :104-109 (COOP/COEP on both ports), :127 (bind), :147-150 (public error page is a fixed string); yss/config.py:74 (host 127.0.0.1); yss/cli.py:392 (--host free-form)
+    observation: |-
+      The server binds 127.0.0.1 unless serve.host or --host says otherwise. Path translation strips the base_url prefix and delegates to the stdlib handler, which drops `..` components, so traversal is handled by the standard library. list_directory is not overridden, so a folder without index.html lists its files on the private port. Live refresh applies to the private target only; any GET on /dynamic/<name>.json?refresh=1 runs that provider synchronously (testruns spawns the whole ~10 minute suite). There is no authentication. The private target's error page embeds the escaped traceback, absolute paths included, into dist/private/index.html; the public target's error page is a fixed sentence. No warning is printed when the host is not loopback.
+    why_it_matters: |-
+      Bound to loopback this is not an attack surface and should be read as such. It becomes one only if the maintainer sets --host 0.0.0.0 or serve.host, at which point the entire private site, its tracebacks and a subprocess trigger are on the LAN with nothing saying so.
+    recommendation: |-
+      Print a one-line warning when host is not a loopback address; consider gating ?refresh=1 to loopback peers and returning 404 for directory listings.
+    related_decision: adr-008
+    checked: 'Verified by three adversarial lenses (fact, intent, impact) at b691f67: fact upheld.'
   recommendations:
   - id: rec-01
     title: Make the dev server rebuild against the files on disk
@@ -859,6 +1005,30 @@ data:
       yss/build.py:213-217, yss/build.py:376-378, yss/binding.py:74-85, yss/render.py:277-286, yss/attribution.py:60-67
     note: |-
       The 45 gh/adr citations each resolve to a tests/test_ghNN.py or a decisions.yaml entry, so a reader can go from a puzzling `(?<![-\w])` in LINK_RE to the exact test that pins it. The docstrings that matter most say what would go wrong otherwise: why `_source_stamp` copies rather than mutates (the JSON export would leak `_src`), why `_resolve_doc_ref` takes an `exact` flag (a generated id pushed through the scope-relative resolver is silently rewritten), why `binding_specs` scans YAML instead of hooking `_bind` (four of six section types never reach it).
+  - title: Redaction is layered with containment, and the current public output is verifiably clean
+    location: |-
+      yss/build.py:398-408 (filter before render), :608-612 (scan after every writer, rmtree on hit); yss/visibility.py:57 (mask); adr-034 (leak scan wins over strict failures); tests/test_gh21.py:85-101
+    note: |-
+      Private objects are removed before rendering, the scan runs last so it sees hook artefacts, mounts, dynamic JSON and the manifest, and a hit deletes the tree and prints only masked patterns. Every data/docs/*.json under dist/public was walked: no private_notes key, no private item, no occurrence of the checkout path or either flagged name; the 27 textual hits for the word private_notes are the convention being described in codemap, decisions and the schema files.
+  - title: The checkout path is forbidden automatically and the code is disciplined about repo-relative paths
+    location: |-
+      yss/config.py:447-449; yss/loader.py:340-344 (_rel never returns an absolute path); yss/providers/symbols.py:_relative and yss/symbols.py SymbolError docstring; docs/codemap.yaml cv-no-abs-paths; tests/test_yss.py:216-221
+    note: |-
+      Both spellings of the root are appended to the forbidden list for any redacting target with no configuration needed, and the modules that could emit paths (loader, symbols provider, symbol errors, mount escape checks) each convert to repo-relative form and say why in a docstring citing adr-004.
+  - title: Attribution splits the public half from the private half on purpose
+    location: |-
+      yss/render.py:122-123 (attribution_detail = target != 'public'); yss/attribution.py:29 (FILTER_KEYS), :138 (detail=False omits filter clauses), :246 (src is the doc's repo-relative _source); adr-033 consequences
+    note: |-
+      The title attribute and hidden caption on the public build name only the doc and its repo-relative path, both already published in data/docs.json; where/sort/limit/group_by clauses, which are page-authored and could name a person, are rendered on the private target only. The data-src attribute carries the same repo-relative path and nothing else.
+  - title: CI and secret handling follow least privilege
+    location: .github/workflows/pages.yml:3-11, :35-39; yss/ghpages.py:59-71; yss/scaffold.py:322-325; .gitignore
+    note: |-
+      The workflow runs only on push to main and manual dispatch with contents: read, pages: write, id-token: write; the two redaction secrets are scoped to the single build step and the build runs --strict. pages-setup passes secret values to gh over stdin rather than argv and logs them masked; init writes a .gitignore that excludes .yss/local.yaml and dist/ so the local forbidden list cannot be committed by accident.
+  - title: Every path that touches the filesystem checks its boundary, and YAML loading is safe everywhere
+    location: |-
+      yss/build.py:118-124 (_safe_clear refuses to delete the site root or a parent), :177-201 (mount source inside the site root and destination inside the output, adr-032); yss/render.py:732-741 (include must resolve inside the root); yss/loader.py:41-53, yss/config.py:139, :431 (SafeLoader only)
+    note: |-
+      A misconfigured out path cannot wipe the checkout, a mount cannot copy from outside the site or write outside dist, an include section cannot read outside the root, and no YAML loader anywhere can construct Python objects.
   corrections:
   - finding: '[[#arch-renderer-god-object]]'
     correction: build.py reads `renderer.ctx['collections']` at two sites (532, 593), not three.
@@ -867,6 +1037,76 @@ data:
   - finding: '[[#arch-codemap-depends-on-drift]]'
     correction: |-
       Two more lists were wrong than the finder listed: scaffold and server both omit `config`. All seven were corrected when this audit was published.
+  - finding: '[[#security-scan-misses-json-encoded-strings]]'
+    correction: |-
+      fact verifier: Line numbers: pages.json is written at build.py:522-523 and the envelope at dynamic.py:96. Mounted and copied .json files land verbatim and are scanned raw, so the claim holds for every JSON the build itself serialises. str(OSError) already repr-doubles backslashes, so that message is missed in HTML as well as JSON; the cleanest native-single-backslash route is a traceback in a failing command source's stderr (dynamic.py:64). CLAUDE.md's prescribed local command is --no-dynamic, which skips the dynamic route; the yss-publish skill's pre-publish step (build --target public) is where it applies.
+  - finding: '[[#security-scan-misses-json-encoded-strings]]'
+    correction: |-
+      intent verifier: Cite adr-004 and cv-no-abs-paths as the decisions whose enforcement claim this breaks, and symbols.py:41-44 plus test_yss.py:405 as places relying on the unscanned route. Exposure is bounded for the pilot (Linux CI, ASCII forbidden strings) but not for the Musings adoption the plan targets.
+  - finding: '[[#security-scan-misses-json-encoded-strings]]'
+    correction: |-
+      Severity moved from medium to low by the impact verifier: Mechanism reproduced, but no route yields a wrong result for this project today: the deployed tree is built only by ubuntu CI where the path is posix and json.dumps does not escape slashes; the three local redaction entries are ASCII with no entity characters; on Windows the forbidden name entry is a token of the checkout path and still hits the doubled-backslash JSON line, so no false-clean local build exists; CLAUDE.md's prescribed check is --no-dynamic (cli.py:60,387; build.py:573-577), and the two public-enabled providers deliberately never emit absolute paths. What remains is a documentation-versus-behaviour gap: site.yaml forbid_root_path and adr-004 overstate the guarantee for escaped forms.
+  - finding: '[[#security-scan-misses-json-encoded-strings]]'
+    correction: |-
+      impact verifier: Downgrade to low and reframe: the deploy gate is unaffected; keep the json.loads and html.unescape pass plus a test as a hardening task, not a security milestone.
+  - finding: '[[#security-dynamic-ignores-collection-visibility]]'
+    correction: |-
+      fact verifier: The documented promise lives in .claude/skills/yss-publish/SKILL.md:49 and :80 (a private collection is absent from public builds), not in adr-010 or adr-015. The closest existing test, tests/test_features.py:233-243, configures exactly this case (a private collection with a hooks provider and no targets line) but passes run_dynamic=False, so the path is skipped rather than unchecked. The same unfiltered source set feeds the live preview server (server.py:73-77), so yss serve's public preview collects it too. The leak scan still covers dist/public/dynamic/*.json for forbidden strings, so what escapes is structure plus whatever the private provider returns.
+  - finding: '[[#security-dynamic-ignores-collection-visibility]]'
+    correction: |-
+      intent verifier: Partly tracked: plan m14-provider-loaded covers the buildinfo sub-claim and, implemented as written, would close the symbols sub-claim; m14-visibility-owner never names dynamic_sources or write_all. The primary claim, a private collection's own sources written to dist/public/dynamic/ and its hooks.py run for the public target, is tracked nowhere. Cite adr-004 and adr-006 alongside adr-015. The enabling condition is the undocumented all-targets default at config.py:417; document it or flip it to private-only like mounts (the pilot's site.yaml buildinfo relies on the default and would need targets added).
+  - finding: '[[#security-dynamic-ignores-collection-visibility]]'
+    correction: |-
+      impact verifier: Exposure is wider than stated: build.py:595 puts the hidden collection's id into build.json, linked from every public page footer (yss/templates/default.html:85). The recommended test must assert on dist/public/dynamic/<cid>.*.json and on build.json's dynamic keys.
+  - finding: '[[#security-scan-skips-binary-and-unlisted-suffixes]]'
+    correction: |-
+      fact verifier: The asset copy block starts at build.py:543-544 and includes the package's own assets. The pilot is unaffected by its assets/ folders because they happen to contain only text suffixes today, not because of the demo mount's include; a .png emblem or .woff2 font dropped into any assets/ folder would be copied verbatim and never scanned.
+  - finding: '[[#security-scan-skips-binary-and-unlisted-suffixes]]'
+    correction: |-
+      intent verifier: Cheapest honest fix is the wording (adr-015 and adr-032 consequences, README, skill, cv-no-abs-paths enforced_by) plus the five text suffixes. A bytes scan of binaries is a separate call that m6-godot should force before any Godot mount carries the public target; the performance brief treats reading binaries as a cost, so that half belongs on a worksheet.
+  - finding: '[[#security-scan-skips-binary-and-unlisted-suffixes]]'
+    correction: |-
+      Severity moved from low to medium by the impact verifier: Scenario exists. The guarantee is overclaimed in more places than cited: README.md:82-84, adr-015 :258, adr-032's consequence, yss-publish SKILL.md:104-105, design.yaml:82 (p-private-by-marking), codemap cv-no-abs-paths (enforced_by: scan) and the site.yaml comment at :88 all assert whole-output coverage; only codemap.yaml:335 and the docstring at visibility.py:241-242 are accurate. TEXT_SUFFIXES is unchanged since 0.1.0 with no ADR and no test pinning the skip. No impact in the pilot today (no binaries anywhere, demo mount opts into *.html, m6-bandwidth keeps Godot exports off the public target). For the stated goal it is real: the skill (SKILL.md:155) tells agents to put prototypes under site/assets/prototypes/, which reaches the public site with neither adr-015 opt-in nor a scan; adr-032 records that the Musings consumer already mounts eight legacy output folders on the public target; images and PDF exports routinely carry creator or path metadata that both the build scan and yss scan pass. The forbidden list is precisely the maintainer's name and checkout path.
+  - finding: '[[#security-scan-skips-binary-and-unlisted-suffixes]]'
+    correction: |-
+      impact verifier: Low understates it: the backstop is the project's core promise, at least seven canonical locations assert coverage the code disclaims, the skill's recommended prototype path bypasses both the private-by-default rule and the scan, and the flagship consumer already publishes unscanned legacy output. No leak in the pilot today keeps it below high. Add site.yaml:88, design.yaml:82 and SKILL.md:155 to the wording fix.
+  - finding: '[[#security-private-ids-survive-as-identifiers]]'
+    correction: |-
+      fact verifier: What leaks is the authored reference string, not the resolved global id (a collection-relative `[[plan#m1]]` shows 'plan#m1'); the pages.json docs field is at build.py:526. The code-span fallback is documented at render.py:472, so the fix is a design change rather than a bug fix; binding.py's private-in-this-target hint is the pattern to reuse.
+  - finding: '[[#security-private-ids-survive-as-identifiers]]'
+    correction: |-
+      intent verifier: The governing decision is adr-004; adr-017 is the precedent (drop, do not advertise) and binding.py:149-153 the loud-failure precedent. Extend to item-level privacy: `[[plan#x]]` where only item x is private keeps its doc in docs_t, so _item_title returns None and the item slug is emitted as link text with a live href (render.py:464-469, :495-500), reported by the dead_refs gate as a dead reference rather than a privacy problem.
+  - finding: '[[#security-private-ids-survive-as-identifiers]]'
+    correction: |-
+      impact verifier: In a validated build the render.py:489-492 branch is reachable only by the private-doc case, so it can carry a privacy warning outright. The same class exists for private list items in a public doc: the item slug is shown (render.py:496), gated by dead_refs under strict only when the doc has a page, and ungated when it does not.
+  - finding: '[[#security-evidence-exception-text-unsanitized]]'
+    correction: |-
+      fact verifier: Drop the doc's _evidence and build.py:503 from the channel list: inject() writes only status and counts, so data/docs/*.json carries no exception text. The live channels are data/evidence.json, the public evidence page, and dynamic/<name>.json. The path-bearing ImportError shape arises only when the imported module's own import fails; ModuleNotFoundError and SyntaxError carry no absolute path. Because the detail also lands in HTML, a Windows public build still fails loudly on the HTML hit; the JSON evasion is silent only for dynamic envelopes, which have no HTML twin.
+  - finding: '[[#security-evidence-exception-text-unsanitized]]'
+    correction: |-
+      intent verifier: Note adr-036 as the decision that did not account for this. The Windows JSON evasion is never on a deploy path (ubuntu CI only, no local dist push); in a Windows-local public build the same detail lands unescaped in the evidence page HTML, the scan hits and the tree is deleted. Command output cannot reach the build: run_commands=False at build.py:423 and the evidence provider is private-only, on_build false.
+  - finding: '[[#security-evidence-exception-text-unsanitized]]'
+    correction: |-
+      Severity moved from low to info by the impact verifier: Mechanism real, impact small. Deployed output: no scenario, because `python -m yss check` runs before the CI build and exits 1 on any stale claim (cli.py:133), a failed import fallback is always stale (evidence.py:273), --strict fails on stale, and the Linux scan sees the runner path verbatim in HTML and JSON. Local Windows public build: the public evidence page carries the unescaped path in HTML, the scan fires and the output is deleted. The genuinely uncaught local case is narrow: a JSON-only channel (a dynamic error) where json.dumps doubles the backslashes, or an ImportError naming a module under the user profile but outside root. Both leave a username inside gitignored dist/public on the maintainer's own machine.
+  - finding: '[[#security-evidence-exception-text-unsanitized]]'
+    correction: |-
+      impact verifier: Downgrade to info for this project. Drop build.py:503 (data/docs/*.json carries no detail) and SyntaxError as a carrier; name ImportError and OSError instead. The recommended scrubber would not cover the one case that evades locally (a path under the user profile outside root); the underlying weakness is the scan's blindness to JSON-escaped or repr'd backslash forms, a visibility.py concern rather than an adr-036 cost.
+  - finding: '[[#security-gitlog-relies-on-config-not-guard]]'
+    correction: |-
+      fact verifier: The why_it_matters sentence about the maintainer's git author name being the flagged string is not true of this repository: the recent commits carry one author string, the GitHub handle, which matches neither flagged name. The hazard is a config-only guard with no present leak; keep low. Also: config.py:417 uses `or`, so an explicit empty targets list also enables all targets; and a section's visibility: private never keeps the JSON file out of a public build.
+  - finding: '[[#security-gitlog-relies-on-config-not-guard]]'
+    correction: |-
+      intent verifier: Deliberate in part (adr-006) but the guard asymmetry with adr-024's collect_source is unrecorded and the 'private-only by default' claim has no implementation behind it. Whichever fix is chosen should also record why dynamic sources default to all targets when mounts default to private, or align config.py:417 with adr-015.
+  - finding: '[[#security-gitlog-relies-on-config-not-guard]]'
+    correction: |-
+      impact verifier: Recast: for this project the defect is a false documented default, not a leak. The fix can be the symbols-style guard or correcting the docstring and both skill copies, plus a test asserting gitlog is absent from dist/public; the leak scenario only becomes real for a private repository publishing a public site.
+  - finding: '[[#security-repo-is-the-code-execution-boundary]]'
+    correction: |-
+      fact verifier: Four details. (1) 'claims run only with --run-commands' is too narrow: the flag is a None-default override; site.yaml or collection.yaml evidence.run_commands decides, and this repo's evidence dynamic source sets run_commands: true for the private target, so command claims execute on `yss dynamic --target private` and on every stale GET of dynamic/evidence.json from the private dev server; the build itself never runs them. (2) The markdown.renderer import is render.py:70-82. (3) hooks.py loads only in commands that reach load_all (validate, build, check, refs, ls, query, serve), not scan, schema, new, init, pages-setup or skills. (4) A fifth code path: the Jinja2 environment at render.py:140-145 is a plain Environment, not a SandboxedEnvironment; prefab templates and page map expressions are repo code too, which reinforces the thesis. Fork PRs never run the workflow at all.
+  - finding: '[[#security-dev-server-loopback-only-no-auth]]'
+    correction: |-
+      fact verifier: Directory listing is not confined to the private port: the same handler serves dist/public on the public port. ?refresh=1 coalesces concurrent refreshes into one in-flight collection (server.py:83-86) and the wait is capped by the source's timeout (default 600 s). The private error page carries a full traceback only on the unexpected-exception branch (:184-187); the BuildError and load-failure branches write the message only. _write_error_page spans :147-155.
+  refuted: []
 private_notes:
   second_pass:
     how: |-
