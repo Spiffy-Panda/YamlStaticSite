@@ -34,7 +34,10 @@ vocabularies:
 evidence:
   git_recency: true                   # warn when cited code changed after a doc's `updated` date
   run_commands: false                 # `yss check --run-commands` runs command claims on demand
-                                      # a collection.yaml `evidence` block overrides both for its own docs
+  import_symbols: true                # a `symbol:` claim the parser cannot resolve may import its
+                                      # module (adr-036); false makes symbol evidence read-only and
+                                      # reports such claims as `skipped`
+                                      # a collection.yaml `evidence` block overrides all three for its own docs
 
 dynamic:
   sources:

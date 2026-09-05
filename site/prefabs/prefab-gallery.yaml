@@ -36,14 +36,14 @@ template: |
 css: |
   .gallery-item { border: 1px solid var(--line); border-radius: var(--radius); margin: .5rem 0; background: var(--bg-2); }
   .gallery-item > summary { cursor: pointer; padding: .5rem .8rem; display: flex; gap: .6rem; align-items: baseline; flex-wrap: wrap; }
-  .gallery-cat, .gallery-site { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .gallery-cat, .gallery-site { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--fg-2); }
   .gallery-site { color: var(--warn); }
   .gallery-desc { color: var(--fg-2); font-size: .9rem; }
   .gallery-body { padding: .3rem .8rem .8rem; border-top: 1px solid var(--line); }
-  .gallery-source { font-size: .75rem; color: var(--muted); font-family: ui-monospace, monospace; margin: .3rem 0 .5rem; }
+  .gallery-source { font-size: .75rem; color: var(--fg-2); font-family: ui-monospace, monospace; margin: .3rem 0 .5rem; }
   .gallery-params { font-size: .85rem; margin-bottom: .6rem; }
   .gallery-example { border-top: 1px dashed var(--line); padding-top: .5rem; margin-top: .5rem; }
-  .gallery-example-label { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: .3rem; }
+  .gallery-example-label { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--fg-2); margin-bottom: .3rem; }
   .gallery-example-render { padding: .5rem; background: var(--bg); border-radius: var(--radius); }
   .gallery-example-args summary { font-size: .8rem; color: var(--accent); cursor: pointer; }
   .gallery-example-args pre { font-size: .8rem; }

@@ -125,6 +125,7 @@ properties:
     properties:
       git_recency: {type: boolean, description: Warn when cited code changed after a doc's `updated` date.}
       run_commands: {type: boolean, description: Run command evidence during `yss check` by default.}
+      import_symbols: {type: boolean, default: true, description: "Let a `symbol:` claim the parser cannot resolve fall back to importing its module, which runs module-level code (adr-036). Off makes symbol evidence read-only: unresolvable claims report `skipped`."}
     additionalProperties: false
   markdown:
     type: object

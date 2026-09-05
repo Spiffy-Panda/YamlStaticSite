@@ -65,7 +65,7 @@ DEFAULTS: dict[str, Any] = {
     },
     "limits": {"title": 120, "summary": 300, "line": 240, "markdown": 2400},
     "build": {"strict": False, "attribution": False},
-    "evidence": {"git_recency": True, "run_commands": False},
+    "evidence": {"git_recency": True, "run_commands": False, "import_symbols": True},
     "markdown": {"renderer": None},
     "hooks": None,
     "mounts": [],

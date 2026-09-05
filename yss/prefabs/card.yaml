@@ -70,23 +70,23 @@ template: |
 css: |
   .card { background: var(--bg-2); border: 1px solid var(--line); border-left: 4px solid var(--tone, var(--line)); border-radius: var(--radius);
     padding: .8rem 1rem; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: .35rem; min-width: 0; }
-  .card-kicker { color: var(--tone, var(--muted)); font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  .card-kicker { color: var(--tone, var(--fg-2)); font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
   .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: .5rem; }
   .card-title { margin: 0; font-size: 1.05rem; line-height: 1.3; }
   .card-title a { text-decoration: none; }
   .card-subtitle { color: var(--fg-2); font-size: .9rem; }
   .card-body { font-size: .93rem; }
   .card-body p { margin: .25rem 0; }
-  .card-meta { list-style: none; margin: 0; padding: 0; font-size: .8rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: .25rem .9rem; }
+  .card-meta { list-style: none; margin: 0; padding: 0; font-size: .8rem; color: var(--fg-2); display: flex; flex-wrap: wrap; gap: .25rem .9rem; }
   .meta-label { font-weight: 600; }
   .card-options { border-top: 1px dashed var(--line); padding-top: .45rem; margin-top: .1rem; }
-  .card-options-head { font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .card-options-head { font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--fg-2); }
   .card-options-list { margin: .3rem 0 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: .35rem; font-size: .9rem; }
   .option-text { font-weight: 600; }
   .option-why { color: var(--fg-2); display: block; font-size: .87rem; }
-  .option-procon summary { cursor: pointer; color: var(--muted); font-size: .8rem; }
+  .option-procon summary { cursor: pointer; color: var(--fg-2); font-size: .8rem; }
   .option-procon ul { margin: .15rem 0 .3rem; padding-left: 1.1rem; font-size: .85rem; }
-  .option-label { font-weight: 600; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .option-label { font-weight: 600; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--fg-2); }
 examples:
   - args: {title: Build pipeline, badge: active, body: "Validates, renders and **scans** the output.", meta: [{label: owner, value: agent}], tags: [python]}
   - note: tone set directly, no badge shown

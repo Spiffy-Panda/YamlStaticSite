@@ -16,7 +16,12 @@
 <header class="site-header">
   <div class="wrap">
     <a class="brand" href="{{ url('/') }}">{{ site.name }}</a>
-    <button class="nav-toggle" aria-expanded="false" aria-controls="site-nav">Menu</button>
+    {# The bar is a disclosure so a narrow viewport can open it with no script (A.4): the Menu
+       button is this <details>'s <summary>, the same mechanism the `menu: true` groups below
+       already use. Above 720px yss.css hides the summary and forces the content visible, so the
+       wide bar is the plain row it always was. #}
+    <details class="nav-drawer">
+    <summary class="nav-toggle" aria-expanded="false" aria-controls="site-nav">Menu</summary>
     <nav id="site-nav" class="site-nav">
       {% macro navlink(item) %}
       <a href="{{ item.href }}" class="{% if item.kind == 'collection' %}nav-collection {% endif %}{% if item.active or item.route == current_route %}active{% endif %} {% if item.visibility == 'private' %}private{% endif %}">{% if item.emblem %}{{ item.emblem }} {% endif %}{{ item.label }}{% if item.waiting %} <span class="nav-count" title="calls waiting on you">{{ item.waiting }}</span>{% endif %}</a>
@@ -35,6 +40,7 @@
       {% endif %}
       {% endfor %}
     </nav>
+    </details>
     <span class="target-badge" title="build target">{{ target }}</span>
   </div>
 </header>

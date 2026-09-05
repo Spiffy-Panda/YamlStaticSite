@@ -26,8 +26,8 @@ template: |
 css: |
   .decision { border: 1px solid var(--line); border-left: 4px solid var(--tone, var(--line)); border-radius: var(--radius); background: var(--bg-2); margin: .7rem 0; padding: .5rem .9rem; }
   .decision > summary { cursor: pointer; display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; font-weight: 600; }
-  .decision-id { font-family: ui-monospace, monospace; color: var(--muted); font-size: .8rem; }
-  .decision-date { margin-left: auto; color: var(--muted); font-size: .8rem; font-weight: 400; }
+  .decision-id { font-family: ui-monospace, monospace; color: var(--fg-2); font-size: .8rem; }
+  .decision-date { margin-left: auto; color: var(--fg-2); font-size: .8rem; font-weight: 400; }
   .decision h4 { margin: .7rem 0 .2rem; font-size: .85rem; text-transform: uppercase; letter-spacing: .05em; color: var(--fg-2); }
   .decision .prose p { margin: .25rem 0; }
   .decision-rel { font-size: .85rem; color: var(--fg-2); }

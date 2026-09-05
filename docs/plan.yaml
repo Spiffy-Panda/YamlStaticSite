@@ -361,8 +361,10 @@ milestones:
     notes: |
       Source: [[audit]] (three of ten dimensions, every finding fact-checked at 33e8085) and the
       calls in [[audit-calls]]. Finding ids are quoted in backticks; they are data in the audit
-      doc, not indexed items. Tasks marked `blocked` wait on a worksheet call, not on code. The
-      first task is the second pass, because the unexamined seven include security and tests.
+      doc, not indexed items. Every call the audit left open was answered on 2026-09-04, so no
+      task here waits on a worksheet: A.2 approved the orchestration pass, A.3 and A.4 were
+      applied outright, and A.5 bounded the evidence import fallback. The first task is the
+      second pass, because the unexamined seven include security and tests.
     tasks:
       - id: m14-second-pass
         title: Audit the seven dimensions the first pass could not reach
@@ -460,44 +462,60 @@ milestones:
         verify: A failing `python -m yss validate` prints nothing to stdout and exits 1
       - id: m14-consolidations
         title: The small consolidations
-        status: blocked
+        status: planned
         owner: agent
         notes: |
           Delete the seven dead names; `Config.doc_roots(doc)` and `Config.rel(path)`; one YAML
           loader for config.py and loader.py; `Config.markdown`, `Config.redaction`,
           `Config.hooks_path`; a `yss/meta.py` naming the reserved keys and `evidence.worst()`
           used by render.py; a `Provider` alias and a `Hooks` protocol; and the evidence import
-          fallback bounded per A.5 in [[audit-calls]], which is the only part that is blocked -
-          the rest can start. `quality-dead-names`, `quality-duplicate-root-resolution`,
+          fallback bounded. `quality-dead-names`, `quality-duplicate-root-resolution`,
           `quality-two-yaml-loaders`, `quality-config-accessor-bypass`,
           `quality-sentinel-and-status-literals`, `quality-extension-surface-least-typed`,
           `arch-evidence-import-fallback-side-effects`.
+
+          Unblocked by A.5 in [[audit-calls]] (2026-09-04), and that part is already done:
+          `evidence.import_symbols` gates the fallback, defaults true, reports `skipped` with a
+          reason when it is off, and `sys.path` is restored - see [[decisions#adr-036]].
+          Everything else in this task is still open.
         verify: Select-String -Path yss\*.py -Pattern 'ANNOTATION_KEYS|python_executable' returns nothing
       - id: m14-orchestration
         title: Stage `build()` and split the nav and collection views out of `Renderer`
-        status: blocked
+        status: planned
         owner: agent
         notes: |
           A pure move: stage functions with one signature under the lock, a `PageContext` passed
           explicitly, stateless `nav` and `collections_view` modules, the `yss refs` walk into
-          loader.py. Tests green before and after. Blocked on A.2 in [[audit-calls]].
+          loader.py. Tests green before and after. Approved by A.2 in [[audit-calls]]
+          (2026-09-04) and ruled by [[decisions#adr-035]]: it runs as one dedicated pass with no
+          other work in flight, before or after a sweep and never during one, and any behaviour
+          change found on the way becomes a separate task rather than part of the move.
           `arch-build-monolith`, `arch-renderer-god-object`, `arch-refs-logic-in-cli`.
         verify: python -m unittest discover -s tests
       - id: m14-muted-text
         title: Settle the `--muted` contrast contract
-        status: blocked
+        status: done
         owner: agent
         notes: |
           12 to 13 pixel text in `--muted` at 3.3:1 on both shipped light palettes; the playground
-          floor is 3. Blocked on A.3 in [[audit-calls]]. `frontend-muted-small-text-below-aa`.
+          floor is 3. A.3 in [[audit-calls]] (2026-09-04) narrowed the token instead of retuning
+          the palettes: `--muted` is a non-text token in [[palettes]] now - rules, markers and
+          decorative glyphs - every small-text rule that used it reads `--fg-2`, which the
+          contract already holds to 4.5:1, and the playground floors the non-text role at 3 under
+          its own name. No palette changed. `frontend-muted-small-text-below-aa`.
         verify: The playground contrast table and docs/palettes.yaml agree on the token's role
       - id: m14-mobile-nav
         title: Primary navigation reachable on a phone without JavaScript
-        status: blocked
+        status: done
         owner: agent
         notes: |
-          `.site-nav` is display none under 720px and only yss.js can open it. Blocked on A.4
-          in [[audit-calls]]. `frontend-mobile-nav-unreachable-without-js`.
+          `.site-nav` was display none under 720px and only yss.js could open it. A.4 in
+          [[audit-calls]] (2026-09-04) chose the mechanism the bar already uses for its menu
+          groups: the Menu button is the `<summary>` of a `.nav-drawer` `<details>` wrapping the
+          nav, so it opens with no script at all. Above 720px the summary is hidden and the
+          drawer's content is forced visible, so the wide bar is unchanged. yss.js keeps
+          `aria-expanded` in step with the `toggle` event for the enhanced case.
+          `frontend-mobile-nav-unreachable-without-js`.
         verify: With scripting disabled at 375px wide, every nav link is reachable
 
 risks:

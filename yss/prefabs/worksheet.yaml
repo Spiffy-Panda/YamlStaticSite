@@ -147,8 +147,8 @@ css: |
   .ws-q { border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-2); padding: .6rem 1rem .8rem; margin: 0 0 .9rem; }
   .ws-q legend { font-weight: 600; padding: 0 .4rem; display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
   .ws-n { display: inline-flex; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: var(--accent); color: #fff; align-items: center; justify-content: center; font-size: .8rem; }
-  .ws-call { font-family: ui-monospace, monospace; font-size: .8rem; color: var(--muted); }
-  .ws-optional { font-weight: 400; font-size: .75rem; color: var(--muted); }
+  .ws-call { font-family: ui-monospace, monospace; font-size: .8rem; color: var(--fg-2); }
+  .ws-optional { font-weight: 400; font-size: .75rem; color: var(--fg-2); }
   .ws-help { color: var(--fg-2); font-size: .92rem; margin: .2rem 0 .5rem; }
   .ws-blocks { font-size: .85rem; color: var(--warn); margin: 0 0 .5rem; }
   .ws-opt-wrap { margin: .35rem 0; }
@@ -167,7 +167,7 @@ css: |
   .ws-compare { margin: .5rem 0 .2rem; font-size: .88rem; }
   .ws-compare-table { margin-top: .4rem; }
   .ws-compare-table td { vertical-align: top; }
-  .ws-applies { font-size: .8rem; color: var(--muted); margin-top: .4rem; }
+  .ws-applies { font-size: .8rem; color: var(--fg-2); margin-top: .4rem; }
   .ws-text { width: 100%; font: inherit; padding: .4rem .5rem; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); }
   .ws-actions { display: flex; gap: .8rem; align-items: center; margin: .5rem 0 1rem; }
   .ws-go, .ws-copy { font: inherit; border-radius: 999px; padding: .45rem 1.1rem; cursor: pointer; border: 1px solid var(--accent); }
@@ -192,9 +192,9 @@ css: |
   .ws-resolved h5 { margin: 0 0 .2rem; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ok); }
   .ws-resolved p:last-of-type { margin-bottom: .3rem; }
   .ws-res-line { font-size: .85rem; color: var(--fg-2); margin-top: .2rem; }
-  .ws-res-label { font-weight: 600; color: var(--muted); }
+  .ws-res-label { font-weight: 600; color: var(--fg-2); }
   .ws-was { font-size: .9rem; margin-top: .3rem; }
-  .ws-was > summary { cursor: pointer; color: var(--muted); }
+  .ws-was > summary { cursor: pointer; color: var(--fg-2); }
   .ws-opt-past { cursor: default; opacity: .75; }
   .ws-opt-past:hover { border-color: var(--line); }
   .ws-opt-chosen { opacity: 1; border-color: var(--ok); }

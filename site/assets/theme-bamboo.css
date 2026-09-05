@@ -5,7 +5,9 @@
    docs/palettes.yaml, not this. Change it here and in the theme package together.
 
    Light: celadon (the m5 mutation).  Dark: green paper (the m2 mutation).
-   Every pair clears WCAG AA in both modes; the figures are in palettes.yaml.
+   Every text pair clears WCAG AA in both modes; the figures are in palettes.yaml. --muted is not
+   a text pair - since 2026-09-04 it colours rules, markers and decorative glyphs only, and small
+   text uses --fg-2 (A.3).
 
    Hue note: the light accent is teal and the dark accent is yellow-green, so a mode switch changes
    the site's character, not just its brightness. To keep one hue across both, swap the two lines

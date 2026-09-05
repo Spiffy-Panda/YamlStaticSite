@@ -10,6 +10,8 @@
   --ok: #2e7d32;
   --warn: #b26a00;
   --bad: #c62828;
+  /* Non-text: rules, markers, decorative glyphs. Text smaller than body uses --fg-2, which is
+     held to 4.5:1 against --bg; --muted is not (A.3, 2026-09-04). */
   --muted: #8a8a84;
   --code: #f1f0ec;
   --radius: 8px;
@@ -55,7 +57,7 @@ pre code { background: none; padding: 0; }
    Which groups exist, what they are called and which are menus is site.yaml's business. */
 .nav-group { display: inline-flex; align-items: center; gap: .25rem; flex-wrap: wrap; }
 .nav-group + .nav-group { margin-left: .5rem; padding-left: .65rem; border-left: 1px solid var(--line); }
-.nav-group-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); padding-right: .1rem; }
+.nav-group-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .07em; color: var(--fg-2); padding-right: .1rem; }
 .nav-count { display: inline-block; min-width: 1.15em; padding: 0 .3em; border-radius: 999px; background: var(--accent); color: #fff; font-size: .7rem; line-height: 1.5; text-align: center; }
 .nav-menu { position: relative; }
 .nav-menu > summary { cursor: pointer; list-style: none; color: var(--fg-2); padding: .35rem .6rem; border-radius: 6px; font-size: .7rem; text-transform: uppercase; letter-spacing: .07em; }
@@ -66,19 +68,36 @@ pre code { background: none; padding: 0; }
 .nav-menu-items { position: absolute; z-index: 20; top: 100%; left: 0; display: flex; flex-direction: column; min-width: 10rem; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: .3rem; box-shadow: var(--shadow); }
 .nav-menu-items a.nav-collection { border: 0; }   /* a collection pill inside a disclosure is a menu row, not a pill (gh-18) */
 .site-nav a.private::after { content: " 🔒"; font-size: .8em; }
-.nav-toggle { display: none; }
+/* The whole bar is a disclosure (A.4): its <summary> is the Menu button and its content is the
+   nav, so a phone opens it with no script at all. Wide is the drawer's transparent state - the
+   summary is gone and the content is shown whatever the open attribute says, in both the modern
+   ::details-content form and the older "children of a closed details" form. Print takes this
+   branch too, which is why forcing visible is the default and the narrow query undoes it. */
+.nav-drawer { flex: 1; min-width: 0; }
+.nav-drawer > summary { display: none; }
+.nav-drawer::details-content { content-visibility: visible; block-size: auto; }
+.nav-drawer > .site-nav { display: flex; }
 .target-badge { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; padding: .15rem .5rem; border: 1px solid var(--line); border-radius: 999px; color: var(--fg-2); }
 .target-private .target-badge { border-color: var(--warn); color: var(--warn); }
 @media (max-width: 720px) {
-  .nav-toggle { display: inline-block; margin-left: auto; }
-  .site-nav { display: none; width: 100%; flex-direction: column; }
+  .nav-drawer { display: flex; flex-wrap: wrap; align-items: center; flex: 1 1 auto; }
+  .nav-drawer > summary {
+    display: inline-block; margin-left: auto; cursor: pointer; list-style: none;
+    font: inherit; font-size: .85rem; color: var(--fg-2); background: var(--bg-2);
+    border: 1px solid var(--line); border-radius: 6px; padding: .3rem .7rem;
+  }
+  .nav-drawer > summary::-webkit-details-marker { display: none; }
+  .nav-drawer[open] > summary { color: var(--accent); border-color: var(--accent); }
+  .nav-drawer::details-content { width: 100%; }
+  .nav-drawer:not([open])::details-content { content-visibility: hidden; block-size: 0; }
+  .nav-drawer:not([open]) > .site-nav { display: none; }
+  .site-nav { width: 100%; flex-direction: column; }
   /* Stacked menu: a cluster becomes a block with its label as a heading, and a menu group is
      spelled out rather than hidden - there is room for it here. */
   .nav-group { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
   .nav-group + .nav-group { margin: .4rem 0 0; padding: .4rem 0 0; border-left: 0; border-top: 1px solid var(--line); }
   .nav-menu-items { position: static; border: 0; padding: 0; box-shadow: none; background: none; }
   .nav-menu > summary { padding-left: 0; }
-  .site-nav.open { display: flex; }
 }
 
 /* layout */
@@ -87,7 +106,7 @@ pre code { background: none; padding: 0; }
 .content { min-width: 0; }
 .page-header h1 { margin: 0 0 .25rem; font-size: 2rem; line-height: 1.2; }
 .page-summary { margin: 0; color: var(--fg-2); font-size: 1.05rem; }
-.page-docs { font-size: .8rem; color: var(--muted); margin: .5rem 0 0; }
+.page-docs { font-size: .8rem; color: var(--fg-2); margin: .5rem 0 0; }
 .toc { position: sticky; top: var(--header-offset); align-self: start; font-size: .9rem; border-left: 2px solid var(--line); padding-left: .9rem; }
 .toc-title { font-weight: 600; margin-bottom: .4rem; color: var(--fg-2); font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; }
 .toc a { display: block; color: var(--fg-2); text-decoration: none; padding: .15rem 0; }
@@ -115,8 +134,8 @@ blockquote { border-left: 3px solid var(--accent); margin: 1rem 0; padding: .2re
 
 /* dynamic */
 .dynamic { border: 1px dashed var(--line); border-radius: var(--radius); padding: .75rem 1rem; background: var(--bg-2); }
-.dynamic-status { margin: 0; color: var(--muted); font-size: .9rem; }
-.dynamic-meta { font-size: .75rem; color: var(--muted); margin-top: .5rem; display: flex; gap: .75rem; align-items: center; }
+.dynamic-status { margin: 0; color: var(--fg-2); font-size: .9rem; }
+.dynamic-meta { font-size: .75rem; color: var(--fg-2); margin-top: .5rem; display: flex; gap: .75rem; align-items: center; }
 .dynamic-meta button { font-size: .75rem; }
 .dynamic pre { margin: 0; max-height: 420px; overflow: auto; }
 .dynamic .kv { display: grid; grid-template-columns: max-content 1fr; gap: .25rem 1rem; margin: 0; }
@@ -132,19 +151,19 @@ blockquote { border-left: 3px solid var(--accent); margin: 1rem 0; padding: .2re
 .embed-open { display: inline-block; font-size: .8rem; margin-top: .3rem; }
 
 /* footer */
-.site-footer { border-top: 1px solid var(--line); color: var(--muted); font-size: .8rem; padding: 1rem 0 2rem; }
+.site-footer { border-top: 1px solid var(--line); color: var(--fg-2); font-size: .8rem; padding: 1rem 0 2rem; }
 
 /* shared status tones used by badges and cards */
 .tone-done, .tone-ok, .tone-accepted, .tone-released, .tone-stable, .tone-passed, .tone-answered, .tone-closed, .tone-mitigated { --tone: var(--ok); }
 .tone-active, .tone-proposed, .tone-unreleased, .tone-open { --tone: var(--accent); }
 .tone-blocked, .tone-failed, .tone-error, .tone-rejected, .tone-high { --tone: var(--bad); }
 .tone-planned, .tone-draft, .tone-medium, .tone-skipped { --tone: var(--warn); }
-.tone-dropped, .tone-deprecated, .tone-superseded, .tone-archived, .tone-low, .tone-deferred { --tone: var(--muted); }
+.tone-dropped, .tone-deprecated, .tone-superseded, .tone-archived, .tone-low, .tone-deferred { --tone: var(--fg-2); }
 
 /* evidence / freshness tones */
 .tone-stale { --tone: var(--bad); }
 .tone-warn { --tone: var(--warn); }
-.tone-unknown { --tone: var(--muted); }
+.tone-unknown { --tone: var(--fg-2); }
 
 /* collections.
    The bar paints a large surface with --accent-2 and used to colour everything on it with --fg
@@ -171,7 +190,7 @@ blockquote { border-left: 3px solid var(--accent); margin: 1rem 0; padding: .2re
    opt-in mode that prints and that a screen reader can reach, because a hover pill can do neither.
    `.section-source` is emitted with `hidden`, so with JavaScript off nothing shows and nothing
    shifts - the toggle removes the attribute rather than fighting a display rule. */
-.section-source { margin: 0 0 .4rem; font-size: .78rem; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+.section-source { margin: 0 0 .4rem; font-size: .78rem; color: var(--fg-2); font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   border-left: 2px solid var(--line); padding-left: .5rem; overflow-wrap: anywhere; }
 .source-toggle { font: inherit; font-size: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
 .source-toggle[aria-pressed="true"] { font-weight: 600; }

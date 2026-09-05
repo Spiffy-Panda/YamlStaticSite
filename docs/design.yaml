@@ -276,7 +276,7 @@ interfaces:
   - id: i-collection
     name: collection.yaml
     kind: yaml
-    signature: "title, summary, emblem, order, hero, links[{label,href,kind}], visibility, status, tags, theme{css,accent,background}, vocabularies, limits, evidence{git_recency,run_commands}, dynamic.sources, mounts[{path,at,targets}]"
+    signature: "title, summary, emblem, order, hero, links[{label,href,kind}], visibility, status, tags, theme{css,accent,background}, vocabularies, limits, evidence{git_recency,run_commands,import_symbols}, dynamic.sources, mounts[{path,at,targets}]"
     description: Discovered from collections[].root globs in site.yaml; everything is optional. A mount with no `targets` is private only. `hero` and `links` are the card contract a parent page renders (adr-017); a relative link href resolves under the collection route.
     component: c-config
   - id: i-hooks

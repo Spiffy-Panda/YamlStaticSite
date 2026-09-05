@@ -29,7 +29,7 @@ css: |
   .timeline { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--line); }
   .timeline-item { position: relative; padding: 0 0 1.1rem 1.4rem; }
   .timeline-item::before { content: ""; position: absolute; left: -7px; top: .45rem; width: 12px; height: 12px; border-radius: 50%; background: var(--tone, var(--muted)); }
-  .timeline-date { font-size: .8rem; color: var(--muted); font-family: ui-monospace, monospace; }
+  .timeline-date { font-size: .8rem; color: var(--fg-2); font-family: ui-monospace, monospace; }
   .timeline-head { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
   .timeline-sub { color: var(--fg-2); font-size: .9rem; }
   .timeline-content .prose p { margin: .2rem 0; }

@@ -6,13 +6,15 @@
   var root = document.documentElement;
   var base = root.getAttribute("data-base") || "/";
 
-  var toggle = document.querySelector(".nav-toggle");
-  if (toggle) {
-    toggle.addEventListener("click", function () {
-      var nav = document.getElementById("site-nav");
-      var open = nav.classList.toggle("open");
-      toggle.setAttribute("aria-expanded", open ? "true" : "false");
-    });
+  // The nav bar opens without us: it is a <details> whose <summary> is the Menu button (A.4).
+  // All script adds is the aria-expanded mirror, because a <summary> exposes the state on the
+  // details element rather than on the button the markup calls the toggle.
+  var drawer = document.querySelector(".nav-drawer");
+  var toggle = drawer && drawer.querySelector(".nav-toggle");
+  if (drawer && toggle) {
+    var sync = function () { toggle.setAttribute("aria-expanded", drawer.open ? "true" : "false"); };
+    drawer.addEventListener("toggle", sync);
+    sync();
   }
 
   function el(tag, attrs, children) {

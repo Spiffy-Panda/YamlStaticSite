@@ -164,6 +164,36 @@ class EvidenceTests(TempSiteCase):
         report = check(self.cfg, {"x": loaded.docs["x"]}, loaded.registry, run_commands=True, git_recency=False)
         self.assertEqual({c.field: c.status for c in report.claims}["evidence/5"], "ok")
 
+    def test_import_symbols_gate(self):
+        """adr-036: the fallback is on by default, skips rather than fails when off, and leaves
+        sys.path as it found it either way."""
+        doc = (
+            "kind: generic\ntitle: X\ndata: {}\nevidence:\n"
+            "  - {symbol: 'yss.build:build'}\n"      # the parser resolves this one; no import
+            "  - {symbol: 'yss.build:__doc__'}\n"    # a dunder: only the import can answer
+        )
+        self.write_doc("x.yaml", doc)
+        loaded = load_all(self.cfg)
+        self.assertEqual(loaded.errors, [])
+        before = list(sys.path)
+
+        report = check(self.cfg, {"x": loaded.docs["x"]}, loaded.registry, run_commands=False, git_recency=False)
+        by = {c.field: c.status for c in report.claims}
+        self.assertEqual(by["evidence/0"], "ok")
+        self.assertEqual(by["evidence/1"], "ok")           # default on: the fallback imported it
+        self.assertEqual(sys.path, before)                 # and put sys.path back
+
+        site = self.root / "site.yaml"
+        site.write_text(site.read_text(encoding="utf-8") + "\nevidence:\n  import_symbols: false\n", encoding="utf-8")
+        cfg = Config.load(self.root)
+        loaded = load_all(cfg)
+        report = check(cfg, {"x": loaded.docs["x"]}, loaded.registry, run_commands=False, git_recency=False)
+        claims = {c.field: c for c in report.claims}
+        self.assertEqual(claims["evidence/0"].status, "ok")   # parsing still proves what it can
+        self.assertEqual(claims["evidence/1"].status, "skipped")
+        self.assertIn("import_symbols", claims["evidence/1"].detail)
+        self.assertEqual(sys.path, before)
+
 
 class CollectionTests(TempSiteCase):
     def test_demo_collection_loads_with_hooks(self):

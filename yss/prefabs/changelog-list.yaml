@@ -20,8 +20,8 @@ css: |
   .release { border-top: 1px solid var(--line); padding-top: .6rem; margin-top: .6rem; }
   .release .anchor-id { display: inline-block; width: 0; height: 0; overflow: hidden; }
   .release-head { margin: 0; display: flex; gap: .6rem; align-items: center; }
-  .release-date { color: var(--muted); font-size: .85rem; font-weight: 400; }
+  .release-date { color: var(--fg-2); font-size: .85rem; font-weight: 400; }
   .change-type { margin: .5rem 0 .1rem; font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: var(--fg-2); }
-  .change-refs { color: var(--muted); font-size: .85rem; }
+  .change-refs { color: var(--fg-2); font-size: .85rem; }
 examples:
   - args: {releases: [{version: "0.1.0", date: "2026-09-01", changes: [{type: added, text: "Everything."}]}]}

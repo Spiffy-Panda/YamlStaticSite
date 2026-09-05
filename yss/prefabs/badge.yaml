@@ -11,7 +11,7 @@ css: |
     padding: .1rem .55rem; border-radius: 999px; border: 1px solid var(--tone, var(--line)); color: var(--tone, var(--fg-2));
     white-space: nowrap; line-height: 1.5; vertical-align: middle; }
   .tone-ok { --tone: var(--ok); } .tone-warn { --tone: var(--warn); } .tone-bad { --tone: var(--bad); }
-  .tone-muted { --tone: var(--muted); } .tone-accent { --tone: var(--accent); }
+  .tone-muted { --tone: var(--fg-2); } .tone-accent { --tone: var(--accent); }
 examples:
   - args: {text: active}
   - args: {text: "needs review", tone: warn}

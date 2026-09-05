@@ -100,7 +100,7 @@ modules:
     status: active
     depends_on: [config, loader, symbols]
     exports:
-      - {name: check, kind: function, signature: "(cfg, docs, reg, run_commands=None, git_recency=None) -> EvidenceReport", description: "None means use the configured policy for each doc's collection."}
+      - {name: check, kind: function, signature: "(cfg, docs, reg, run_commands=None, git_recency=None, import_symbols=None) -> EvidenceReport", description: "None means use the configured policy for each doc's collection; import_symbols gates the symbol import fallback (adr-036)."}
       - {name: inject, kind: function, signature: "(docs, report) -> None"}
       - {name: Claim, kind: class}
       - {name: _check_export, kind: function, signature: "(cfg, claim) -> None", description: "`x-evidence: export` - resolves `<path>::<name>` by parsing (adr-024)."}

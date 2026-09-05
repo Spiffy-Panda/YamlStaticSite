@@ -4,7 +4,7 @@ kind: worksheet
 id: audit-calls
 title: Audit calls
 summary: The five decisions the engineering audit left to Panda - how to finish the audit, whether to refactor the orchestration layer, two accessibility contracts, and a trust-gate default - with pros and cons per option.
-status: active
+status: archived
 updated: 2026-09-04
 owners: [agent]
 related: [audit, plan, design, decisions]
@@ -63,6 +63,17 @@ questions:
         cons: [Security and redaction stay unexamined by anyone but the tests, The scorecard stays seven-tenths blank]
 
   - id: q-orchestration-refactor
+    resolution:
+      applied: 2026-09-04
+      by: Panda
+      chose: [milestone]
+      recorded_in: [decisions/adr-035, plan/m14-orchestration]
+      summary: |
+        Approved as one dedicated pure-refactor pass. [[decisions#adr-035]] writes down what makes
+        it pure - the suite green before and after with no test edited to fit the new shape, and
+        any behaviour change found on the way spun out as its own task - and that it runs between
+        sweeps, never during one, because it touches the two files every open milestone touches.
+        [[plan#m14-orchestration]] is unblocked and waiting for that window.
     call: A.2
     lead: Should build() be staged and the nav and collection views be split out of Renderer as one dedicated refactor?
     help: |
@@ -96,6 +107,19 @@ questions:
         cons: [The 573-second suite is the price of every future gate, Ambient state blocks any parallel build]
 
   - id: q-muted-floor
+    resolution:
+      applied: 2026-09-04
+      by: Panda
+      chose: [narrow-role]
+      recorded_in: [plan/m14-muted-text]
+      summary: |
+        The token was narrowed rather than the palettes retuned, and it is done. `--muted` is
+        non-text in [[palettes]] now - hairline rules, timeline markers, decorative glyphs - and
+        the forty-odd rules that used it for text read `--fg-2`, which the contract already holds
+        to 4.5:1. Four rules kept it: the anchor's hover `#`, the task glyph, the timeline dot and
+        the worksheet's own chosen/unchosen mark, all decoration. The playground still floors it
+        at 3 but under its real name, "muted rules and markers (non-text)". No palette changed, so
+        no theme author has anything to retune.
     call: A.3
     lead: What is the contrast contract for the --muted token?
     help: |
@@ -127,6 +151,18 @@ questions:
         cons: [Fails AA for normal text on the default light palette, The bamboo theme's header comment stays inaccurate]
 
   - id: q-mobile-nav
+    resolution:
+      applied: 2026-09-04
+      by: Panda
+      chose: [details]
+      recorded_in: [plan/m14-mobile-nav]
+      summary: |
+        Done with the mechanism the bar already used for its menu groups: the Menu button is the
+        `<summary>` of a `.nav-drawer` `<details>` wrapping the whole nav, so a phone opens it
+        with scripting off. Above 720px the summary is hidden and the drawer's content is forced
+        visible in both the `::details-content` and the older child form, so the wide bar and the
+        print sheet are unchanged. yss.js lost the class toggle and now only mirrors the open
+        state onto `aria-expanded`, which is all a `<summary>` leaves for script to do.
     call: A.4
     lead: How should the primary navigation open on a phone without JavaScript?
     help: |
@@ -158,6 +194,19 @@ questions:
         cons: [Contradicts the principle on the one bar that otherwise honours it, Reader modes and strict blockers lose the site map]
 
   - id: q-evidence-import-gate
+    resolution:
+      applied: 2026-09-04
+      by: Panda
+      chose: [gate-on]
+      recorded_in: [decisions/adr-036, plan/m14-consolidations]
+      summary: |
+        Gated and done. `evidence.import_symbols` is a policy key in site.yaml and collection.yaml
+        resolving per doc like its two neighbours, defaulting true, so no existing claim changed
+        status; with it off an unresolvable `symbol:` claim reports `skipped` with the reason
+        rather than `stale`, and `sys.path` is restored after the attempt either way.
+        [[decisions#adr-036]] records the residual - the default still lets a proof step run
+        project code - beside adr-024 rather than superseding it. The rest of
+        [[plan#m14-consolidations]] is unblocked and still open.
     call: A.5
     lead: Should the evidence checker's import fallback for symbol claims be gated behind a policy switch, and what is its default?
     help: |

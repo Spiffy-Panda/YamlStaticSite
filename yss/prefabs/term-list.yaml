@@ -13,7 +13,7 @@ template: |
 css: |
   .term-list dt { font-weight: 700; margin-top: .8rem; }
   .term-list .anchor-id { display: inline-block; width: 0; height: 0; overflow: hidden; }
-  .term-aliases { font-weight: 400; color: var(--muted); font-size: .85rem; }
+  .term-aliases { font-weight: 400; color: var(--fg-2); font-size: .85rem; }
   .term-list dd { margin: .1rem 0 0 1rem; }
   .term-list dd p { margin: .2rem 0; }
   .term-see { font-size: .85rem; color: var(--fg-2); }

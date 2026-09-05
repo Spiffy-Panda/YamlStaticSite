@@ -5,7 +5,8 @@ Claims come from two places:
        - {path: yss/build.py}                      file or folder exists (globs allowed)
        - {path: yss/build.py, contains: "def build("}  and contains the text
        - {glob: "yss/prefabs/*.yaml", min: 10}     at least `min` matches
-       - {symbol: "yss.build:build"}               module attribute (parsed, then imported)
+       - {symbol: "yss.build:build"}               module attribute (parsed, then imported unless
+                                                   evidence.import_symbols is off)
        - {command: "python -m yss validate", expect: 0}   exit code (only with --run-commands)
   2. schema annotations `x-evidence: path|glob|command|symbol|export` on fields such as codemap
      modules.path or design components.code, so common fields are checked for free. An `export`
@@ -15,8 +16,10 @@ Claims come from two places:
 Git recency: if any path cited by a doc changed after the doc's `updated` date, the doc gets a
 `warn` claim ("possibly stale"). Statuses: ok | stale | warn | unknown | skipped.
 
-Policy (`git_recency`, `run_commands`) resolves per doc: a CLI flag wins, then that doc's
-collection.yaml `evidence` block, then site.yaml `evidence`, then the defaults in config.py.
+Policy (`git_recency`, `run_commands`, `import_symbols`) resolves per doc: a CLI flag wins, then
+that doc's collection.yaml `evidence` block, then site.yaml `evidence`, then the defaults in
+config.py. `import_symbols` (default true, adr-036) is what allows the symbol import fallback to
+run project code; with it off an unresolvable symbol claim is `skipped`, not `stale`.
 """
 from __future__ import annotations
 
@@ -239,11 +242,13 @@ def _check_export(cfg: Config, claim: Claim) -> None:
     claim.detail = f"{rel} does not define {name}"
 
 
-def _check_symbol(cfg: Config, claim: Claim) -> None:
+def _check_symbol(cfg: Config, claim: Claim, allow_import: bool = True) -> None:
     module_name, _, attr = claim.target.partition(":")
     # Parse first: importing runs module-level code, and `hasattr` cannot answer for a dotted
     # member like `Config.evidence_for` or for a constant. Import remains the fallback so a name
-    # that only exists at runtime (a re-export, a generated attribute) still checks out.
+    # that only exists at runtime (a re-export, a generated attribute) still checks out - but it
+    # is the one proof step that executes the thing it proves, so `evidence.import_symbols` can
+    # turn it off and get a read-only check instead (adr-036).
     rel = _module_to_rel(cfg.root, module_name)
     if rel is not None and attr:
         try:
@@ -254,14 +259,28 @@ def _check_symbol(cfg: Config, claim: Claim) -> None:
             claim.status = "ok"
             claim.detail = f"{span[2]}:{span[0]}-{span[1]}"
             return
-    if str(cfg.root) not in sys.path:
-        sys.path.insert(0, str(cfg.root))
+    if not allow_import:
+        claim.status = "skipped"
+        claim.detail = f"parsing did not resolve {claim.target}; import fallback off (evidence.import_symbols)"
+        return
+    root = str(cfg.root)
+    inserted = root not in sys.path
+    if inserted:
+        sys.path.insert(0, root)
     try:
         module = importlib.import_module(module_name)
     except Exception as exc:  # noqa: BLE001
         claim.status = "stale"
         claim.detail = f"cannot import {module_name}: {type(exc).__name__}: {exc}"
         return
+    finally:
+        # A proof step leaves the interpreter as it found it; before adr-036 this entry
+        # accumulated once per check in a long-lived process such as `yss serve`.
+        if inserted:
+            try:
+                sys.path.remove(root)
+            except ValueError:
+                pass
     if attr and not hasattr(module, attr):
         claim.status = "stale"
         claim.detail = f"{module_name} has no attribute {attr}"
@@ -311,7 +330,8 @@ def _policy(cfg: Config, doc: dict, name: str, override: bool | None, default: b
 
 
 def evaluate(cfg: Config, docs: dict[str, dict], claims: list[Claim],
-             run_commands: bool | None = None, git_recency: bool | None = None) -> EvidenceReport:
+             run_commands: bool | None = None, git_recency: bool | None = None,
+             import_symbols: bool | None = None) -> EvidenceReport:
     extras: dict[int, dict] = {}
     for claim in claims:
         doc = docs.get(claim.doc, {})
@@ -322,7 +342,7 @@ def evaluate(cfg: Config, docs: dict[str, dict], claims: list[Claim],
         elif claim.kind == "glob":
             _check_glob(cfg, doc, claim, extra)
         elif claim.kind == "symbol":
-            _check_symbol(cfg, claim)
+            _check_symbol(cfg, claim, _policy(cfg, doc, "import_symbols", import_symbols, True))
         elif claim.kind == "export":
             _check_export(cfg, claim)
         elif claim.kind == "command":
@@ -361,11 +381,13 @@ def _explicit_extra(doc: dict, claim: Claim) -> dict:
     return cur if isinstance(cur, dict) else {}
 
 
-def check(cfg: Config, docs: dict[str, dict], reg: SchemaRegistry, run_commands: bool | None = None, git_recency: bool | None = None) -> EvidenceReport:
-    """Evaluate every claim. `run_commands`/`git_recency` None means "use the configured policy",
-    which is site.yaml `evidence` overridden by each doc's collection.yaml `evidence`."""
+def check(cfg: Config, docs: dict[str, dict], reg: SchemaRegistry, run_commands: bool | None = None,
+          git_recency: bool | None = None, import_symbols: bool | None = None) -> EvidenceReport:
+    """Evaluate every claim. `run_commands`/`git_recency`/`import_symbols` None means "use the
+    configured policy", which is site.yaml `evidence` overridden by each doc's collection.yaml."""
     claims = collect_claims(docs, reg)
-    return evaluate(cfg, docs, claims, run_commands=run_commands, git_recency=git_recency)
+    return evaluate(cfg, docs, claims, run_commands=run_commands, git_recency=git_recency,
+                    import_symbols=import_symbols)
 
 
 def inject(docs: dict[str, dict], report: EvidenceReport) -> None:

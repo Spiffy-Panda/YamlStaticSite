@@ -22,6 +22,14 @@ agent_notes: |
   text (fg on bg) and link text (accent on bg); keep them at or above the floor the themes worksheet
   settles on.
 
+  `muted` is the one token with no text floor, because it colours no text. It was the site's
+  small-text colour until 2026-09-04, when both shipped light palettes turned out to sit at 3.3:1
+  behind 12 and 13 pixel text - AA for large text, not for this. Narrowing the role was chosen over
+  retuning the palettes (A.3 in [[audit-calls]]): every small-text rule reads `--fg-2` now, which is
+  already held to 4.5:1, and no palette changed. A new palette may pick `muted` freely as long as it
+  stays visible against `bg` as a rule or a dot; if you find yourself checking it against body text,
+  the rule using it wants `--fg-2` instead.
+
   Emblems must be single characters that render in a plain system font on Windows - ZWJ sequences
   (the trans flag among them) and anything newer than Emoji 12 come out as tofu, so use a lone older
   symbol. Test one in the browser console before adding it: a canvas `measureText` width equal to the
@@ -37,14 +45,14 @@ data:
     - {key: bg, label: Page background, role: The paper the site is printed on.}
     - {key: bg-2, label: Raised surface, role: Cards, header, code blocks' neighbours.}
     - {key: fg, label: Body text, role: Must clear the contrast floor against bg.}
-    - {key: fg-2, label: Secondary text, role: Summaries, help text, table labels.}
+    - {key: fg-2, label: Secondary text, role: "Every text smaller than body: summaries, help text, table labels, timestamps, owners, verify commands, card meta, the footer. Held to 4.5:1 against bg like fg."}
     - {key: line, label: Borders, role: Card edges, rules, table grid.}
     - {key: accent, label: Accent, role: Links, buttons, active nav - the colour of the theme.}
     - {key: accent-2, label: Accent wash, role: Tint behind active nav and hovered links.}
     - {key: ok, label: Good, role: Passing evidence, done work.}
     - {key: warn, label: Warning, role: Stale badges, the private target badge.}
     - {key: bad, label: Bad, role: Failures, must-read warnings.}
-    - {key: muted, label: Muted, role: Timestamps, source paths, the footer.}
+    - {key: muted, label: Muted, role: "Non-text only: hairline rules, timeline markers, decorative glyphs, the resting tone of a badge outline. Never sets the colour of text (A.3, 2026-09-04)."}
     - {key: code, label: Code background, role: Inline code and pre blocks.}
 
   # Optional, and deliberately absent from `tokens` above: a palette does not have to declare any

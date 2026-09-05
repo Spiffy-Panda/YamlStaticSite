@@ -81,6 +81,7 @@ properties:
     properties:
       git_recency: {type: boolean, description: Warn when cited code changed after a doc's `updated` date.}
       run_commands: {type: boolean, description: Run command evidence for this collection during `yss check`.}
+      import_symbols: {type: boolean, description: "Allow the import fallback for this collection's `symbol:` claims (adr-036). Set false where the collection's code must never be executed by a proof step."}
     additionalProperties: false
   dynamic:
     type: object

@@ -31,7 +31,7 @@ css: |
   .board-col { background: var(--code); border-radius: var(--radius); padding: .6rem; display: flex; flex-direction: column; gap: .6rem; border-top: 3px solid var(--tone, var(--line)); min-width: 0; }
   .board-col-head { display: flex; justify-content: space-between; align-items: center; }
   .board-col-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: .6rem; align-items: start; }
-  .board-count { color: var(--muted); font-size: .8rem; }
+  .board-count { color: var(--fg-2); font-size: .8rem; }
   /* A card in a board column is too narrow to keep its badge beside the title. */
   .board-col .card-head { flex-direction: column; align-items: flex-start; gap: .3rem; }
   @container (min-width: 1000px) {

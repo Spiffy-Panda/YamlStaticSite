@@ -899,3 +899,87 @@ entries:
     alternatives:
       - "Dropping the five rmtree calls where they stand (rejected - two gates fire before the leak scan, so a public build could be left partial and unscanned)."
       - "Gating the deletion on the target rather than the failure (rejected - it keeps the local loop's worst case for no gain; the failure kind is what determines whether anything is hazardous)."
+
+  - id: adr-035
+    date: 2026-09-04
+    title: The orchestration untangle is one dedicated pure-refactor pass, not a background habit
+    status: accepted
+    context: |
+      The 2026-09-04 engineering audit ([[audit]]) found `build()` to be a single 251-line
+      function and `Renderer` a 900-line class carrying ambient per-page state
+      (`arch-build-monolith`, `arch-renderer-god-object`, `arch-refs-logic-in-cli`). Both work,
+      and neither is a defect. The cost is structural: every gate test runs the whole pipeline
+      (91 `build(` calls, 573 seconds), adding a gate means editing the middle of `build()`, the
+      pure derivations - nav groups, card links, emblem url - cannot be called without a full
+      renderer, and the ambient state is a reentrancy hazard that [[plan#m7-watchdog]] would
+      inherit.
+
+      The alternative on the table was to fold the moves into the next issue sweeps, one seam at
+      a time as an issue happens to touch it. That costs nothing to schedule, and it is how the
+      two conventions end up living side by side for months: a half-extracted `build()` is worse
+      to read than either the monolith or the staged version, and the slow suite is paid on every
+      run in the meantime.
+    decision: |
+      Do it once, deliberately, as a pass with nothing else in flight: stage `build()` into
+      functions with one signature under the existing lock, pass a `PageContext` explicitly
+      instead of setting per-page attributes on the renderer, extract stateless `nav` and
+      `collections_view` modules, and move the `yss refs` walk out of cli.py into loader.py.
+
+      The pass is a pure move. The test suite is the net and must be green before and after with
+      no test edited to accommodate the new shape; a test that has to change is evidence that the
+      move was not pure. Any behaviour change noticed along the way - a bug, a missing gate, a
+      better default - is written down as its own task and done outside this pass, never folded
+      into the diff.
+
+      It is scheduled between sweeps, never during one, because it touches the two files every
+      open milestone also touches.
+    consequences:
+      - Gate tests can call one stage over a prepared tree instead of running the whole pipeline, which is what makes the 573-second suite tractable.
+      - The reentrancy and thread-safety hazard in `Renderer` is gone before [[plan#m7-watchdog]] builds on it.
+      - Every open branch touching build.py or render.py rebases once, so the pass is announced before it starts.
+      - "Days of work produce no visible feature; the reviewable artefact is a diff that moves code and changes no behaviour."
+      - "A behaviour change inside the pass is a defect in the pass, not a bonus."
+    alternatives:
+      - "Fold the moves into issue sweeps one seam at a time (rejected - two conventions side by side for months, and the suite stays slow throughout)."
+      - "Leave both as they are and record them in the design as deliberately monolithic (rejected - the slow suite is then the standing price of every future gate, and ambient state blocks any parallel build)."
+
+  - id: adr-036
+    date: 2026-09-04
+    title: Symbol evidence may import a module, but only where the site says so
+    status: accepted
+    context: |
+      [[decisions#adr-024]] moved symbol proof to parsing and kept `importlib.import_module` as
+      the fallback, so a name the parser cannot resolve - a re-export, a generated attribute -
+      still checks out. The 2026-09-04 audit found what that costs
+      (`arch-evidence-import-fallback-side-effects`): a `symbol:` claim the parser misses runs
+      module-level code during `yss check` and during every build's evidence pass, and the
+      checker inserted the repo root into `sys.path` and never removed it, so a long-lived
+      process accumulates entries.
+
+      The trust cost is small in a repository that already runs its own hooks.py by design. The
+      architectural cost is the part that matters: a proof step that executes the thing it is
+      proving is not read-only, and there was no way to ask for one that is - an untrusted
+      collection, or a CI job that wants evidence checking to touch nothing.
+    decision: |
+      Keep the fallback and bound it. `evidence.import_symbols` is a policy key in site.yaml and
+      in a collection.yaml `evidence` block, resolved per doc like `git_recency` and
+      `run_commands` - collection wins over site, and site over the default, which is `true`. No
+      existing claim changes status.
+
+      When it is off, a symbol the parser cannot resolve reports `skipped` with the reason rather
+      than `stale`: the claim is unproven, not disproven, and `skipped` is the status that
+      already means "policy declined to run this". `sys.path` is restored after the attempt
+      whatever the outcome.
+
+      This does not supersede adr-024. The fallback it chose is still there and still the
+      default; all that is new is a switch and a cleanup.
+    consequences:
+      - "Behaviour is unchanged for every repository that does not set the key."
+      - "A collection whose code should never be imported can set `evidence.import_symbols: false` and see which claims that costs."
+      - "`sys.path` no longer grows once per check in a long-lived process such as `yss serve`."
+      - "The residual is honest and unfixed: with the default on, `yss check` and the build's evidence pass can still run project code, and a `symbol:` claim is the only evidence kind that can."
+      - One more key to document in the site and collection schemas.
+    alternatives:
+      - "Default the key to false (rejected - existing runtime-only claims would flip to `skipped` on upgrade, which supersedes part of adr-024 for a benefit only a few repositories want)."
+      - "Leave the fallback unbounded and add a consequence note (rejected - it leaves a proof step with interpreter-wide side effects and no way to opt out)."
+      - "Reuse `evidence.run_commands` as the gate (rejected - running a doc's declared command is a different consent from importing a module the doc only names)."

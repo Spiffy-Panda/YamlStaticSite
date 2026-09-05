@@ -24,6 +24,6 @@ css: |
   .flow-trigger { color: var(--fg-2); font-size: .9rem; }
   .flow-steps li { margin: .2rem 0; }
   .flow-actor { font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); background: var(--accent-2); padding: .05rem .4rem; border-radius: 4px; margin-right: .2rem; }
-  .flow-produces { color: var(--muted); font-size: .9rem; }
+  .flow-produces { color: var(--fg-2); font-size: .9rem; }
 examples:
   - args: {flows: [{id: build, title: Build, steps: [{actor: cli, action: validate}, {actor: renderer, action: render pages, produces: html}]}]}

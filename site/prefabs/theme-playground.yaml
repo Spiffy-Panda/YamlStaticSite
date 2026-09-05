@@ -123,11 +123,11 @@ css: |
   .lab-current { font-size: .88rem; color: var(--fg-2); margin: .7rem 0 .3rem; }
   .lab-grid { display: grid; grid-template-columns: minmax(0, 20rem) minmax(0, 1fr); gap: 1.2rem; align-items: start; }
   @media (max-width: 780px) { .lab-grid { grid-template-columns: minmax(0, 1fr); } }
-  .lab-h { font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: .6rem 0 .4rem; }
+  .lab-h { font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; color: var(--fg-2); margin: .6rem 0 .4rem; }
   .lab-row { display: grid; grid-template-columns: auto 1fr auto; gap: .5rem; align-items: center; padding: .18rem 0; }
   .lab-row input[type="color"] { width: 2rem; height: 1.6rem; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; cursor: pointer; }
   .lab-row-label { font-size: .85rem; min-width: 0; }
-  .lab-row-label small { display: block; color: var(--muted); font-size: .72rem; }
+  .lab-row-label small { display: block; color: var(--fg-2); font-size: .72rem; }
   .lab-row input[type="text"] { font-family: ui-monospace, monospace; font-size: .8rem; width: 9ch; padding: .15rem .3rem; border: 1px solid var(--line); border-radius: 4px; background: var(--bg-2); color: var(--fg); }
   .lab-sample { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--bg); }
   .lab-sample-head { display: flex; align-items: center; gap: .6rem; padding: .45rem .7rem; background: var(--bg-2); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
@@ -146,7 +146,7 @@ css: |
   .lab-badge.ok { color: var(--ok); border-color: var(--ok); }
   .lab-badge.warn { color: var(--warn); border-color: var(--warn); }
   .lab-badge.bad { color: var(--bad); border-color: var(--bad); }
-  .lab-badge.line { color: var(--muted); border-color: var(--line); }
+  .lab-badge.line { color: var(--fg-2); border-color: var(--line); }
   .lab-table { border-collapse: collapse; font-size: .85rem; margin: .5rem 0; }
   .lab-table th, .lab-table td { border: 1px solid var(--line); padding: .2rem .5rem; text-align: left; }
   .lab-table th { background: var(--code); color: var(--fg-2); font-weight: 600; }
@@ -156,7 +156,7 @@ css: |
   .lab-contrast th { background: var(--code); color: var(--fg-2); }
   .lab-contrast td.pass { color: var(--ok); }
   .lab-contrast td.fail { color: var(--bad); font-weight: 600; }
-  .lab-note { font-size: .8rem; color: var(--muted); margin: .4rem 0 0; }
+  .lab-note { font-size: .8rem; color: var(--fg-2); margin: .4rem 0 0; }
   .lab-export { margin-top: 1rem; border-top: 1px solid var(--line); padding-top: .6rem; }
   .lab-export > summary { cursor: pointer; color: var(--accent); font-size: .9rem; }
   .lab-export-controls { display: flex; gap: .9rem; align-items: center; flex-wrap: wrap; margin: .5rem 0 .4rem; font-size: .85rem; }
@@ -289,7 +289,7 @@ js: |
           ["ok badge", t.ok, t.bg, 3],
           ["warn badge", t.warn, t.bg, 3],
           ["bad badge", t.bad, t.bg, 3],
-          ["muted text", t.muted, t.bg, 3],
+          ["muted rules and markers (non-text)", t.muted, t.bg, 3],
           ["borders (decorative)", t.line, t.bg, 0]
         ];
         var body = lab.querySelector(".lab-contrast tbody"), fails = 0;
@@ -306,7 +306,7 @@ js: |
           body.appendChild(tr);
         });
         lab.querySelector(".lab-preview .lab-note").textContent = fails
-          ? fails + " pair" + (fails === 1 ? "" : "s") + " below the floor. Text pairs are held to 4.5:1, badges and borders lower."
+          ? fails + " pair" + (fails === 1 ? "" : "s") + " below the floor. Text pairs are held to 4.5:1; badges, borders and the non-text muted token lower."
           : "Every pair clears its floor.";
       }
       function render() {

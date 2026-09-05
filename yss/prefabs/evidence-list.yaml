@@ -30,7 +30,7 @@ template: |
 css: |
   .evidence-doc { border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-2); margin: .5rem 0; padding: .3rem .8rem; }
   .evidence-doc > summary { cursor: pointer; display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; font-weight: 600; }
-  .evidence-count { color: var(--muted); font-size: .8rem; font-weight: 400; }
+  .evidence-count { color: var(--fg-2); font-size: .8rem; font-weight: 400; }
   .evidence-table { font-size: .85rem; margin: .4rem 0; }
   .evidence-table td.cell-tone { color: var(--tone, inherit); font-weight: 600; }
 examples:
