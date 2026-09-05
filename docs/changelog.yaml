@@ -7,6 +7,31 @@ status: active
 updated: 2026-09-04
 
 releases:
+  - version: 0.4.1
+    date: 2026-09-04
+    status: released
+    summary: A patch release carrying the four audit calls Panda answered - small text stops using a token that failed AA, the nav bar opens on a phone with scripting off, and the symbol-import fallback can be switched off. No new capability beyond that switch.
+    changes:
+      - type: fixed
+        text: "Small text no longer takes `--muted`: it measured 3.32:1 on the stock light palette and 3.34:1 in bamboo light, below AA for normal text. 42 rules across yss.css and fifteen prefabs moved to `--fg-2`; four decorative uses kept the token (call A.3)."
+      - type: changed
+        text: "`--muted`'s role is narrowed in docs/palettes.yaml to non-text - rules, markers, decorative glyphs - with `--fg-2` named as the small-text token. The theme playground still floors it at 3:1, now under that role. No palette was retuned (call A.3)."
+      - type: fixed
+        text: "The narrow-viewport nav is a `.nav-drawer` `<details>` whose `<summary>` is the Menu button, so a phone opens the bar with no script. Below 720px `.site-nav` was `display: none` and only yss.js could reveal it, leaving every page but the current one unreachable (call A.4)."
+      - type: changed
+        text: "Above 720px the drawer's summary is hidden and its content forced visible in both the `::details-content` and the older child form, so the wide bar and the print sheet are unchanged. yss.js dropped its class toggle and only mirrors the open state onto `aria-expanded` (call A.4)."
+      - type: added
+        text: "`evidence.import_symbols` gates the symbol-import fallback, in site.yaml and a collection.yaml `evidence` block, resolved per doc like `git_recency` and defaulting true. Off, an unresolvable `symbol:` claim reports `skipped` with its reason, not `stale` (call A.5, adr-036)."
+      - type: fixed
+        text: "`_check_symbol` restores `sys.path` after the import attempt whatever the outcome. It inserted the repo root once per check and never removed it, so a long-lived process such as `yss serve` accumulated an entry per check (adr-036)."
+      - type: added
+        text: "The 2026-09-04 engineering audit is `docs/audit.yaml` and the `/audit/` page: three of ten dimensions, 29 findings each re-read at its cited location, 14 strengths, and a scorecard naming the seven dimensions nobody looked at."
+      - type: added
+        text: "`docs/audit-calls.yaml` is the audit's worksheet - the five calls only the maintainer can make. Four are resolved and applied here; A.1 set the schedule for the remaining seven dimensions."
+      - type: changed
+        text: "The orchestration untangle is scheduled as one dedicated pure-refactor pass rather than folded into future sweeps - the suite green before and after with no test edited to fit the new shape (adr-035, call A.2). m14-orchestration is unblocked, not started."
+      - type: changed
+        text: "Milestone m14-audit carries the audit's thirteen tasks, and three pieces of 0.4.0 work deferred in ADR prose only - m13-attribution, m7-open-item-checks, m7-on-accent-rest - are now in the plan, where cv-archive says open work lives."
   - version: 0.4.0
     date: 2026-09-04
     status: released
