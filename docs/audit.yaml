@@ -867,3 +867,60 @@ data:
   - finding: '[[#arch-codemap-depends-on-drift]]'
     correction: |-
       Two more lists were wrong than the finder listed: scaffold and server both omit `config`. All seven were corrected when this audit was published.
+private_notes:
+  second_pass:
+    how: |-
+      One dimension at a time: one finder agent with the brief below, then three verifiers per finding (fact, intent, impact; a finding survives two of three; info-level findings need only the fact lens), then append the confirmed findings to data.findings with group set to the dimension key, add the dimension's group blurb, fill its scorecard row and a corrections row per verifier correction. Rules for every agent: read only; repo-relative paths only; check docs/decisions.yaml and docs/design.yaml before calling a deliberate choice a defect; plan tasks m7-on-accent-rest and m13-emit depend on a design item on purpose. Regenerate nothing by hand that a script can emit; keep finding ids unique across all of data.
+    order:
+    - security
+    - tests
+    - errors
+    - schema
+    - packaging
+    - drift
+    - perf
+    briefs:
+      errors:
+        title: Error handling and robustness
+        brief: |-
+          Dimension: ERROR HANDLING, FAILURE MODES AND ROBUSTNESS.
+          Trace the failure paths: exceptions raised/caught in yss/cli.py, build.py, loader.py, evidence.py, dynamic.py, server.py, hooks.py. Assess: broad 'except Exception' swallowing, error messages that lose file/path context (the project promises file-and-path in every error), exit codes vs the documented contract (0/1/2 in design interfaces i-cli), atomicity of build output (dist/ deleted on forbidden hit, advisory lock in build.py per adr-029: is it actually safe on Windows? stale lock recovery?), partial writes, subprocess handling (timeouts, encoding on Windows, shell=True), thread safety in server.py (background dynamic refresh, rebuild while serving), resource cleanup (file handles, sockets), behaviour when a hooks.py raises, when a provider hangs, when git is absent, when a schema file is malformed. Also check loader behaviour on duplicate ids, missing docs referenced by pages, and how warnings vs errors are distinguished and surfaced.
+      tests:
+        title: Test strategy and coverage
+        brief: |-
+          Dimension: TEST STRATEGY, STRUCTURE AND COVERAGE.
+          Read tests/*.py (all files). Assess: the one-file-per-GitHub-issue naming (test_ghNN.py) and what it does to discoverability and duplication; shared fixtures/helpers vs copy-paste (grep for repeated tmp-site scaffolding); isolation (do tests write into the real repo, dist/, .yss/, or rely on the repo's own docs?); speed (the whole suite takes 573 s on Windows: find the slow tests by reading: subprocess builds? git calls? full builds of the pilot repo per test? the testruns provider running unittest inside unittest? skills install into temp dirs?); flakiness risks (network, clock, git author, port binding in server tests, Windows path/CRLF); what modules or behaviours have NO tests (map tests to yss/ modules; codemap.yaml lists 'tests:' per module: verify those claims); assertion quality (asserting on exact strings vs behaviour); whether tests cover the public-redaction guarantee end to end; whether CI runs the same suite. Do NOT run the suite. Prefer static reading; you may run 'python -m unittest tests.test_gh01 -v' style single small modules ONLY if they are clearly fast and do not write into the repo.
+      security:
+        title: Security and privacy guarantees
+        brief: |-
+          Dimension: SECURITY AND PRIVACY.
+          The product promise: the public build must never contain private data, the maintainer's legal name, or the absolute checkout path. Trace the redaction pipeline end to end: yss/visibility.py filter_for_target and scan_tree, yss/build.py (where the scan runs, what file types it covers, what happens on a hit, whether exported JSON, dynamic JSON, mounted assets, copied collection assets and the manifest are all covered), yss/config.py redaction lists (.yss/local.yaml, env vars YSS_FORBIDDEN_STRINGS), .github/workflows/pages.yml secrets usage. Look for gaps: private items in nested structures the filter misses, private_notes inside prefab args or page sections, dynamic sources with targets public leaking repo-local data, symbolsource/gitlog targets, mounts, evidence output including absolute paths or command output, error messages embedded in output, the new _src/_doc attribution keys and data-src attributes (do they leak private doc ids or paths into public HTML?). Then the code-execution surface: hooks.py loaded and executed in-process (yss/hooks.py), 'command' evidence claims and 'command' dynamic sources (shell=True?), yaml.safe_load vs load, Jinja2 autoescape settings in yss/render.py and prefab templates using |safe or autoescape false, the dev server (yss/server.py) path traversal, host binding, directory listing, COOP/COEP. Rate the actual exposure honestly: a local dev server bound to 127.0.0.1 is not a public attack surface, but say so explicitly.
+      schema:
+        title: Data model, schemas and validation
+        brief: "Dimension: DATA MODEL, SCHEMAS AND VALIDATION DESIGN.\nRead yss/schemas/*.yaml and yss/loader.py\
+          \ (SchemaRegistry, envelope merging, x-vocab / x-limit / x-ref / x-evidence annotation discovery, resolved(),\
+          \ validate(), check_refs) and yss/config.py DEFAULTS. Assess: correctness of merging the envelope into\
+          \ each kind (allOf vs property merge, unevaluatedProperties, additionalProperties interactions: the envelope\
+          \ comment says a status enum on item_base would intersect wrongly: is that handled consistently?), whether\
+          \ annotation resolution is cached and invalidated properly per collection, quality and locality of validation\
+          \ error messages (file, path, allowed values), the reference resolver (collection-local first, /doc root,\
+          \ `[[\x01]]` in text: false positives inside code spans?), id uniqueness across collections and hooks-loaded\
+          \ docs, the 'generic' escape hatch, schema drift between yss/schemas and what pages/prefabs assume (page.schema.yaml\
+          \ section keys vs render.py handlers), duplication between schemas (item_base repeated?), and whether\
+          \ site.schema.yaml and collection.schema.yaml stay in sync with config.py DEFAULTS. Also check the doc.envelope\
+          \ 'links' kind vocab vs collection card links (adr-020), and the new reserved _src/_doc keys."
+      packaging:
+        title: Packaging, CI/CD and developer experience
+        brief: |-
+          Dimension: PACKAGING, CI/CD, REPO HYGIENE AND DEVELOPER EXPERIENCE.
+          Read pyproject.toml, requirements.txt, .gitignore, .gitattributes, .github/workflows/pages.yml, .claude/launch.json, README.md, CLAUDE.md, yss/__init__.py, yss/__main__.py, yss/cli.py, yss/scaffold.py (yss init), yss/skillpack.py, yss/ghpages.py. Assess: dependency declaration duplication (requirements.txt vs pyproject: are they in sync? are versions pinned anywhere? no lockfile), package-data completeness (does the wheel ship everything 'yss init' and the renderer need: schemas, prefabs, templates, assets, skills: check the globs against the actual tree including subfolders), the version triple (pyproject / yss/__init__.py / changelog: convention cv-release says a test enforces it: find that test), the observed 'pip show yss' 0.2.0 vs 0.3.0 mismatch (stale editable install metadata? yss.egg-info present in the tree), CRLF: git warns 'CRLF will be replaced by LF' on several files: what does .gitattributes say and are line endings consistent?, CI: no Windows job although development is on Windows (constraint k-windows), no test matrix, secrets passed as env, cancel-in-progress, fetch-depth 0 for git recency, missing steps (lint? type check? the suite is 573 s), no linter/formatter/type-checker configured at all (no ruff/mypy/pre-commit): is that a gap?, CLI ergonomics (argparse structure, --help quality, consistency of flags across subcommands, exit codes), 'yss init' scaffold on a fresh repo, and README accuracy vs the CLI (compare the README command table against cli.py subparsers).
+      drift:
+        title: Docs-as-code consistency and drift
+        brief: |-
+          Dimension: DOCUMENTATION-AS-CODE CONSISTENCY AND DRIFT.
+          This repo documents itself with its own tool and claims the docs are checked evidence. Verify that claim harder than 'yss check' does. Compare: docs/codemap.yaml modules and exports against the real modules (every module in yss/ listed? every listed export exists with roughly that signature? private names like _check_export, _nav_groups, _collection_nav, _emblem_url, _page_state, _dead_links listed as exports: is exposing private helpers in the code map a smell or a deliberate deep-link choice per adr-024?), codemap 'tests:' claims against what the tests actually cover, docs/design.yaml components 'code:' and 'depends_on' against real imports, design interfaces (i-cli subcommand list vs cli.py; i-hooks function list vs hooks.py; i-binding ops order vs binding.py; i-data-json exported files vs build.py), conventions cv-* 'enforced_by' claims (is each really enforced by validate/check/build/scan/test? find the enforcing code or test; 'none' ones: could they be enforced?), docs/decisions.yaml adr consequences vs code (spot check 6-8 ADRs), docs/glossary.yaml terms vs actual vocabulary, docs/changelog.yaml latest release vs pyproject version and git tags ('git tag' is read-only), README and CLAUDE.md command lists vs cli.py, the five skills in yss/skills/ vs .claude/skills/ (identical? the codemap says a test keeps them so) and skills' CLI claims vs cli.py. Report every concrete mismatch as a finding with both sides quoted.
+      perf:
+        title: Performance and scalability
+        brief: |-
+          Dimension: PERFORMANCE AND SCALABILITY.
+          Read yss/loader.py, evidence.py, build.py, render.py, binding.py, symbols.py, dynamic.py, server.py, providers/*. Assess with evidence (count call sites, look for loops): repeated schema resolution/validation per doc (is SchemaRegistry.resolved cached? keyed on what?), jsonschema validator construction per call vs once, deep copies of docs per target/page, git subprocess calls per doc or per claim in evidence git-recency (how many 'git log' invocations for N docs? is there a single 'git log --name-only' pass?), symbols parsing cached by mtime (verify), evidence path checks that walk the tree, the output scan reading every file (fine) vs reading binaries, the server's polling watcher (interval, what it stats), dynamic sources collected synchronously during build (testruns runs the whole unittest suite inside the build? the suite is 573 s: is on_build true for it? check site.yaml and dynamic.py), rebuild-on-change granularity (full rebuild of both targets on any change?), and how all of this scales to the stated goal of hosting a multi-musing repository with many collections (adr-010). Where you can, measure cheaply and read-only: e.g. 'python -c' timing of Config.load + load_all, or count of git invocations by reading code. Do not run build or the tests.
