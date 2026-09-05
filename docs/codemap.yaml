@@ -98,7 +98,7 @@ modules:
     purpose: Collect and evaluate evidence claims; git recency; inject `_evidence` freshness; format reports. Policy resolves per doc - CLI flag, then collection.yaml, then site.yaml.
     language: python
     status: active
-    depends_on: [config, loader]
+    depends_on: [config, loader, symbols]
     exports:
       - {name: check, kind: function, signature: "(cfg, docs, reg, run_commands=None, git_recency=None) -> EvidenceReport", description: "None means use the configured policy for each doc's collection."}
       - {name: inject, kind: function, signature: "(docs, report) -> None"}
@@ -140,7 +140,7 @@ modules:
     purpose: Renderer - Jinja env, prefab(), section handlers, inline reference expansion, pluggable markdown, collection context, render_page.
     language: python
     status: active
-    depends_on: [binding, config, visibility, hooks, loader]
+    depends_on: [attribution, binding, config, hooks, loader, symbols, visibility]
     exports:
       - {name: Renderer, kind: class, signature: "Renderer(cfg, target, docs, pages, prefabs, all_doc_ids, build_info, evidence)"}
       - {name: Renderer.prefab, kind: function, signature: "(name, *dicts, **kwargs) -> Markup"}
@@ -156,7 +156,7 @@ modules:
     purpose: load_all (validate, collection configs, refs, cross checks) and build (filter, evidence, hooks, render, export, assets, mounts, dynamic, manifest, dead-link gate, scan), holding an advisory lock on the output directory so two builders cannot race on one dist/.
     language: python
     status: active
-    depends_on: [loader, visibility, render, dynamic, evidence, hooks]
+    depends_on: [config, dynamic, evidence, hooks, loader, render, visibility]
     exports:
       - {name: load_all, kind: function, signature: "(cfg) -> Loaded"}
       - {name: build, kind: function, signature: "(cfg, target, out_dir=None, strict=False, run_dynamic=True, loaded=None, check_evidence=True) -> BuildReport"}
@@ -177,7 +177,7 @@ modules:
     purpose: buildinfo (counts), testruns (unittest in a subprocess), gitlog (recent commits), evidence (claims incl. commands), symbols (code map export line ranges).
     language: python
     status: active
-    depends_on: [dynamic, evidence]
+    depends_on: [build, evidence, symbols, visibility]
     exports:
       - {name: buildinfo.collect, kind: function}
       - {name: testruns.collect, kind: function, description: "Also runnable: python -m yss.providers.testruns tests"}
@@ -190,7 +190,7 @@ modules:
     purpose: SiteHandler (prefix stripping, background dynamic refresh, COOP/COEP), make_server, rebuild, serve with watch loop.
     language: python
     status: active
-    depends_on: [build, dynamic]
+    depends_on: [build, config, dynamic]
     exports:
       - {name: serve, kind: function, signature: "(cfg, watch=True, host=None, private_port=None, public_port=None, targets=('private','public'))"}
       - {name: make_server, kind: function, signature: "(cfg, target, host, port, live) -> ThreadingHTTPServer"}
@@ -200,7 +200,7 @@ modules:
     purpose: Skeleton generation from resolved schemas for `yss new` and `yss init` (which also installs skills and a starter CLAUDE.md).
     language: python
     status: active
-    depends_on: [loader, skillpack]
+    depends_on: [config, loader, skillpack]
     exports:
       - {name: new_doc, kind: function}
       - {name: new_page, kind: function}
@@ -228,7 +228,7 @@ modules:
     purpose: argparse front end for every command; paired flags (--strict/--no-strict, --git/--no-git, --run-commands/--no-run-commands) default to None so config decides; fails a build whose output vanished underneath it.
     language: python
     status: active
-    depends_on: [build, server, scaffold, dynamic, evidence, skillpack, ghpages]
+    depends_on: [binding, build, config, dynamic, evidence, ghpages, loader, scaffold, server, skillpack, visibility]
     exports:
       - {name: main, kind: function, signature: "(argv=None) -> int"}
   - id: client

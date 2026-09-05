@@ -1,0 +1,217 @@
+# Worksheet - schema: doc.worksheet. The live worksheet for the engineering audit (2026-09-04).
+# Agents: do not answer these; Panda answers on the rendered page and hands the instruction to an agent.
+kind: worksheet
+id: audit-calls
+title: Audit calls
+summary: The five decisions the engineering audit left to Panda - how to finish the audit, whether to refactor the orchestration layer, two accessibility contracts, and a trust-gate default - with pros and cons per option.
+status: active
+updated: 2026-09-04
+owners: [agent]
+related: [audit, plan, design, decisions]
+intro: |
+  The audit ([[audit]]) examined three of ten dimensions and everything it found that an agent
+  can fix without a policy call is already a task in [[plan#m14-audit]]. What is left are the
+  choices that change scope, cost, or the look of the site, and one that touches a trust gate.
+  Each question below names the plan task waiting on it. Answer, build the instruction, and hand
+  it to an agent in a fresh session.
+warn: |
+  A.2 is the expensive one. The orchestration refactor is a pure move with the existing tests as
+  the net, but it touches `build()` and `Renderer`, which every open milestone also touches;
+  schedule it before or after a sweep, never during one.
+
+questions:
+  - id: q-second-pass
+    resolution:
+      applied: 2026-09-04
+      by: Panda
+      chose: [staged]
+      recorded_in: [plan/m14-second-pass]
+      summary: |
+        Decided in chat rather than on the page, the same day the audit was published: the seven
+        remaining dimensions are resumed one at a time by the auditing session on a timer set ten
+        hours after this record, each with its own finder and its own verification before the
+        next starts. The finder briefs and the order live in the audit doc's private notes so
+        any session can pick them up.
+    call: A.1
+    lead: How should the seven dimensions the audit could not examine be run?
+    help: |
+      Error handling, tests, security and redaction, schemas, packaging and CI, docs drift and
+      performance were never examined: their finders were cut off by the account's five-hour
+      session limit on two attempts (13 and 105 agents launched; 3 returned). They include the
+      dimensions with the highest stakes for a public build. The plan task carries the briefs.
+    applies_to: "plan m14-second-pass status and notes"
+    blocks: [plan/m14-second-pass]
+    options:
+      - value: staged
+        text: Run them after the limit resets, three or four agents at a time, with the same three-lens verification
+        recommended: true
+        why: The same rigour the first three dimensions were meant to get, paced so no single run can burn the whole window.
+        prompt: "Run the seven remaining audit dimensions in batches of three or four finders after the session limit resets, verify each finding with the fact, intent and impact lenses, and append the results to docs/audit.yaml as a second-pass section."
+        pros: [Adversarial verification actually runs this time, Security and tests get the depth they deserve, Pacing survives the limit]
+        cons: [Two or three sessions of wall-clock, Spends most of a session window on subagents]
+      - value: inline
+        text: One agent reads the seven dimensions inline and fact-checks its own findings
+        why: Cheapest path to coverage; no independent verification, so severities are one opinion.
+        prompt: "Audit the seven remaining dimensions inline in one session without subagents, fact-check each finding at its cited location, and append the results to docs/audit.yaml marked as unverified."
+        pros: [Fits in one session, No dependence on the subagent budget]
+        cons: [No adversarial check, Shallower on security and tests than the first three got]
+      - value: skip
+        text: Leave the audit at three dimensions
+        why: The three audited dimensions already produced a full milestone of work; finish that first.
+        prompt: "Do not run the remaining audit dimensions; drop plan task m14-second-pass."
+        pros: [Nothing new to triage, Effort goes to fixes]
+        cons: [Security and redaction stay unexamined by anyone but the tests, The scorecard stays seven-tenths blank]
+
+  - id: q-orchestration-refactor
+    call: A.2
+    lead: Should build() be staged and the nav and collection views be split out of Renderer as one dedicated refactor?
+    help: |
+      `build()` is one 251-line function and `Renderer` one 900-line class with ambient per-page
+      state. Both work. The cost is that every gate test runs the whole pipeline (91 `build(`
+      calls, 573 seconds), that adding a gate means editing the middle of `build()`, and that the
+      pure derivations (nav groups, card links, emblem url) cannot be called without a full
+      renderer. The audit's findings `arch-build-monolith`, `arch-renderer-god-object` and
+      `arch-refs-logic-in-cli` describe the shape; the refactor is a pure move.
+    applies_to: "plan m14-orchestration status; decisions (new entry if approved)"
+    blocks: [plan/m14-orchestration]
+    options:
+      - value: milestone
+        text: Yes, as one dedicated milestone between sweeps, no behaviour change, the suite as the net
+        recommended: true
+        why: One focused pass with the tests green before and after; every later gate and the m13 attribution work gets a seam to land on.
+        prompt: "Approve m14-orchestration as a dedicated pure-refactor milestone: stage build(), pass a PageContext explicitly, extract stateless nav and collection-view modules; no behaviour change, tests green before and after, recorded as a decision entry."
+        pros: [Gate tests can call one stage over a prepared tree, Removes the reentrancy and thread-safety hazard before m7-watchdog, Clear diff to review]
+        cons: [Days of work with no visible feature, Every open branch that touches build.py or render.py rebases]
+      - value: piecemeal
+        text: Fold the moves into the next issue sweeps one seam at a time
+        why: No dedicated cost; the shape improves as issues touch it, and may never fully converge.
+        prompt: "Do not schedule a refactor milestone; when an issue touches build() or Renderer, extract the stage or view it needs and leave the rest."
+        pros: [No standalone effort, Each move is motivated by a real issue]
+        cons: [The suite stays slow for months, Partial extraction leaves two conventions side by side]
+      - value: leave
+        text: Leave both as they are
+        why: They are recorded in the design as one component each and the tests cover them end to end.
+        prompt: "Drop m14-orchestration; record in the design that build() and Renderer are deliberately monolithic."
+        pros: [Zero cost now, Nothing to review]
+        cons: [The 573-second suite is the price of every future gate, Ambient state blocks any parallel build]
+
+  - id: q-muted-floor
+    call: A.3
+    lead: What is the contrast contract for the --muted token?
+    help: |
+      `--muted` colours 12 to 13 pixel text (timestamps, owners, verify commands, footer links,
+      card meta) on nearly every page, and the playground holds it to a 3 to 1 floor, which WCAG
+      allows only for large text. The stock light palette ships at 3.32 to 1 and the bamboo light
+      theme at 3.34 to 1; both dark palettes clear 4.5. Finding `frontend-muted-small-text-below-aa`.
+    applies_to: "docs/palettes.yaml token roles; site/prefabs/theme-playground.yaml floors; plan m14-muted-text"
+    blocks: [plan/m14-muted-text]
+    options:
+      - value: narrow-role
+        text: Narrow the token to non-text uses and switch the small-text rules to --fg-2
+        recommended: true
+        why: No palette changes; the eleven small-text rules move to a token the contract already holds to 4.5, and muted keeps rules, markers and glyphs.
+        prompt: "Redefine --muted's role in docs/palettes.yaml as non-text (rules, markers, decorative glyphs), switch every small-text rule that uses it to --fg-2, and keep the playground floor at 3 for the non-text role."
+        pros: [Both shipped light palettes pass AA for normal text with no colour change, Mechanical change with a grep to prove it]
+        cons: [Secondary text loses one shade of hierarchy, Site-local themes that set --fg-2 dark see meta text darken]
+      - value: raise-floor
+        text: Raise the playground floor for muted text to 4.5 and retune the two light presets
+        why: Keeps the token's role; the light palettes get a darker muted and the playground stops reporting a pass that is not one.
+        prompt: "Raise the playground contrast floor for muted text to 4.5:1, retune --muted in the stock light palette and the bamboo light theme to clear it, and leave the small-text rules as they are."
+        pros: [Playground and reality agree, One token change per palette]
+        cons: [Every palette author must retune, The dark palettes become the model and light ones drift toward them]
+      - value: keep
+        text: Keep the 3 to 1 floor and document it as a known limit
+        why: The text is secondary by design; accept AA large-text as the standard for it.
+        prompt: "Keep --muted at a 3:1 floor; note in docs/palettes.yaml that muted text is held to the large-text threshold by design."
+        pros: [No change, Hierarchy stays as designed]
+        cons: [Fails AA for normal text on the default light palette, The bamboo theme's header comment stays inaccurate]
+
+  - id: q-mobile-nav
+    call: A.4
+    lead: How should the primary navigation open on a phone without JavaScript?
+    help: |
+      Below 720 pixels `.site-nav` is `display: none` and only the click handler in yss.js can
+      show it, so with scripting off every page but the current one is unreachable from the bar.
+      The menu groups on the same bar are already `<details>` elements that need no script.
+      Finding `frontend-mobile-nav-unreachable-without-js`; principle p-static-first.
+    applies_to: "yss/templates/default.html, yss/assets/yss.css, yss/assets/yss.js; plan m14-mobile-nav"
+    blocks: [plan/m14-mobile-nav]
+    options:
+      - value: details
+        text: A details/summary drawer, matching the existing menu groups
+        recommended: true
+        why: The same mechanism the bar already uses for menus; works with no script and the JS only adds aria state.
+        prompt: "Wrap the narrow-viewport nav in a details element whose summary is the Menu button, matching the .nav-menu pattern, and keep the aria-expanded handling in yss.js for the enhanced case."
+        pros: [Consistent with the menu groups, No script needed at all, One mechanism to style]
+        cons: [Markup changes in the layout template, Sites overriding default.html must follow]
+      - value: noscript
+        text: Keep the button and add a noscript style that shows the nav
+        why: Smallest change; the bar stacks open when scripts are off and the button stays for the scripted case.
+        prompt: "Keep the nav toggle button and add a noscript style block that sets .site-nav to display flex under 720px."
+        pros: [Two lines, No markup change]
+        cons: [Two mechanisms for one bar, The open bar pushes content down on every page without script]
+      - value: keep
+        text: Leave it script-only and record the exception to p-static-first
+        why: Phones without JavaScript are rare; the principle is about content, not chrome.
+        prompt: "Leave the mobile nav toggle as it is and record in the design that the narrow-viewport bar is an accepted exception to p-static-first."
+        pros: [No change]
+        cons: [Contradicts the principle on the one bar that otherwise honours it, Reader modes and strict blockers lose the site map]
+
+  - id: q-evidence-import-gate
+    call: A.5
+    lead: Should the evidence checker's import fallback for symbol claims be gated behind a policy switch, and what is its default?
+    help: |
+      adr-024 moved symbol proof to parsing but kept `importlib.import_module` as the fallback, so
+      a `symbol:` claim the parser cannot resolve executes module-level code during every build,
+      and the checker inserts the repo root into `sys.path` without removing it. hooks.py already
+      runs project code by design, so the trust cost is small; the architectural cost is that a
+      proof step is not read-only. Finding `arch-evidence-import-fallback-side-effects`.
+    applies_to: "site.yaml evidence policy; decisions (new entry); plan m14-consolidations"
+    blocks: [plan/m14-consolidations]
+    options:
+      - value: gate-on
+        text: Gate it behind evidence.import_symbols, default on, and restore sys.path afterwards
+        recommended: true
+        why: Behaviour unchanged for every existing repo; a repo that wants a read-only check can turn it off and see skipped claims with a reason.
+        prompt: "Add an evidence.import_symbols policy key (site.yaml and collection.yaml, default true) that gates the import fallback in _check_symbol, report skipped with a reason when it is off, restore sys.path after the attempt, and record the residual behaviour as a new decision entry beside adr-024."
+        pros: [No existing claim changes status, Opt-out for CI or untrusted collections, sys.path stops growing]
+        cons: [One more policy key to document]
+      - value: gate-off
+        text: Gate it, default off, so a runtime-only symbol must opt in
+        why: The check becomes read-only by default; claims that only exist at runtime start reporting skipped until a repo opts in.
+        prompt: "Add evidence.import_symbols defaulting to false; the import fallback runs only where a site or collection opts in; restore sys.path after the attempt; record the change as a decision superseding the fallback clause of adr-024."
+        pros: [Read-only by default, Fewer surprises in CI]
+        cons: [Existing runtime-only claims flip to skipped, Supersedes part of adr-024]
+      - value: leave
+        text: Leave the fallback as it is
+        why: adr-024 chose it and hooks.py already executes project code; add a consequence note and move on.
+        prompt: "Leave the import fallback unchanged; add a decision entry noting that symbol evidence may execute project code and grow sys.path."
+        pros: [No change]
+        cons: [A proof step keeps interpreter-wide side effects, sys.path keeps growing per check]
+
+prompt:
+  task: Apply the audit calls below to the yss plan, docs and code
+  background: |
+    Repository YamlStaticSite. The engineering audit is docs/audit.yaml (page /audit/); its
+    actionable findings are the tasks of plan milestone m14-audit. Docs are YAML under docs/
+    validated by `python -m yss validate` and `python -m yss check`. Load the `yss` skill first.
+  steps:
+    - For each decision, update the named plan task's status and notes; unblock it if the call allows work to start.
+    - A.2 and A.5 set rules when approved; add a decision entry rather than editing adr-024 or the design.
+    - A.3 changes docs/palettes.yaml token roles before any stylesheet edit; A.4 changes the layout template.
+    - Archive this worksheet (status archived, a resolution per question) once every call is applied.
+    - Run validate, check, build --target all --no-dynamic and the tests; commit with the verdict block in the message body.
+  do_not_touch:
+    - docs/audit.yaml findings - they are the record of one audit at one commit.
+    - .yss/local.yaml and anything under dist/.
+    - Accepted decisions - supersede, never edit.
+  flag_only:
+    - Schema changes beyond what these verdicts approve.
+    - Any behaviour change inside the orchestration refactor; it is a pure move.
+  rules:
+    - Project knowledge goes in docs/*.yaml, never in new markdown files.
+    - Validate and check after every edit; fix every reported file and path.
+    - Mark anything not for the public site as visibility private or private_notes.
+    - No absolute paths in anything that reaches dist/.
+decided_by: true
+extra: true

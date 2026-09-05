@@ -226,6 +226,11 @@ milestones:
           which no theme can reach; a theme overriding `--on-accent-2-surface` may also want its own
           colour for the active pill's text, which still takes `--accent`.
 
+          The engineering audit ([[audit]], 2026-09-04) found two more sites in the same class:
+          `.ws-n` and `.ws-go` in yss/prefabs/worksheet.yaml hard-code `#fff` on `--accent` and
+          measure 2.09:1 on the stock dark palette and 1.80:1 on the bamboo dark theme. Whatever
+          k-on-accent decides has to cover them too.
+
           Blocked on a call, not on code: [[design#k-on-accent]] is `status: open` and its two
           options are exactly this question - extend the token set everywhere, or add a token only
           where a theme has demonstrably been unable to reach. Answer that first ([[decisions#adr-031]]).
@@ -346,6 +351,154 @@ milestones:
         notes: |
           The gate on [[#m13-emit]], not a formality. Region-level attribution may simply be
           enough; the answer is worth having from a real page rather than in advance.
+
+  - id: m14-audit
+    title: Act on the engineering audit
+    status: active
+    priority: 3
+    summary: The work the 2026-09-04 engineering audit found - two behaviour defects, a bundle of front-end fixes, the consolidations, the orchestration refactor - plus the second pass over the seven dimensions the audit could not examine.
+    done_when: Every task below is done or dropped by a recorded call, and docs/audit.yaml's scorecard shows a score for all ten dimensions.
+    notes: |
+      Source: [[audit]] (three of ten dimensions, every finding fact-checked at 33e8085) and the
+      calls in [[audit-calls]]. Finding ids are quoted in backticks; they are data in the audit
+      doc, not indexed items. Tasks marked `blocked` wait on a worksheet call, not on code. The
+      first task is the second pass, because the unexamined seven include security and tests.
+    tasks:
+      - id: m14-second-pass
+        title: Audit the seven dimensions the first pass could not reach
+        status: active
+        owner: agent
+        notes: |
+          Error handling, tests, security and redaction, schemas, packaging and CI, docs drift,
+          performance. Unblocked by A.1 in [[audit-calls]] (2026-09-04): one dimension at a
+          time, each verified before the next starts, resumed on a timer ten hours after the
+          audit was published. The briefs, the order and the verification rules are in the
+          private notes of [[audit]]; the method section there says which stages never ran
+          the first time. Security goes first.
+        verify: docs/audit.yaml scorecard shows a score for all ten dimensions
+      - id: m14-serve-reload
+        title: Make the dev server rebuild against the files on disk
+        status: planned
+        owner: agent
+        notes: |
+          `rebuild()` reuses the one `Config`; `collections()` memoises; `hooks._cache` is keyed
+          by path only; `configure()`'s result is written back onto the shared Collection.
+          Construct a fresh Config per rebuild, key the hooks cache by (path, mtime) as
+          `symbols.index_for` does, apply configure() to a copy. `arch-serve-stale-config`.
+        verify: A test edits collection.yaml between two rebuild() calls and the second build sees the change
+      - id: m14-query-context
+        title: One binding context for the renderer and `yss query`
+        status: planned
+        owner: agent
+        notes: |
+          `cmd_query` builds five roots, `Renderer.__init__` nine, so `yss query '$collections'`
+          prints `[]` here. One `binding_context(...)` for both, `resolve_from` raises on a root
+          the context lacks, and a `--collection` flag. `arch-query-context-drift`.
+        verify: python -m yss query '$collections' --fields id
+      - id: m14-provider-loaded
+        title: Hand providers the build's filtered load instead of reloading
+        status: planned
+        owner: agent
+        notes: |
+          Each built-in provider calls `load_all(cfg)` again and re-derives target filtering;
+          buildinfo ignores `_target`, so public counts include private docs. Pass the target's
+          filtered `Loaded` in the spec from `build()`, fall back to `load_all` elsewhere.
+          `arch-providers-reload-per-source`.
+        verify: A test asserts public dynamic/buildinfo.json doc counts exclude a private doc
+      - id: m14-load-facade
+        title: Move `Loaded`, `load_all` and `cross_checks` into loader.py
+        status: planned
+        owner: agent
+        notes: |
+          Removes the only import cycle (providers reach back into build.py with function-level
+          imports). build.py keeps re-exporting the names. Code map `depends_on` for providers
+          then reads [loader, evidence, symbols, visibility]. `arch-load-facade-in-build`.
+        verify: python -c "from yss.loader import load_all, Loaded, cross_checks"
+      - id: m14-visibility-owner
+        title: Give the public-hides-private and mount-default rules one owner
+        status: planned
+        owner: agent
+        notes: |
+          `hidden_collections` in build.py, the collections filter in Renderer, `is_visible`,
+          the `or ["private"]` mount default in two files and `_resolve_source` restating
+          `cross_checks`. `Collection.visible_in(target)`, a mount-targets helper and
+          `Config.resolve_dynamic_source()`. `arch-visibility-rules-spelled-thrice`.
+        verify: Select-String -Path yss\build.py,yss\render.py -Pattern 'or \["private"\]' returns nothing
+      - id: m14-frontend-fixes
+        title: The front-end fixes that need no decision
+        status: planned
+        owner: agent
+        notes: |
+          `var(--border)` to `var(--line)` in collection-index; a noscript note in dynamic
+          sections and beside the worksheet actions; aria-label on the worksheet's free-text
+          controls; a thead on module-list's exports table; `.empty` and the five `tone-*`
+          classes into yss.css; a `level` param for worksheet and decision-list and a 2 to 6
+          clamp in card; a test that every prefab selector starts with the prefab's class or a
+          declared prefix, then cv-prefab-css to `enforced_by: test`.
+          `frontend-undefined-border-token`, `frontend-no-js-degradation-note-missing`,
+          `frontend-a11y-names-headers-outline`, `frontend-prefab-css-scope-not-enforced`.
+        verify: python -m yss build --target all --no-dynamic
+      - id: m14-card-consolidation
+        title: Render every collection card through the `card` prefab
+        status: planned
+        owner: agent
+        notes: |
+          collection-index hand-writes the card markup with a hard-coded h3; yss.js writes it a
+          third time. Two optional slots on card (`image`, `links`) and collection-index calls
+          `prefab('card', ...)`. Do this before [[plan#m13-emit]] so `data-src` is written once.
+          `frontend-card-markup-duplicated-three-ways`.
+        verify: Select-String -Path yss\prefabs\collection-index.yaml -Pattern '<article' returns nothing
+      - id: m14-typed-warnings
+        title: Typed build warnings and one CLI failure formatter
+        status: planned
+        owner: agent
+        notes: |
+          Warnings are strings, so strict gating keeps parallel lists (five append sites); the
+          `validation failed:` block is copied three times to stdout while other commands use
+          stderr. A warning record with a kind on BuildReport; `_fail()` in cli.py.
+          `quality-string-warnings-parallel-lists`, `quality-cli-error-streams`.
+        verify: A failing `python -m yss validate` prints nothing to stdout and exits 1
+      - id: m14-consolidations
+        title: The small consolidations
+        status: blocked
+        owner: agent
+        notes: |
+          Delete the seven dead names; `Config.doc_roots(doc)` and `Config.rel(path)`; one YAML
+          loader for config.py and loader.py; `Config.markdown`, `Config.redaction`,
+          `Config.hooks_path`; a `yss/meta.py` naming the reserved keys and `evidence.worst()`
+          used by render.py; a `Provider` alias and a `Hooks` protocol; and the evidence import
+          fallback bounded per A.5 in [[audit-calls]], which is the only part that is blocked -
+          the rest can start. `quality-dead-names`, `quality-duplicate-root-resolution`,
+          `quality-two-yaml-loaders`, `quality-config-accessor-bypass`,
+          `quality-sentinel-and-status-literals`, `quality-extension-surface-least-typed`,
+          `arch-evidence-import-fallback-side-effects`.
+        verify: Select-String -Path yss\*.py -Pattern 'ANNOTATION_KEYS|python_executable' returns nothing
+      - id: m14-orchestration
+        title: Stage `build()` and split the nav and collection views out of `Renderer`
+        status: blocked
+        owner: agent
+        notes: |
+          A pure move: stage functions with one signature under the lock, a `PageContext` passed
+          explicitly, stateless `nav` and `collections_view` modules, the `yss refs` walk into
+          loader.py. Tests green before and after. Blocked on A.2 in [[audit-calls]].
+          `arch-build-monolith`, `arch-renderer-god-object`, `arch-refs-logic-in-cli`.
+        verify: python -m unittest discover -s tests
+      - id: m14-muted-text
+        title: Settle the `--muted` contrast contract
+        status: blocked
+        owner: agent
+        notes: |
+          12 to 13 pixel text in `--muted` at 3.3:1 on both shipped light palettes; the playground
+          floor is 3. Blocked on A.3 in [[audit-calls]]. `frontend-muted-small-text-below-aa`.
+        verify: The playground contrast table and docs/palettes.yaml agree on the token's role
+      - id: m14-mobile-nav
+        title: Primary navigation reachable on a phone without JavaScript
+        status: blocked
+        owner: agent
+        notes: |
+          `.site-nav` is display none under 720px and only yss.js can open it. Blocked on A.4
+          in [[audit-calls]]. `frontend-mobile-nav-unreachable-without-js`.
+        verify: With scripting disabled at 375px wide, every nav link is reachable
 
 risks:
   - id: r-two-renderers

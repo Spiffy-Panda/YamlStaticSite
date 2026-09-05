@@ -1,0 +1,139 @@
+# Page - schema: page. Presents docs/audit.yaml, the engineering audit of the toolchain.
+id: audit
+route: /audit/
+title: Engineering audit
+summary: An independent, read-only audit of the toolchain's code structure and engineering - what holds up, what does not, and what to do first. For the maintainer and any agent about to change yss/.
+nav: {label: Audit, order: 35, group: content}
+docs: [audit]
+sections:
+  - id: verdict
+    type: markdown
+    heading: Verdict
+    from: audit.data.executive_summary
+
+  - id: snapshot
+    type: prefab
+    heading: What was audited
+    intro: |
+      Every finding cites a repo-relative location and was re-read at the commit below. The
+      installed-package line is the one observation that is about the maintainer's machine rather
+      than the tree.
+    prefab: kv
+    args:
+      pairs: {from: audit.data.snapshot}
+
+  - id: scorecard
+    type: prefab
+    heading: Scorecard
+    intro: |
+      One row per dimension, on a five-point scale where three is adequate and five is exemplary.
+      A dimension that reads *not audited* was never examined: its finder was cut off before it
+      returned, and it has no findings because nobody looked, not because it is clean.
+    prefab: table
+    args:
+      rows: {from: audit.data.scorecard}
+      columns:
+        - {key: title, label: Dimension}
+        - {key: score, label: Score}
+        - {key: findings, label: Findings}
+        - {key: high, label: High}
+        - {key: verdict, label: In a sentence}
+
+  - id: priority
+    type: prefab
+    heading: What matters most
+    intro: |
+      The findings rated high or critical, across the dimensions that were audited. Each one
+      links to its full card further down.
+    prefab: table
+    args:
+      rows:
+        from: audit.data.findings
+        where: {severity: [critical, high]}
+        sort: [rank, id]
+        map:
+          finding: "[{{ title }}](#{{ id }})"
+        fields: [finding, severity, location, group]
+      columns:
+        - {key: finding, label: Finding, md: true}
+        - {key: severity, label: Severity}
+        - {key: location, label: Where}
+        - {key: group, label: Dimension}
+      empty: Nothing was rated high or critical.
+
+  - id: roadmap
+    type: prefab
+    heading: Recommended order of work
+    intro: |
+      A prioritised roadmap, most valuable first. Related findings are folded into one item where
+      a single change addresses them; the finding ids each item closes are listed under it, and
+      every item is a task in [[plan#m14-audit]]. Effort is a rough size, not an estimate.
+    prefab: card-grid
+    args:
+      columns: 2
+      items:
+        from: audit.data.recommendations
+        map:
+          kicker: "{{ id }} · plan task {{ task }}"
+          badge: effort
+          tone: accent
+          body: why
+          meta: "{% if addresses %}closes {{ addresses | join(', ') }}{% else %}opens the seven unaudited dimensions{% endif %}"
+
+  - id: findings
+    type: prefab
+    heading: Findings by dimension
+    intro: |
+      Every finding, grouped under the dimension that owns its root cause. The heading and
+      paragraph above each group are that dimension's assessment. Inside a group the cards run
+      from most to least severe. Each card states what the code does, why it matters, a scoped
+      fix, and what the main agent saw when it re-read the cited lines; the small line underneath
+      gives the location, the finder's confidence and the decision record the finding touches.
+    prefab: group-sections
+    args:
+      groups:
+        from: audit.data.findings
+        sort: [rank, id]
+        group_by: group
+        map:
+          badge: severity
+          tone: "{% if severity in ['critical', 'high'] %}bad{% elif severity == 'medium' %}warn{% elif severity == 'low' %}muted{% else %}accent{% endif %}"
+          body: "**What the code does.** {{ observation }}\n\n**Why it matters.** {{ why_it_matters }}\n\n**Recommendation.** {{ recommendation }}\n\n**Checked.** {{ checked }}"
+          meta: "{{ location }} · confidence {{ confidence }}{% if related_decision %} · touches {{ related_decision }}{% endif %}{% if merged_from %} · also reported as {{ merged_from | join(', ') }}{% endif %}"
+      item_args: {columns: 1}
+
+  - id: strengths
+    type: prefab
+    heading: What is done well
+    intro: |
+      Held to the same evidentiary standard as the findings: each names a location. These are the
+      parts of the toolchain a refactor should protect.
+    prefab: card-grid
+    args:
+      columns: 3
+      items:
+        from: audit.data.strengths
+        map:
+          tone: ok
+          subtitle: location
+          body: note
+
+  - id: method
+    type: markdown
+    heading: How the audit was run, and what did not run
+    from: audit.data.method
+
+  - id: corrections
+    type: prefab
+    heading: Corrections from the fact-check
+    intro: |
+      The adversarial verifiers never ran, so this is the record of the one pass that did: every
+      finding was re-read at its cited location by the main agent. Nothing was refuted; these are
+      the details it corrected.
+    prefab: table
+    args:
+      rows: {from: audit.data.corrections}
+      columns:
+        - {key: finding, label: Finding, md: true}
+        - {key: correction, label: Correction, md: true}
+      empty: Nothing needed correcting.

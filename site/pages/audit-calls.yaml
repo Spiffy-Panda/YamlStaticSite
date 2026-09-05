@@ -1,0 +1,41 @@
+# Page - schema: page. Presents docs/audit-calls.yaml, the live worksheet from the engineering audit.
+id: audit-calls
+route: /audit-calls/
+title: Audit calls
+summary: The five decisions the engineering audit left to Panda, as a worksheet with pros and cons per option. Answer, build the instruction, hand it to an agent.
+visibility: public          # worksheets stay on the public site (P.2, 2026-09-02)
+nav: {label: Audit calls, order: 42, group: decide}
+docs: [audit-calls, audit, plan]
+sections:
+  - id: worksheet
+    type: prefab
+    prefab: worksheet
+    args:
+      title: {from: audit-calls.title}
+      intro: {from: audit-calls.intro}
+      warn: {from: audit-calls.warn}
+      questions: {from: audit-calls.questions}
+      prompt: {from: audit-calls.prompt}
+      decided_by: true
+      extra: true
+
+  - id: blocked
+    type: prefab
+    heading: The audit milestone as it stands
+    intro: |
+      Every task of [[plan#m14-audit]]. The ones marked `blocked` are waiting on a call above;
+      the rest an agent can start now. The audit itself is [[audit]].
+    prefab: task-list
+    args:
+      milestones: {from: plan.milestones, where: {id: m14-audit}}
+      show_verify: true
+
+  - id: previous
+    type: markdown
+    heading: Other worksheets
+    markdown: |
+      - [[later]] - the other live worksheet; decisions from the issue sweeps.
+      - [[next]] - applied 2026-09-03; kept as the record.
+      - [[open]] - applied 2026-09-02; kept as the record.
+      - [[pending]] - applied 2026-09-02; kept as the record.
+      - [[verdicts]] - applied 2026-09-02; kept as the record.

@@ -1,0 +1,869 @@
+# Generic doc - schema: doc.generic, shape engineering-audit. The record of the 2026-09-04 audit.
+# Generated from the finder reports plus the main agent's fact-check; see agent_notes before editing.
+kind: generic
+id: audit
+title: Engineering audit
+summary: |-
+  An independent, read-only audit of the toolchain's code structure and engineering: three of ten dimensions examined, every finding fact-checked at commit 33e8085, with a scorecard, a prioritised roadmap and the calls left to the maintainer.
+shape: engineering-audit
+status: active
+visibility: public
+updated: '2026-09-04'
+owners:
+- agent
+tags:
+- audit
+- engineering
+- architecture
+- frontend
+- quality
+related:
+- design
+- codemap
+- decisions
+- plan
+- audit-calls
+evidence:
+- path: yss/server.py
+  note: arch-serve-stale-config
+- path: yss/cli.py
+  note: arch-query-context-drift, quality-cli-error-streams
+- path: yss/build.py
+  note: arch-build-monolith, arch-visibility-rules-spelled-thrice
+- path: yss/render.py
+  note: arch-renderer-god-object
+- path: yss/providers/buildinfo.py
+  note: arch-providers-reload-per-source
+- path: yss/prefabs/collection-index.yaml
+  note: frontend-card-markup-duplicated-three-ways, frontend-undefined-border-token
+- path: yss/prefabs/worksheet.yaml
+  note: frontend-white-on-accent-fails-dark-contrast, frontend-worksheet-logic-in-template
+- path: yss/assets/yss.css
+  note: frontend-mobile-nav-unreachable-without-js, frontend-muted-small-text-below-aa
+- path: yss/assets/yss.js
+  note: frontend-client-trust-boundary
+- path: yss/attribution.py
+  note: quality-dead-names
+- path: yss/evidence.py
+  note: quality-duplicate-root-resolution, arch-evidence-import-fallback-side-effects
+- path: tests/
+  note: the suite the timing figure describes
+agent_notes: |-
+  The findings under `data.findings` are the record of one audit at one commit; do not edit them to
+  reflect fixes. When a finding is fixed, mark the plan task done and let git recency stamp this doc
+  `warn`; a later audit writes a new doc. Finding, scorecard and recommendation ids are indexed like
+  any list item, so `[[audit#arch-serve-stale-config]]` resolves to the card; keep them unique across
+  all of `data`. `rank` is the sort
+  key for severity (1 critical to 5 info). `checked` is the main agent's fact-check note, added because
+  the adversarial verifiers never ran. The scorecard's `score` is an integer for an audited dimension
+  and the string `not audited` otherwise; the page renders both.
+groups:
+- id: arch
+  title: Architecture and module boundaries
+  blurb: |-
+    The package is genuinely layered. Five modules (config, binding, visibility, symbols, hooks) import nothing from the package, attribution imports only binding, and every other edge points downward: data, then loading, then rendering, then orchestration, then the CLI and server. The one cycle in the tree is manufactured by placement, not design: the loading facade lives in build.py, so the providers reach back up to it with function-level imports. The per-collection extension contract holds in the code, not just in the docs; nothing in yss/ names the demo collection.
+
+    The costs sit in cohesion and in rules with no owner. `Renderer` is one 900-line class with ambient per-page state that build.py also reaches into; `build()` is one 251-line function. The binding context is built in two places and the two copies have drifted, so `yss query` confidently returns empty for three virtual roots. The public-hides-private and mount-default rules are restated in three modules. And the dev server rebuilds against a `Config` and a hooks module loaded once at startup, so edits to site.yaml, collection.yaml or hooks.py print a rebuild message and change nothing.
+- id: frontend
+  title: Templates, prefabs, CSS and client runtime
+  blurb: |-
+    The presentation layer is disciplined where it matters most: one small base stylesheet built on twelve custom properties, two theme files that override tokens and nothing else, a client runtime that never puts fetched data through `innerHTML`, and a Reference page plus a unit test that both render every prefab example, so a broken example fails the strict public build before it ships. Static-first is honoured where the decision log says it is: menus are `<details>`, code-map deep links are real anchors, attribution is a `title` attribute with a hidden caption.
+
+    The defects are concrete rather than structural. Below 720 pixels the primary navigation is `display: none` and only JavaScript can reveal it. Three components draw white on `--accent`, which measures 1.8 to 2.1 to 1 on the two shipped dark palettes. The `--muted` token colours 12 to 13 pixel text everywhere while the palette contract holds it to a 3 to 1 floor. The card markup is written three times, which the m13-emit milestone will pay for. None of it leaks data or breaks a build; all of it is cheap to fix.
+- id: quality
+  title: Code quality and maintainability
+  blurb: |-
+    The package is 5,783 lines across 22 files with 300 functions whose median length is 10 lines; only seven exceed 60. Type hints cover 84 percent of functions, there are no mutable default arguments, no cross-module use of underscore names, and every module owns one exception type. The 45 gh and adr citations in comments each resolve to a regression test or a decision entry, which makes them navigable rather than decorative. The hard logic (attribution, binding, visibility, symbols) is pure and constructor-injected, so it is tested without a filesystem.
+
+    The weaknesses cluster in the orchestration layer, which is why they read as maintenance drag rather than risk: warnings are free-form strings so strict gating keeps parallel lists to remember their kind; reserved metadata keys and status ladders are bare literals with no single definition; the extension surface a musing author touches (providers, hooks) is the least typed and least documented code in the tree; and seven dead names survive. This is the shape of a codebase grown feature by feature through thirty issue sweeps without a consolidation pass.
+data:
+  snapshot:
+    commit: 33e8085 (`Put the sweep's deferred work in the plan`), working tree clean
+    date: '2026-09-04'
+    python: 3.12.10 on Windows 10
+    validate: 'ok: 15 docs, 18 pages, 22 prefabs, 13 schemas'
+    check: 166 claims, 0 stale, 0 warnings
+    tests: 336 test functions in 30 files; exit 0 in 573 seconds wall-clock
+    installed package: |-
+      `pip show yss` reports 0.2.0 from a stale editable install; pyproject, `yss/__init__.py`, the changelog and the git tag all say 0.4.0
+    coverage: 3 of 10 dimensions audited; 29 findings after merging, all fact-checked; 14 strengths
+    agents: 13 launched in the first run, 105 in the second; 3 returned
+  executive_summary: |-
+    **Verdict on the third that was audited: sound engineering with a consolidation debt, not a correctness problem.** The package is layered the way its own design document says it is, the extension contract for collections holds in the code, the hard logic is pure and constructor-injected, and the hygiene basics (types, exception boundaries, no mutable defaults, no reaching through private names) are better than most codebases this size. The prefab examples are rendered twice, once by a test and once by the public Reference page, so the presentation layer cannot silently break.
+
+    Two findings are real behaviour defects an agent will hit. The dev server watches site.yaml, collection.yaml and hooks.py, announces a rebuild when they change, and then rebuilds against the `Config` and hooks module it loaded at startup (`arch-serve-stale-config`). And `yss query`, the command agents are told reads data the way pages do, builds a smaller binding context than the renderer and so returns an empty list for `$collections` on a site that has one (`arch-query-context-drift`). Both are hours of work.
+
+    The larger cost is structural and deliberate to leave until the maintainer says otherwise: `build()` is one 251-line function and `Renderer` one 900-line class with ambient page state, which is why the test suite drives 91 whole-pipeline builds and takes nine and a half minutes. The same shape produces the smaller items: the trust rules for what a public build hides are spelled three times, the binding context twice, the card markup three times.
+
+    On the front end, three small things fail the site's own standards: the primary navigation is unreachable on a phone without JavaScript, three controls draw white on the accent colour at 1.8 to 2.1 to 1 in dark mode, and the muted token colours 13-pixel text at 3.3 to 1 in the default light palette. Each is a one-line or one-decision fix.
+
+    Seven of ten dimensions were not audited. Their finders were cut off by the account's session limit on two attempts, and the adversarial verification stage never ran; every finding here was instead re-read at its cited location by the main agent, whose notes sit under each card. Error handling, tests, security and redaction, schemas, packaging, docs drift and performance are the unexamined seven, and they include the ones with the highest stakes for a public build. The second pass is the first task in the plan.
+  overall_score: 3
+  method: |-
+    The audit was orchestrated as a workflow of read-only agents: ten dimension finders in parallel, a completeness critic naming gaps, a dedup editor, three adversarial verifiers per finding (fact, intent, impact; majority to survive) and a synthesis editor. Every agent was forbidden to write to the repository and told to cite repo-relative locations, to check docs/decisions.yaml and docs/design.yaml before calling a deliberate choice a defect, and that plan tasks m7-on-accent-rest and m13-emit depend on a design item on purpose.
+
+    The first run lost all thirteen agents to the account's five-hour session limit after 356 seconds. The second run, launched after the limit reset, completed three finders (architecture, front end, code quality) and then lost the other seven finders, the critic, the dedup editor, every verifier and the synthesis editor to the same limit after 590 seconds and 2.05 million subagent tokens.
+
+    What replaced the missing stages. Dedup was done by hand: three code-quality findings that restated an architecture finding were folded into it, with the second finder's facet appended to the observation. Verification was a single fact-lens pass by the main agent, which re-read every cited location at commit 33e8085, recomputed the four contrast ratios, and ran the `yss query` case live; its note sits under each finding as *Checked*. The intent lens was applied by the same agent using the decision log; no finding was refuted, two counts were corrected. The executive summary, scorecard verdicts, roadmap and worksheet questions were written by the main agent from the three reports.
+
+    What this means for the reader. Each finding's factual claim has been checked twice, by the finder and the main agent, but not adversarially and not by an independent judge of severity. The severity ratings are the finders', unchanged. Seven dimensions have no findings because they were not examined, not because they are clean.
+  scorecard:
+  - id: score-arch
+    dimension: arch
+    title: Architecture and module boundaries
+    score: 3
+    findings: 10
+    high: 2
+    verdict: Sound layering; the seams that hurt are build(), Renderer and two rules with no owner.
+  - id: score-frontend
+    dimension: frontend
+    title: Templates, prefabs, CSS and client runtime
+    score: 3
+    findings: 10
+    high: 0
+    verdict: Disciplined tokens and runtime; a few measurable accessibility and duplication costs.
+  - id: score-quality
+    dimension: quality
+    title: Code quality and maintainability
+    score: 3
+    findings: 9
+    high: 0
+    verdict: Clean core, consolidation debt in the orchestration layer.
+  - id: score-errors
+    dimension: errors
+    title: Error handling and robustness
+    score: not audited
+    findings: ''
+    high: ''
+    verdict: |-
+      The finder for this dimension was cut off by the session limit before it returned. Scheduled as the first task of plan milestone m14-audit.
+  - id: score-tests
+    dimension: tests
+    title: Test strategy and coverage
+    score: not audited
+    findings: ''
+    high: ''
+    verdict: |-
+      The finder for this dimension was cut off by the session limit before it returned. Scheduled as the first task of plan milestone m14-audit.
+  - id: score-security
+    dimension: security
+    title: Security and privacy guarantees
+    score: not audited
+    findings: ''
+    high: ''
+    verdict: |-
+      The finder for this dimension was cut off by the session limit before it returned. Scheduled as the first task of plan milestone m14-audit.
+  - id: score-schema
+    dimension: schema
+    title: Data model, schemas and validation
+    score: not audited
+    findings: ''
+    high: ''
+    verdict: |-
+      The finder for this dimension was cut off by the session limit before it returned. Scheduled as the first task of plan milestone m14-audit.
+  - id: score-packaging
+    dimension: packaging
+    title: Packaging, CI/CD and developer experience
+    score: not audited
+    findings: ''
+    high: ''
+    verdict: |-
+      The finder for this dimension was cut off by the session limit before it returned. Scheduled as the first task of plan milestone m14-audit.
+  - id: score-drift
+    dimension: drift
+    title: Docs-as-code consistency and drift
+    score: not audited
+    findings: ''
+    high: ''
+    verdict: |-
+      The finder for this dimension was cut off by the session limit before it returned. Scheduled as the first task of plan milestone m14-audit.
+  - id: score-perf
+    dimension: perf
+    title: Performance and scalability
+    score: not audited
+    findings: ''
+    high: ''
+    verdict: |-
+      The finder for this dimension was cut off by the session limit before it returned. Scheduled as the first task of plan milestone m14-audit.
+  findings:
+  - id: arch-query-context-drift
+    title: The binding context is built in two places; `yss query` silently lacks three virtual roots
+    group: arch
+    severity: high
+    rank: 2
+    confidence: high
+    location: yss/cli.py:250, yss/render.py:118-127, yss/binding.py:125-133
+    observation: |-
+      `Renderer.__init__` builds `self.ctx` with keys docs, pages, site, prefabs, all_doc_ids, collections, evidence, build, collection. `cmd_query` builds its own dict with only docs, pages, site, prefabs, all_doc_ids. `binding.resolve_from` treats the missing roots as empty (`ctx.get("collections") or []`, `ctx.get("build") or {}`), so on this repository, which has the demo-musing collection, `python -m yss query '$collections'` prints `[]`, `'$build'` prints `{}` and `'$evidence'` prints `[]`, all with exit 0 (verified at audit time). `cmd_query` also never sets `collection`, so the collection-local resolution a page gets cannot be expressed from the CLI.
+    why_it_matters: |-
+      docs/codemap.yaml e-query and CLAUDE.md tell agents that `yss query` reads 'structured data the way pages do'. An agent checking why a collection-index page is empty gets a confident empty answer from the tool meant to diagnose it. The contract 'what a binding can see' has no owner, so the two copies drifted as roots were added (collections, evidence, build all arrived after the query command).
+    recommendation: |-
+      Add one `binding_context(cfg, target, loaded, build_info=None, evidence=None, collection=None) -> dict` (in binding.py or a small context module), call it from both `Renderer.__init__` and `cmd_query`, and have `resolve_from` raise `BindError` for a root name that is absent from the ctx rather than defaulting to empty. Give `yss query` a `--collection` flag so collection-local `from:` expressions can be reproduced.
+    related_decision: ''
+    checked: |-
+      Confirmed live: on this repository `python -m yss query '$collections'` prints `[]` and `'$build'` prints `{}`; `cmd_query` builds a five-key context, `Renderer.__init__` a nine-key one.
+  - id: arch-serve-stale-config
+    title: serve rebuilds with a Config, collection data and hooks cache that are never refreshed
+    group: arch
+    severity: high
+    rank: 2
+    confidence: high
+    location: |-
+      yss/server.py:158-169, yss/server.py:219-229, yss/config.py:278-280, yss/config.py:306, yss/hooks.py:34-36, yss/loader.py:484-487, yss/server.py:158-229, yss/config.py:241, yss/config.py:279-280, yss/hooks.py:28-48, yss/config.py:271-275
+    observation: |-
+      `serve(cfg, ...)` receives one `Config` from `cli._cfg` and the watch loop calls `rebuild(cfg, ...)` -> `load_all(cfg)` on every change. `Config.collections()` returns the memoised `self._collections` once built, and each `Collection.data` was read from collection.yaml exactly once at config.py:306; `cfg.data` (site.yaml) is never re-read either. `hooks.load_hooks` caches modules in `_cache` keyed only by resolved path, with no mtime check (contrast `symbols._CACHE`, which is mtime-keyed). `watch_paths()` explicitly includes site.yaml, every collection root and `serve.watch`, so an edit to site.yaml, collection.yaml or hooks.py does trigger a rebuild, but that rebuild uses the first-load data and the first-loaded hook module. Additionally `load_collection_configs` runs the `configure()` hook against `dict(collection.data)` and stores the result back onto the cached Collection, so on every rebuild (and every provider `load_all`) configure() is applied to its own previous output rather than to the file. The code-quality finder reached the same conclusion independently: `Config.data` is computed once in `__init__`, `collections()` memoises on `_collections`, nothing in the package clears `hooks._cache`, and no test exercises `rebuild()` after a config or hooks change.
+    why_it_matters: |-
+      The dev server is the loop an author uses to check collection.yaml, theme, mount and hook changes; a rebuild that silently ignores those files shows a stale page with a fresh '[watch] rebuilding' message and no error. Nothing in docs/plan.yaml or docs/decisions.yaml records this as a limitation (adr-008 and m7-watchdog concern the watch mechanism, not what is reloaded).
+    recommendation: |-
+      Have `rebuild` construct a fresh `Config.load(cfg.root)` per rebuild (or add `Config.reload()` that clears `_collections`), key `hooks._cache` by (path, mtime) the way `symbols.index_for` already does, and make `load_collection_configs` apply `configure()` to a copy of the file data rather than writing back into the shared Collection. Add a test that edits collection.yaml between two `rebuild` calls and asserts the second build sees the change.
+    related_decision: ''
+    checked: |-
+      Confirmed: `rebuild(cfg, ...)` reuses the one Config; `Config.collections()` returns the memoised list; `hooks._cache` is keyed by path only; `load_collection_configs` writes `configure()`'s result back onto the shared Collection.
+    merged_from:
+    - quality-serve-stale-config-and-hooks
+  - id: arch-build-monolith
+    title: build() is a single ~280-line function with a dozen inline stages and threaded locals
+    group: arch
+    severity: medium
+    rank: 3
+    confidence: high
+    location: yss/build.py:355-633, yss/build.py:382-632
+    observation: |-
+      `build()` inlines, in order: lock acquisition, `_safe_clear`, evidence check and inject, build_info and Renderer construction, before_render hooks, page rendering plus the duplicate-anchor gate, renderer warnings, dead refs, data export (docs, docs.json, pages.json, collections.json, evidence.json, site.json), schema export, four asset copies plus three generated bundles, site and collection mounts, dynamic sources, after_build hooks, manifest, dead links, leak scan and strict aggregation. Stage results are carried in locals (`evidence_rows`, `rendered`, `duplicate_ids`, `strict_failures`, `build_info`) rather than on `BuildReport`. The only stage boundaries that exist as functions are the ones that were extracted for specific issues (`_dead_links`, `_mount`, `_acquire_lock`). Every test of a gate therefore runs the whole pipeline over a temp site. The code-quality finder counted the same function at 251 lines against a package median of 10, and 91 `build(` calls in the tests against 49 direct pure-function calls.
+    why_it_matters: |-
+      Adding the next gate (plan m7-card-link-routes needs route-table-aware evidence, m13-emit adds per-item data-src) means editing the middle of this function and re-deriving which locals it may read. The ordering constraints that matter (dead-link gate after hooks and manifest; leak scan last; strict failures collected not raised, adr-034) are expressed only as comments inside the body.
+    recommendation: |-
+      Split into stage functions with one signature, e.g. `_stage_render(ctx)`, `_stage_export(ctx)`, `_stage_assets(ctx)`, `_stage_mounts(ctx)`, `_stage_gates(ctx)`, where `ctx` is a small dataclass holding cfg, target, out, loaded, docs_t, pages_t, renderer, report and strict_failures; keep `build()` as the ordered list of stages under the lock. This is a pure refactor and lets the gate tests call one stage over a prepared output tree.
+    related_decision: adr-034
+    checked: 'Confirmed: `build()` spans build.py:382-633 and every helper it calls is module-private.'
+    merged_from:
+    - quality-build-monolith
+  - id: arch-load-facade-in-build
+    title: The loading facade lives in build.py, forcing a lazy providers -> build back-edge
+    group: arch
+    severity: medium
+    rank: 3
+    confidence: high
+    location: |-
+      yss/build.py:54-95, yss/providers/buildinfo.py:12, yss/providers/evidence.py:12-13, yss/providers/symbols.py:38, yss/dynamic.py:47, docs/codemap.yaml:175-180
+    observation: |-
+      `Loaded`, `load_all` and `cross_checks` are defined in build.py. cli, server and all three built-in providers import them from there; the providers do so with function-level imports (`from ..build import load_all`) because build imports dynamic, and dynamic reaches the providers through `importlib.import_module` at yss/dynamic.py:47, so a top-level import would be circular. `cross_checks` itself needs only `cfg.dynamic_sources`, `docs`, `pages`, `prefabs`. Importing `yss.build` for `load_all` also imports render (Jinja2, markdown-it), evidence, hooks and visibility. docs/codemap.yaml records providers `depends_on: [dynamic, evidence]`, which is the reverse of the real edge (dynamic calls providers) and omits build.
+    why_it_matters: |-
+      The only cycle in the package is manufactured by module placement, and it is hidden from the code map. A provider written by a collection author (hooks providers) is documented as `collect(cfg, spec)`; the built-in ones show that the real recipe is 'import the build orchestrator', which is the heaviest module in the tree and the one whose import-time cost and side effects are least appropriate for a data collector.
+    recommendation: |-
+      Move `Loaded`, `load_all` and `cross_checks` to loader.py (build keeps importing them by name, so callers change one import line), have the providers import `from ..loader import load_all` at top level, and correct codemap `providers.depends_on` to [loader, evidence, symbols, visibility] with a note that dynamic is the caller.
+    related_decision: ''
+    checked: |-
+      Confirmed: `Loaded`, `load_all` and `cross_checks` are in build.py; all three providers import `load_all` from `..build` inside the function body.
+  - id: arch-providers-reload-per-source
+    title: Every built-in provider re-runs a full load_all and re-derives target filtering on its own
+    group: arch
+    severity: medium
+    rank: 3
+    confidence: high
+    location: |-
+      yss/build.py:509, yss/dynamic.py:93, yss/providers/buildinfo.py:12-29, yss/providers/symbols.py:38-41, yss/providers/evidence.py:12-45
+    observation: |-
+      `build()` calls `write_all(cfg, target, out, only_on_build=True)` after it has already validated everything into `loaded`, but the provider contract `collect(cfg, spec)` carries no handle to that `Loaded`. buildinfo.collect, symbols._codemap_modules and evidence.collect therefore each call `load_all(cfg)` again: schema validation of every doc/page/prefab, `load_collection_configs` (which re-runs `configure()` hooks), `check_refs` and `cross_checks`. With this repository's site.yaml a `build --target all` performs the initial load plus buildinfo+symbols on public and buildinfo+symbols+symbolsource on private, i.e. five extra full loads. Each provider must also re-apply visibility itself: symbols.py:41 does `filter_for_target(loaded.docs, target)`, but buildinfo.collect ignores `spec['_target']` entirely, so the public `dynamic/buildinfo.json` reports `docs`, `docs_by_kind`, `pages` and `validation_errors` counted over the unfiltered set, including private docs.
+    why_it_matters: |-
+      The trust boundary (design c-visibility, adr-004) is applied once in `build()` and then has to be re-discovered by each provider; one of the three shipped providers does not. The cost is currently count-level only, but it is exactly the class of drift the `_target` injection (adr-024 consequence) was meant to close. The repeated loads also multiply the hook side effects described in arch-serve-stale-config.
+    recommendation: |-
+      Pass the build's already-filtered view to providers: extend the envelope `spec` with `_loaded` (the `Loaded` for that target, docs already `filter_for_target`-ed) when called from `build`, let `dynamic.collect` fall back to `load_all` only when it is absent (the `yss dynamic` and server paths), and make buildinfo count `spec['_loaded'].docs`. Add a test asserting public buildinfo counts exclude a private doc.
+    related_decision: ''
+    checked: |-
+      Confirmed: `buildinfo.collect` calls `load_all(cfg)` and counts `loaded.docs` without consulting `spec['_target']`.
+  - id: arch-renderer-god-object
+    title: Renderer is one ~800-line class with ambient per-page state and a ctx dict other modules reach into
+    group: arch
+    severity: medium
+    rank: 3
+    confidence: high
+    location: |-
+      yss/render.py:84-164, yss/render.py:739-806, yss/build.py:433, yss/build.py:446, yss/build.py:523, yss/render.py:753-758, yss/render.py:806-810, yss/render.py:196-200, yss/render.py:288-290, yss/render.py:439-441, yss/render.py:455-460, yss/render.py:483, yss/render.py:632, yss/render.py:669-673, yss/render.py:734, yss/render.py:817-827
+    observation: |-
+      `Renderer` carries URL policy (`url`, `collection_url`, `doc_url`, `ref_url`), collection presentation (`_collection_summary`, `_card_links`, `_emblem_url`, `_mounted_prefixes`), nav derivation (`_page_state`, `_nav`, `_collection_nav`, `_nav_groups`), the markdown pipeline and `[[ref]]` expansion, prefab param type-checking, six `_section_*` handlers, three asset bundlers (`prefab_css`, `collection_css`, `prefab_js`), attribution wiring, and dead-reference bookkeeping (`note_ref`, `_ref_source_index`, `dead_refs`). `render_page` sets `self.current_collection`, `self.current_doc`, `self.current_page` and `self.ctx["collection"]` and resets them in a `finally`, so every handler and the `md` filter read ambient state and the object is not reentrant. build.py reads `renderer.ctx["collections"]` three times to write collections.json and the manifest, and `renderer.warnings` once. The constructor takes eight positional arguments and is instantiated directly in ten test files. docs/design.yaml c-render lists this whole surface as one component's responsibility, so the size is recorded, but the nav and collection-card halves need no Jinja environment at all. The ambient-state facet: `render_page` sets `current_collection`, `ctx['collection']`, `current_doc` and `current_page` and resets them in a `finally`; 27 references across a dozen methods and the `md`/`url`/`doc_url` Jinja bindings read that state, so `Renderer` is neither reentrant nor thread-safe, and `__init__` runs `_nav()` eagerly, which appends warnings as a side effect of construction.
+    why_it_matters: |-
+      The two largest cost centres are entangled: a change to how a collection card resolves its links (adr-017/adr-027 work) and a change to how a section is wrapped (adr-033 attribution) land in the same class and the same mutable state. A prefab or hook author cannot call any of the pure derivations (nav groups, card links, emblem url) without constructing a full Renderer over real docs.
+    recommendation: |-
+      Extract two stateless modules that take `(cfg, target, docs, pages)` and return data: `nav.py` (`page_state`, `nav_items`, `collection_nav`, `nav_groups`) and `collections_view.py` (`summary`, `card_links`, `emblem_url`). Expose the collection summaries as a named attribute (`renderer.collection_summaries`) instead of `ctx["collections"]`. Keep `Renderer` as the Jinja/section/page core. Scope it as a pure move with the existing tests as the safety net.
+    related_decision: ''
+    checked: |-
+      Confirmed; render.py is 900 lines at this commit. Correction: build.py reads `renderer.ctx['collections']` twice (lines 532 and 593), not three times.
+    merged_from:
+    - quality-renderer-ambient-page-state
+  - id: arch-visibility-rules-spelled-thrice
+    title: Target-visibility and mount-default rules are restated in build, render and visibility
+    group: arch
+    severity: medium
+    rank: 3
+    confidence: high
+    location: |-
+      yss/build.py:341, yss/render.py:101, yss/visibility.py:19-24, yss/build.py:151, yss/render.py:200, yss/build.py:105-106, yss/render.py:667-673
+    observation: |-
+      'A private collection is hidden on the public target' is computed independently at build.py:341 (`hidden_collections = {c.id ... if target == "public" and c.visibility == "private"}`), at render.py:101 (`self.collections = [c ... if target != "public" or c.visibility != "private"]`), and generically at visibility.py:19-24 (`is_visible`). 'A mount with no targets is private only' (adr-015) is spelled as `spec.get("targets") or ["private"]` in both build._mount (151) and Renderer._mounted_prefixes (200). 'A dynamic source name resolves site-wide, then `<collection>.<name>`' is implemented once in `cross_checks` (build.py:105-106) and again in `Renderer._resolve_source` (render.py:667-673). None of these has a home on `Collection` or `Config`.
+    why_it_matters: |-
+      These are the trust rules the public build depends on (design k-no-leak, adr-004, adr-015). Each duplicate is a place where a future target (site.yaml allows arbitrary target names and `redact` flags) or a new visibility value would have to be updated in lockstep; today `is_visible` hard-codes the string `"public"` while `Config.target()` treats targets as data.
+    recommendation: |-
+      Add `Collection.visible_in(target, cfg)` and `Config.mount_targets(spec)` (or a `mount_carries(spec, target)` helper) and `Config.resolve_dynamic_source(name, collection_id)`; route the seven call sites through them. Consider deriving visibility from `cfg.target(target)['redact']` rather than the literal name `public`, which is what the redaction lists already do.
+    related_decision: adr-015
+    checked: |-
+      Confirmed at the current lines: `hidden_collections` at build.py:398, `is_visible` hard-codes `"public"` at visibility.py:19, the mount default `or ["private"]` at build.py:178 and render.py:207, and `_resolve_source` at render.py:667 restates `cross_checks`.
+  - id: arch-codemap-depends-on-drift
+    title: codemap depends_on lags the real import graph and lists private members as exports
+    group: arch
+    severity: low
+    rank: 4
+    confidence: high
+    location: |-
+      docs/codemap.yaml:101, docs/codemap.yaml:143, docs/codemap.yaml:180, docs/codemap.yaml:231, docs/codemap.yaml:106, docs/codemap.yaml:148-151, docs/codemap.yaml:163
+    observation: |-
+      Compared with the grep of `from .` imports: evidence lists `[config, loader]` but also imports symbols; render lists `[binding, config, visibility, hooks, loader]` but also imports attribution and symbols; providers lists `[dynamic, evidence]` but imports build (lazily), symbols and visibility and never imports dynamic (dynamic calls it); cli lists seven modules but also imports binding, config, loader and visibility. Six documented exports are underscore-private (`_check_export`, `_dead_links`, `Renderer._nav_groups`, `Renderer._collection_nav`, `Renderer._emblem_url`, `Renderer._page_state`), and tests call `renderer._nav_groups`, `renderer._collection_nav`, `renderer._refs` and `Renderer._bind`. `yss check` proves each export exists (x-evidence: export) but nothing checks `depends_on`.
+    why_it_matters: |-
+      The code map is the artefact an agent is told to read before touching a module; a wrong edge direction (providers -> dynamic) hides the one real cycle. Documenting private members as exports is a signal that the intended public surface of render.py has not been drawn, which is what makes arch-renderer-god-object hard to refactor safely.
+    recommendation: |-
+      Correct the four `depends_on` lists now. Then either promote the six members to public names (they are already the documented API) or drop them from `exports`. Consider a small test that parses each module with `yss.symbols.file_index`-style AST walking and asserts the import set equals `depends_on` so the map cannot drift again.
+    related_decision: ''
+    checked: |-
+      Confirmed by grep of `from .` edges. The four `depends_on` lists (plus scaffold and server, which omit config) were corrected in docs/codemap.yaml as part of publishing this audit; the private-export question stays open.
+  - id: arch-evidence-import-fallback-side-effects
+    title: |-
+      Deliberate per adr-024: symbol evidence still falls back to importing project modules during every build
+    group: arch
+    severity: low
+    rank: 4
+    confidence: high
+    location: yss/evidence.py:257-269, yss/build.py:380, yss/hooks.py:37-38
+    observation: |-
+      adr-024 moved symbol proof to AST parsing but kept import as the fallback ('a name that only exists at runtime ... still checks out'). `_check_symbol` inserts `cfg.root` into `sys.path` and calls `importlib.import_module(module_name)` for any `symbol:` claim the parser cannot resolve; `build()` runs `evidence_check` by default (`check_evidence=True`), so a claim authored in any doc, including a hook-generated one, can execute module-level code in the build process and in CI. `hooks.load_hooks` mutates `sys.path` the same way. Neither insertion is undone.
+    why_it_matters: |-
+      The evidence layer is the trust gate (design g-trust) and it now has interpreter-wide side effects that outlive the check: sys.path grows and imported modules stay cached, so later checks and tests in the same process see a different environment. hooks.py already runs project code by design, so the marginal trust cost is small; the architectural cost is that a read-only proof step is not read-only.
+    recommendation: |-
+      Keep the decision; bound the cost. Gate the import fallback behind the same policy switch as commands (`evidence.run_commands`, or a new `evidence.import_symbols`), report `skipped` with a reason when it is off, and restore `sys.path` after the import attempt. Record the residual behaviour as a consequence line on adr-024.
+    related_decision: adr-024
+    checked: |-
+      Confirmed: `_check_symbol` inserts `cfg.root` into `sys.path` and calls `importlib.import_module`; neither `evidence.py` nor `hooks.py` removes what it inserted.
+  - id: arch-refs-logic-in-cli
+    title: The `yss refs` walker lives in cli.py although design assigns it to the reference checker
+    group: arch
+    severity: low
+    rank: 4
+    confidence: high
+    location: yss/cli.py:136-179, docs/design.yaml:124-131, yss/loader.py:276-336
+    observation: |-
+      `cmd_refs` contains the whole inbound-reference algorithm (~40 lines: annotation lookup, `iter_strings`, path-key inference, `x-ref` doc/item resolution, inline `[[...]]` matching over docs and pages), importing five loader helpers lazily to do it. docs/design.yaml c-refs states its responsibility as 'validate x-ref fields ... and answer `yss refs`' with `code: [yss/loader.py]`. Every other `cmd_*` function is a thin adapter over one library call. `Renderer._ref_source_index` (render.py:826-861) implements a second, similar walk (references indexed by target) for dead-reference messages.
+    why_it_matters: |-
+      The same reference-walking rules exist twice (cli and render) and neither is in the module the design names, so a change to reference syntax (e.g. the planned `x-ref: group`, plan m7-group-ref-mode) has three places to update and one of them is untested outside the CLI.
+    recommendation: |-
+      Move the walk into loader.py as `inbound_refs(docs, pages, reg, want_doc, want_item) -> [(where, path, text)]`, have `cmd_refs` print its result, and see whether `Renderer._ref_source_index` can be expressed over the same primitive.
+    related_decision: ''
+    checked: 'Confirmed: `cmd_refs` carries the walk; design c-refs names loader.py.'
+  - id: frontend-card-markup-duplicated-three-ways
+    title: collection-index and the yss.js cards view re-implement card's markup instead of calling it
+    group: frontend
+    severity: medium
+    rank: 3
+    confidence: high
+    location: |-
+      yss/prefabs/collection-index.yaml:10-28, yss/assets/yss.js:78-94, yss/prefabs/doc-index.yaml:10-19, docs/plan.yaml:330-341
+    observation: |-
+      collection-index.yaml defines a local `card(c, is_hero)` macro that hand-writes `<article class="card ...">`, `.card-head`, `<h3 class="card-title">`, `.card-body`, `.card-meta` and calls `prefab('tag-list')` - reusing card's CSS classes but not its template. doc-index.yaml:10-19, card-grid.yaml:12 and status-board.yaml:18 all delegate to `prefab('card', ...)`. yss.js:78-94 (`views.cards`) is a third copy of the same structure for dynamic data. Consequences visible today: collection-index hard-codes `<h3>` so it ignores the `level` mechanism card.yaml:22 added for outline nesting under group-sections; it has no `kicker`, no `options`, and shows the evidence badge by its own rule rather than card's `_evidence` handling (card.yaml:35). Plan task m13-emit (plan.yaml:330-341) promises `data-src` from "the eleven item prefabs that receive a whole item" - collection-index will need that emission written a second time.
+    why_it_matters: |-
+      Every change to what a card is (level, kicker, options in the last four commits; provenance next) has to be made in three places or silently diverges. adr-017 fixes the card *contract* (what collection.yaml publishes), not the markup, so consolidating does not re-litigate it.
+    recommendation: |-
+      Render each collection card as `prefab('card', {title, href, badge: evidence-if-not-ok, body: summary, meta: [...], tags, level})` and add two small optional slots to card (`image` and `links[{label, href, kind}]`) that collection-index and any future item prefab can use. The JS cards view is a different runtime and can stay, but note the divergence in yss.js's header comment.
+    related_decision: adr-017
+    checked: |-
+      Confirmed: collection-index.yaml defines its own `card` macro writing `<article class="card ...">` with a hard-coded `<h3>`; `views.cards` in yss.js builds the same structure a third time.
+  - id: frontend-mobile-nav-unreachable-without-js
+    title: Primary navigation is display:none below 720px and only JavaScript can reveal it
+    group: frontend
+    severity: medium
+    rank: 3
+    confidence: high
+    location: yss/assets/yss.css:69-82, yss/templates/default.html:19-20, yss/assets/yss.js:9-16
+    observation: |-
+      yss.css:74 sets `.site-nav { display: none; ... }` inside `@media (max-width: 720px)` and the only rule that shows it again is `.site-nav.open { display: flex; }` (line 81). The `open` class is added solely by the click handler in yss.js:9-16. The `<button class="nav-toggle">` in default.html:19 has no CSS-only fallback (no `<details>`, no `:has()`/`:focus-within`, no `<noscript>` style). The same bar's `menu: true` groups are `<details>` elements that the stylesheet comment (yss.css:53-55) explicitly notes work with no JavaScript.
+    why_it_matters: |-
+      docs/design.yaml principle p-static-first states pages read without JavaScript. On a phone-width viewport with scripting unavailable (reader mode, strict content blockers, a failed asset load on GitHub Pages) the only links out of a page are the brand link, the collection sub-nav and in-content links; every other page in the site becomes unreachable. The menu groups on the same bar already solved this with `<details>`, so the toggle is the one inconsistency.
+    recommendation: |-
+      Make the narrow-viewport toggle CSS-driven: wrap the nav in `<details class="nav-drawer">` with the Menu button as its `<summary>` (matching the existing `.nav-menu` pattern), or keep the button and add `<noscript><style>.site-nav{display:flex}</style></noscript>` in the head as the minimum. Keep the aria-expanded handling in yss.js for the enhanced case.
+    related_decision: ''
+    checked: |-
+      Confirmed: yss.css hides `.site-nav` under 720px and only `.site-nav.open` shows it; the class is added only by the click handler in yss.js; no `<noscript>` exists anywhere in yss/, site/ or examples/.
+  - id: frontend-muted-small-text-below-aa
+    title: --muted is used for 12-13px body text but the palette contract only holds it to 3:1
+    group: frontend
+    severity: medium
+    rank: 3
+    confidence: high
+    location: |-
+      site/prefabs/theme-playground.yaml:292, yss/assets/yss.css:90, yss/assets/yss.css:135, yss/prefabs/card.yaml:80, yss/prefabs/task-list.yaml:49, yss/prefabs/timeline.yaml:32, yss/prefabs/decision-list.yaml:29-30
+    observation: |-
+      The playground's contrast table holds `["muted text", t.muted, t.bg, 3]` (theme-playground.yaml:292) - a 3:1 floor, which WCAG 1.4.3 permits only for large text (18pt, or 14pt bold). The token is consumed as the text colour of `.page-docs` at .8rem (yss.css:90), `.site-footer` at .8rem (yss.css:135), `.card-meta` at .8rem (card.yaml:80), `.task-prio/.task-date/.task-count/.task-owner/.task-est/.task-deps` at .78rem (task-list.yaml:49), `.task-verify` at .8rem, `.timeline-date` at .8rem, `.decision-id`/`.decision-date` at .8rem, `.ws-call`/`.ws-applies` at .8rem - all 12.5-13px regular weight. Computed: stock light `#8a8a84` on `#fafaf8` is 3.32:1; bamboo light `#77857c` on `#eaf0ea` is 3.34:1; stock dark is 4.18:1. theme-bamboo.css:8 claims "Every pair clears WCAG AA in both modes" - true against the playground's floors, not against AA for normal text.
+    why_it_matters: |-
+      These are the timestamps, owners, verify commands, footer links and card meta that appear on nearly every page; at 3.3:1 in the default light palette they fail AA for readers with moderate low vision, and the playground reports them as passing, so a theme author has no signal.
+    recommendation: |-
+      Either raise the playground floor for `muted` to 4.5 and re-tune the two light presets (the dark ones already clear it), or narrow the token's role in docs/palettes.yaml to non-text uses (rules, markers, decorative glyphs) and switch the small-text rules above to `--fg-2`, which the contract already holds to 4.5:1.
+    related_decision: ''
+    checked: |-
+      Confirmed and recomputed: the playground floor for `muted text` is 3; `#8a8a84` on `#fafaf8` is 3.32:1 and `#77857c` on `#eaf0ea` is 3.34:1.
+  - id: frontend-white-on-accent-fails-dark-contrast
+    title: 'Worksheet button and number bubbles hard-code #fff on --accent and measure 1.8-2.1:1 in dark mode'
+    group: frontend
+    severity: medium
+    rank: 3
+    confidence: high
+    location: |-
+      yss/prefabs/worksheet.yaml:149, yss/prefabs/worksheet.yaml:174, yss/assets/yss.css:59, docs/plan.yaml:218-231
+    observation: |-
+      `.ws-n { background: var(--accent); color: #fff; }` (worksheet.yaml:149) and `.ws-go { background: var(--accent); color: #fff; }` (line 174) are the same class of defect adr-031 fixed for the collection bar. Computed with the WCAG formula from the token values in yss.css:25 and site/assets/theme-bamboo.css:36: white on the stock dark accent #8fb3ff is 2.09:1; white on the bamboo dark accent #9ad07a is 1.80:1 (light mode is fine at 7.14:1 and 6.40:1). `.nav-count` in yss.css:59 has the same `#fff` and is the only instance the plan task m7-on-accent-rest names ("`.nav-count`'s hard-coded #fff, and the pill's own text colour"); grep finds no mention of `.ws-n` or `.ws-go` in docs/. By contrast site/prefabs/theme-playground.yaml:153 `.lab-btn { background: var(--accent); color: var(--bg-2); }` measures 7.64:1 and 8.88:1 on the same two dark palettes.
+    why_it_matters: |-
+      The worksheet's primary action ("Build the instruction") is the one control the whole decision instrument exists for, and on the site's own house theme in dark mode its label is close to invisible. The deferral in k-on-accent is deliberate, but its inventory is incomplete, so answering the open design call will not by itself fix these two rules.
+    recommendation: |-
+      Add `.ws-n` and `.ws-go` to the m7-on-accent-rest task and the k-on-accent notes so the token call covers them. Independently of that call, replace the three `#fff` values with `var(--bg-2)` as `.lab-btn` already does - it needs no new token, keeps light mode above 6:1, and lifts dark mode to 7.6:1+ on both shipped palettes.
+    related_decision: adr-031
+    checked: |-
+      Confirmed and recomputed: white on `#8fb3ff` is 2.09:1, white on `#9ad07a` is 1.80:1. `.ws-n`, `.ws-go` and `.nav-count` all carry `color: #fff`. The two worksheet sites were added to plan task m7-on-accent-rest as part of publishing this audit.
+  - id: frontend-worksheet-logic-in-template
+    title: Worksheet derives its state in Jinja and its JS reads a DOM contract only the template documents
+    group: frontend
+    severity: medium
+    rank: 3
+    confidence: medium
+    location: |-
+      yss/prefabs/worksheet.yaml:13-53, yss/prefabs/worksheet.yaml:78, yss/prefabs/worksheet.yaml:86, yss/prefabs/worksheet.yaml:205-225
+    observation: |-
+      The 125-line template declares four macros (`reflink`, `procon`, `compare`, `past_options`) and computes `resolved`, `all_done`, `applied_on`, `applied_by`, `blocked`, `blocked_live`, `has_procon` and per-option `chose` membership in Jinja (lines 23, 37, 50-53, 63-64); line 86 resolves a chosen value back to its option label with `selectattr('value','equalto',v) | map(attribute='text') | first`. The `js:` block's `collect()` (lines 207-225) depends on seven data attributes emitted at line 78 (`data-q`, `data-kind`, `data-required`, `data-lead`, `data-call`, `data-applies`, `data-resolved`) plus the `.ws-config` JSON island; nothing outside the template names that contract. docs/design.yaml p-no-logic-in-templates says shaping happens in bindings, and plan risk r-jinja-in-yaml (plan.yaml:373-377) is still `status: open` with the mitigation "keep templates short, push logic into bindings". module-list.yaml:29 also does a filesystem parse per export via `symbol_range()`, but that is deliberate per adr-024 and is not counted here.
+    why_it_matters: |-
+      This is the prefab most likely to be edited by an agent following the yss-prefab skill, and the state derivation is exactly the kind of logic the project's own principle says should not live in YAML-embedded Jinja. Three render modes (live, mixed, record) are interleaved in one template, and a change to the data-* contract can break the JS with no test naming it.
+    recommendation: |-
+      Add a small pure function (e.g. `yss/worksheet.py: derive(questions) -> {resolved, all_done, applied_on, applied_by, blocked_live, questions_with_chosen_flags}`) called from a binding helper or a `map`, unit-tested without rendering, so the template prints rather than computes. Record the data-* contract in the prefab's `agent_notes` and assert it in test_features.py where the worksheet render is already checked.
+    related_decision: ''
+    checked: |-
+      Confirmed by reading worksheet.yaml; the seven `data-*` attributes and the `collect()` reader are as described.
+  - id: frontend-a11y-names-headers-outline
+    title: Unlabelled worksheet controls, a header-less exports table, and heading levels that skip
+    group: frontend
+    severity: low
+    rank: 4
+    confidence: high
+    location: |-
+      yss/prefabs/worksheet.yaml:92, yss/prefabs/worksheet.yaml:113, yss/prefabs/worksheet.yaml:119, yss/prefabs/module-list.yaml:27-47, site/prefabs/theme-playground.yaml:223-226, yss/prefabs/worksheet.yaml:57, yss/prefabs/decision-list.yaml:17-20, site/pages/verdicts.yaml:10-12
+    observation: |-
+      The worksheet's free-text `<textarea class="ws-text">` (lines 92, 113) and the `decided_by` `<input>` (line 119) carry `name` and `placeholder` only - no `<label>`, `aria-label` or `aria-labelledby`; the `<legend>` names the fieldset, not the control. module-list's exports `<table class="table">` (lines 27-47) has no `<thead>`/`<th>` row. theme-playground.yaml:223-226 wraps two inputs in a single `<label>`, so only the colour picker gets the label as its name. The worksheet emits `<h4>` (lines 57, 61) and `<h3>` (line 130) directly under a section that has no `heading` (verdicts.yaml:10-12, later.yaml:12), so the outline runs h1 -> h4; decision-list.yaml:17-20 puts `<h4>` under the section `<h2>`. card.yaml:33 interpolates `level` into `<h{{ level }}>` with no range check, so `level: 7` produces `<h7>`. Positives noted: badges always print their status word, so no status is conveyed by colour alone; tables from the `table`, `evidence-list` and `prefab-gallery` prefabs have proper `<th>` rows.
+    why_it_matters: |-
+      Screen-reader users hear "edit text" with no question attached on the one form the site asks humans to fill in; the exports table reads as a bare grid; and the heading outline that card's `level` param was added to protect is broken by the prefabs that do not take it.
+    recommendation: |-
+      Give each `.ws-text` control `aria-label="{{ q.lead }}"`; add `<thead><tr><th scope="col">export</th><th scope="col">signature</th></tr></thead>` to module-list; split the playground row into two labels; give worksheet and decision-list a `level` param as card and group-sections have; clamp `level` to 2-6 in card.
+    related_decision: ''
+    checked: |-
+      Confirmed: the three `.ws-text` controls carry `name` and `placeholder` only; module-list's exports table opens straight into `<tr>` rows with no `<thead>`.
+  - id: frontend-no-js-degradation-note-missing
+    title: Dynamic sections and worksheets have no noscript note despite p-static-first promising one
+    group: frontend
+    severity: low
+    rank: 4
+    confidence: high
+    location: yss/render.py:697, yss/prefabs/worksheet.yaml:122-125, docs/design.yaml:87-89
+    observation: |-
+      p-static-first says "dynamic sections and worksheets degrade to a note". `_section_dynamic` emits `<p class="dynamic-status">Loading {name}…</p>` (render.py:697) as the only static content, and with scripting off that text stays forever. The worksheet renders a complete form with a "Build the instruction" button (worksheet.yaml:123) that does nothing without prefabs.js. A grep finds no `<noscript>` anywhere in yss/, site/ or examples/.
+    why_it_matters: |-
+      A reader without JavaScript sees a spinner-less "Loading" and an inert button rather than the note the principle describes; the failure looks like a broken site instead of a documented limit.
+    recommendation: |-
+      Emit `<noscript><p class="dynamic-status">Runtime data needs JavaScript; the JSON is at <a href=...>dynamic/{name}.json</a>.</p></noscript>` inside the placeholder, and a matching `<noscript>` line beside `.ws-actions` in the worksheet.
+    related_decision: ''
+    checked: 'Confirmed: `_section_dynamic` emits only `Loading <name>…`; no `<noscript>` in the tree.'
+  - id: frontend-prefab-css-scope-not-enforced
+    title: |-
+      cv-prefab-css is honoured as a name prefix, not a scope, and shared rules live inside individual prefabs
+    group: frontend
+    severity: low
+    rank: 4
+    confidence: high
+    location: |-
+      docs/codemap.yaml:322-324, yss/prefabs/card-grid.yaml:20, yss/prefabs/badge.yaml:13-14, yss/assets/yss.css:138-147, yss/prefabs/card.yaml:25, yss/prefabs/module-list.yaml:65-75
+    observation: |-
+      cv-prefab-css reads "scoped under a class named after the prefab" with `enforced_by: none`. A static scan of every prefab's `css:` shows the rule is met by prefix naming (`.ws-*`, `.lab-*`, `.gallery-*`) rather than descendant selectors, with generic exceptions: `.empty` is styled only in card-grid.yaml:20 but emitted by eight prefabs (bullet-list, collection-index, evidence-list, group-sections, status-board, table, timeline, card-grid); `.tone-bad`, `.tone-muted` and `.tone-accent` exist only in badge.yaml:13-14 while `.tone-ok` and `.tone-warn` live in yss.css:138 and 146 - so card's closed `tone` vocabulary (card.yaml:25 `_known_tones`) is half-defined by another prefab's stylesheet; module-list.yaml:65-75 owns `.export-link` and `.source-pane*`, steps.yaml owns `.flow*`, status-board owns `.board-*`, card owns `.option-*` and `.meta-label`.
+    why_it_matters: |-
+      adr-003 lets a site override any prefab by name. A site that overrides `badge` or `card-grid` loses the tone classes and `.empty` styling for every other prefab, with no warning. The convention exists precisely to prevent that and has no check behind it.
+    recommendation: |-
+      Move `.empty` and the five `tone-*` classes into yss.css beside the existing tone rules (they are shared vocabulary, not prefab CSS). Add a test that every top-level selector in a prefab's `css:` starts with `.<name>` or a prefix the prefab declares (e.g. `css_prefix: ws-`), and flip cv-prefab-css to `enforced_by: test`.
+    related_decision: ''
+    checked: |-
+      Confirmed: `.empty` is styled only in card-grid.yaml; `.tone-bad`, `.tone-muted` and `.tone-accent` exist only in badge.yaml while `.tone-ok`/`.tone-warn` live in yss.css.
+  - id: frontend-undefined-border-token
+    title: collection-index's play button references --border, a custom property that does not exist
+    group: frontend
+    severity: low
+    rank: 4
+    confidence: high
+    location: yss/prefabs/collection-index.yaml:53
+    observation: |-
+      `.collection-link.kind-play { border: 1px solid var(--border); border-radius: 6px; padding: .15rem .5rem; }`. A grep of yss/, site/, examples/ and docs/ finds no definition of `--border`; the token roster in docs/palettes.yaml:38 names the border token `line`. A `var()` with no fallback that references an undefined property makes the declaration invalid at computed-value time, so the whole `border` shorthand resets to its initial value (`border-style: none`).
+    why_it_matters: |-
+      The `kind: play` link that adr-017 says "renders as a prototype button" renders as text with padding and a radius but no visible border, in every theme.
+    recommendation: |-
+      Change to `var(--line)`. The scoping test suggested in frontend-prefab-css-scope-not-enforced could also assert that every `var(--x)` in prefab CSS names a token from docs/palettes.yaml (tokens + optional_tokens) or carries a fallback.
+    related_decision: adr-017
+    checked: |-
+      Confirmed: `var(--border)` at collection-index.yaml:53 and no definition of `--border` anywhere in yss/, site/, examples/ or docs/.
+  - id: frontend-client-trust-boundary
+    title: Client runtime keeps data out of innerHTML; the only code execution is page-authored by design
+    group: frontend
+    severity: info
+    rank: 5
+    confidence: high
+    location: |-
+      yss/assets/yss.js:18-23, yss/assets/yss.js:95-103, yss/render.py:699, yss/render.py:84-85, site/prefabs/theme-playground.yaml:225
+    observation: |-
+      yss.js builds every dynamic node through `el(tag, attrs, children)` which uses `createElement`/`setAttribute`/`createTextNode` (lines 18-23); `innerHTML` appears only as `= ""` to clear a container (lines 114, 131, 144). Section config arrives as JSON in `data-columns`/`data-fields` attributes escaped by `_attrs()` (render.py:84-85), and the `data-for` selector in `views.custom` (yss.js:96) interpolates a section id constrained by page.schema.yaml:73 to `^[a-z0-9][a-z0-9_-]*$`. The `custom` view runs `new Function("el","data","envelope","h", script.textContent)` over a `<script type="text/x-yss-render">` whose body render.py:699 emits as unescaped `Markup(sec["script"])`. Since the body comes from schema-validated page YAML in the repository this is a page author executing their own code, not an injection surface; the one practical hazard is that a `</script>` inside the body ends the block early. theme-playground.yaml:225 builds token rows with `row.innerHTML = ... + t.label + ... + t.role` from docs/palettes.yaml - the same trusted boundary, but inconsistent with the `el()` discipline elsewhere.
+    why_it_matters: |-
+      No action needed; recorded so a future reviewer does not mistake the custom view for an XSS hole, and so the one innerHTML-with-data site is known.
+    recommendation: |-
+      Optionally document the trust boundary in yss.js's header comment and switch the playground row builder to `el()` for consistency.
+    related_decision: adr-006
+    checked: 'Confirmed: the runtime builds nodes with `el()`; `innerHTML` is used only to clear containers.'
+  - id: quality-string-warnings-parallel-lists
+    title: Warnings are untyped strings, so strict gating and the two printers each re-derive the kind
+    group: quality
+    severity: medium
+    rank: 3
+    confidence: high
+    location: |-
+      yss/build.py:447-482, yss/build.py:484-491, yss/build.py:602-616, yss/cli.py:71-74, yss/server.py:176-179
+    observation: |-
+      `BuildReport.warnings` is `list[str]` (build.py:66). Because a string cannot say what kind of warning it is, `build()` keeps a separate list for each gate purely so strict mode can count them: `duplicate_ids` (474-482), `dead` (487-491), `dead_links` (602-605), `report.flags` (611), stale claims via `report.evidence.stale` (613-616), each appended to `report.warnings` and *also* to `strict_failures` with its own f-string. Renderer keeps its own `self.warnings` (render.py:117) that build.py:485 splices in. The messages themselves use six different prefixes (`stale:`, `dead reference`, `dead link on page`, `duplicate anchor id`, `mount ... skipped`, `page '...' section '...':`) and are printed with different decorations by cli.py:72 (`  warning: `) and server.py:177 (`[build] warning: `).
+    why_it_matters: |-
+      Adding a gate means touching four places (collect, append to warnings, append to strict_failures, decide the message shape); a consumer of build.json or the CLI output cannot filter by kind without regexing the prose. adr-034 governs when strict raises, not the shape of what it raises, so a typed warning is compatible with it.
+    recommendation: |-
+      Introduce a small `Warning(kind: str, message: str, where: str = '')` dataclass (or a `dict[str, list[str]]` keyed by kind) on BuildReport; let `build()` append once per warning and derive `strict_failures` by kind at the end. cli.py and server.py then share one formatter.
+    related_decision: adr-034
+    checked: |-
+      Confirmed: `strict_failures` is appended at build.py:483, 494, 605, 619 and 621, each with its own message shape; cli.py and server.py print warnings with different prefixes.
+  - id: quality-cli-error-streams
+    title: CLI commands disagree on whether errors go to stdout or stderr and whether they carry a prefix
+    group: quality
+    severity: low
+    rank: 4
+    confidence: high
+    location: |-
+      yss/cli.py:37, yss/cli.py:52, yss/cli.py:62, yss/cli.py:120, yss/cli.py:142, yss/cli.py:245, yss/cli.py:267, yss/cli.py:498
+    observation: |-
+      `cmd_validate`, `cmd_build` and `cmd_check` print `validation failed:` and each error to stdout (37-40, 52-55, 120-123, an identical five-line block three times); `cmd_build` prints a `BuildError` to stdout with no prefix (62). `cmd_refs`, `cmd_query`, `cmd_schema`, `cmd_new`, `cmd_init`, `cmd_pages_setup` print to stderr, some with `error:` (338, 498) and some without (142, 245, 285, 308). `main()` catches only `ConfigError`/`LoadError` for the `error:` prefix and exit 2 (497-499); a `BuildError` from `cmd_build` exits 1 via the command's own handling.
+    why_it_matters: |-
+      CI (`.github/workflows/pages.yml`) and any wrapping script that separates streams gets validation failures on stdout and query failures on stderr; a `2>/dev/null` hides half the failure modes. The triplicated block is also the kind of copy that drifts.
+    recommendation: |-
+      Add `_fail(msg) -> int` in cli.py that prints `error: <msg>` to stderr and returns the exit code, and a `_print_validation_errors(loaded)` helper used by the three commands; route `BuildError` through it too.
+    related_decision: ''
+    checked: |-
+      Confirmed: the five-line `validation failed:` block appears three times on stdout; nine other commands print errors to stderr.
+  - id: quality-config-accessor-bypass
+    title: |-
+      Callers reach into cfg.data with defensive `or {}` guards for sections DEFAULTS already guarantees and Config already exposes
+    group: quality
+    severity: low
+    rank: 4
+    confidence: high
+    location: yss/render.py:111, yss/render.py:122, yss/cli.py:190, yss/dynamic.py:41, yss/ghpages.py:358
+    observation: |-
+      render.py:111 reads `(cfg.data.get('markdown') or {}).get('renderer')` and :122 `(cfg.data.get('build') or {}).get('attribution')` although `Config.build` is a property (config.py:369-371) and `DEFAULTS` guarantees both keys (config.py:67-69). cli.py:190 and ghpages.py:358 use `cfg.data['redaction']`; dynamic.py:41 uses `cfg.data['hooks']` where config.py:290 uses `self.data.get('hooks')`. Config has typed accessors for site, targets, vocabularies, nav, limits, build, evidence, mounts, serve but not for markdown, redaction or hooks.
+    why_it_matters: |-
+      The `or {}` guards read as if the key might be absent, which misleads about the contract `deep_merge(DEFAULTS, raw)` establishes (config.py:241); and three modules now know the raw shape of `redaction`, so renaming a key there means grepping the package.
+    recommendation: |-
+      Add `Config.markdown`, `Config.redaction` and `Config.hooks_path` properties and use the existing `cfg.build`; drop the `or {}` guards.
+    related_decision: ''
+    checked: Confirmed at render.py:111 and :122, cli.py:190 and dynamic.py:41.
+  - id: quality-dead-names
+    title: |-
+      Seven dead or unused names: two imports, three module constants/functions, one unread local, one no-op branch
+    group: quality
+    severity: low
+    rank: 4
+    confidence: high
+    location: |-
+      yss/render.py:23, yss/attribution.py:22, yss/attribution.py:29, yss/loader.py:29, yss/dynamic.py:117-118, yss/evidence.py:315-319, yss/scaffold.py:57-59
+    observation: |-
+      `from .hooks import call, load_hooks` in render.py:23 - `call` has no other occurrence in the file. `from typing import Any` in attribution.py:22 - unused. `FILTER_KEYS` (attribution.py:29) is defined with a docstring but the only consumer, `_is_list_binding` at :105, uses an inline tuple that omits `map`. `ANNOTATION_KEYS` (loader.py:29) has zero references repo-wide. `python_executable()` (dynamic.py:117) has zero references repo-wide. `evaluate()` builds `extras[id(claim)] = extra` (evidence.py:315-319) and never reads `extras`. `_merged_properties` (scaffold.py:57-59) has `if '$ref' in schema and ...: pass` with a comment saying refs are handled elsewhere. All verified by AST scan plus repo-wide grep excluding __pycache__.
+    why_it_matters: |-
+      Small individually, but `FILTER_KEYS` is the misleading one: it reads as the authoritative list of filter keys while the real check next to it uses a different set, so the next reader edits the wrong tuple.
+    recommendation: |-
+      Delete the two imports, `ANNOTATION_KEYS`, `python_executable`, the `extras` dict and the no-op branch; make `_is_list_binding` use `FILTER_KEYS` (dropping `map` explicitly if the omission is intended, with a one-line reason).
+    related_decision: ''
+    checked: |-
+      Confirmed by grep: `call` is imported and unused in render.py, `Any` in attribution.py, `ANNOTATION_KEYS` and `python_executable` have no references, `extras` is written and never read, `_is_list_binding` uses an inline tuple instead of `FILTER_KEYS`.
+  - id: quality-duplicate-root-resolution
+    title: |-
+      Doc-relative path resolution is implemented twice with the same broad except, plus repo-relative formatting is re-inlined at eight sites
+    group: quality
+    severity: low
+    rank: 4
+    confidence: high
+    location: |-
+      yss/evidence.py:161-169, yss/providers/symbols.py:20-33, yss/loader.py:340-344, yss/providers/symbols.py:63-68, yss/build.py:415, yss/cli.py:303, yss/cli.py:310, yss/server.py:216
+    observation: |-
+      `evidence._candidates` and `providers.symbols._bases` both build `[collection.root, cfg.root]` from `doc['_collection']` via `cfg.collection(cid)` inside `try/except Exception: pass`; the provider's docstring says 'The same order yss check uses' rather than calling it. `loader._rel(cfg, path)` (340-344) is the repo-relative-posix helper, yet the same `.relative_to(cfg.root).as_posix()` expression is written out again in build.py:415, cli.py:303/310, server.py:216 and providers/symbols.py:56/66 (the last as its own `_relative`).
+    why_it_matters: |-
+      The two base-order functions are the definition of 'where does a cited path resolve from'; if one ever gains a third root (e.g. a mount source, adr-032) the checker and the index will disagree about what a module path means, which is exactly the drift the provider's comment is trying to prevent by prose.
+    recommendation: |-
+      Move `_candidates`/`_bases` to one `Config.doc_roots(doc) -> list[Path]` (Config already owns `collection()`), and promote `loader._rel` to `Config.rel(path)` so the other seven sites call it.
+    related_decision: ''
+    checked: |-
+      Confirmed: `evidence._candidates` and `providers.symbols._bases` are the same six lines; the `relative_to(...).as_posix()` expression is inlined at eight further sites.
+  - id: quality-extension-surface-least-typed
+    title: |-
+      The extension surfaces - providers and the hooks contract - are the least typed and least documented code
+    group: quality
+    severity: low
+    rank: 4
+    confidence: high
+    location: |-
+      yss/providers/buildinfo.py:10, yss/providers/gitlog.py:7, yss/providers/evidence.py:11, yss/providers/testruns.py:68, yss/providers/symbols.py:20, yss/hooks.py:1-14, yss/cli.py:22-367
+    observation: |-
+      Across the package 253 of 300 functions are fully hinted (84%) and 93 carry a docstring (31%), but the distribution is uneven: providers/*.py have 0 of 17 functions fully hinted (every `collect(cfg, spec)` is bare), cli.py has 3 of 18 and no docstrings, scaffold.py has 0 of 11 docstrings. The hook contract that a collection author must implement is prose in a module docstring (hooks.py:5-11: `configure(collection: dict, cfg) -> dict | None` etc.) with no Protocol or type alias; `examples/demo-musing/hooks.py` accordingly types `cfg` as nothing. Prose share by module: attribution 27%, symbols 29%, render 16%, build 15%; loader 6%, scaffold 2%, cli 1%.
+    why_it_matters: |-
+      k-per-musing says anything unique to a musing goes in its own hooks.py; those authors get the least help from the type checker and the fewest docstrings, while the internal modules they never touch are the best documented.
+    recommendation: |-
+      Add `Provider = Callable[[Config, dict], Any]` and a `Hooks(Protocol)` in hooks.py mirroring the docstring, annotate the five built-in `collect` functions against it, and give the demo hooks.py the same signatures so it serves as a typed template.
+    related_decision: ''
+    checked: 'Confirmed: all six `collect` functions in yss/providers/ are unannotated.'
+  - id: quality-sentinel-and-status-literals
+    title: Reserved metadata keys and status ladders are typed as bare literals with no single definition
+    group: quality
+    severity: low
+    rank: 4
+    confidence: high
+    location: |-
+      yss/binding.py:74-93, yss/render.py:257, yss/render.py:802, yss/render.py:325, yss/evidence.py:35, yss/evidence.py:75, yss/evidence.py:397, yss/build.py:514
+    observation: |-
+      `_source` appears as a string literal 23 times in 7 files and `_collection` 26 times in 7 files; `_evidence` is written in evidence.py:376/384 and read in render.py:256, render.py:781 and build.py:514, all as literals. Only `_src`/`_doc` (binding.py:74-93) and `_type` (binding.py:70) are stamped from one place, and the reserved-key contract exists only in the `doc_items`/`_source_stamp` docstrings; the `_`-prefix rule is what the loader actually enforces (loader.py:218, 249, 290). Evidence statuses are centralised in `STATUS_ORDER` (evidence.py:35) and folded with `min(..., key=STATUS_ORDER)` in `summary()` (75) and again in `format_report` (397), but render.py:257 and :802 re-implement the fold as a literal ladder `'stale' if 'stale' in s else ('warn' if 'warn' in s else 'ok')`. Lifecycle `archived` is hard-coded in `_page_state` (render.py:325) although `lifecycle` is a per-collection vocabulary (config.py:39, `Collection.vocab`).
+    why_it_matters: |-
+      m13-attribution will add more reserved keys to bound items; today the set of reserved names is not greppable and a prefab author has to read two docstrings to learn it. The status ladder in render.py will silently diverge from `STATUS_ORDER` if a status is ever added. The hard-coded `archived` is a real cost of adr-011: a collection that renames its lifecycle vocabulary loses the 'archived page is not a destination' rule with no error.
+    recommendation: |-
+      Add a tiny `yss/meta.py` (or a block in loader.py) with `SOURCE = '_source'`, `COLLECTION = '_collection'`, `EVIDENCE = '_evidence'`, `SRC`, `DOC`, `TYPE` and a `RESERVED` tuple; expose `evidence.worst(statuses)` and use it in render.py; document in the lifecycle vocabulary (config.py:39) that `archived` is a semantic anchor the renderer relies on, or read the terminal status name from config.
+    related_decision: adr-011
+    checked: |-
+      Confirmed; the `_source` literal count at this commit is 30 across 7 files, not 23. The stale/warn/ok ladder is re-implemented at render.py:257 and :802.
+  - id: quality-two-yaml-loaders
+    title: |-
+      site.yaml, collection.yaml and .yss/local.yaml are parsed with a different YAML loader than every doc
+    group: quality
+    severity: low
+    rank: 4
+    confidence: medium
+    location: yss/config.py:137-142, yss/config.py:427-432, yss/loader.py:41-59
+    observation: |-
+      `loader.load_yaml` uses `_StringDateLoader`, which keeps `2026-09-04` as a string and reports the file name and line on parse errors (loader.py:50-59). `config._read_yaml` and `Config.local_data` use `yaml.safe_load` (config.py:139, 431), which turns the same scalar into a `datetime.date` and raises a raw `yaml.YAMLError` with no `where`. The collection schema has `additionalProperties: false` and no date-typed field (yss/schemas/collection.schema.yaml:11-100), so no current field is affected; a `Collection.summary()` value is later serialised with `json.dumps(default=str)` (build.py:526) which would mask a date object anyway.
+    why_it_matters: |-
+      The moment a collection.yaml or site.yaml gains a date-like field (an `updated:` for the card, say), it will validate as `type: string` in docs and fail in config, and a YAML syntax error in collection.yaml surfaces as a bare PyYAML message instead of the `file:line: column` form every other error uses (p-validate-early).
+    recommendation: |-
+      Have config.py import and use `loader.load_yaml` (config.py cannot import loader today because loader imports config; move `_StringDateLoader`/`load_yaml` to a tiny `yss/yamlio.py` both can import).
+    related_decision: ''
+    checked: |-
+      Confirmed: config.py uses `yaml.safe_load` in `_read_yaml` and `local_data`; loader.py uses `_StringDateLoader`.
+  - id: quality-history-in-comments
+    title: |-
+      Comments are a net asset, but several docstrings narrate former behaviour rather than the current invariant
+    group: quality
+    severity: info
+    rank: 5
+    confidence: high
+    location: |-
+      yss/render.py:378-386, yss/config.py:193-200, yss/build.py:186-193, yss/render.py:568-577, yss/render.py:271-281
+    observation: |-
+      45 gh-NN/adr-NNN citations across yss/*.py; every gh-NN has a matching tests/test_ghNN.py, so a citation is a jump to the regression test. Most explain a non-obvious boundary (build.py:213-217 on why `LINK_RE` excludes a preceding hyphen; build.py:376-378 on `os.kill(pid, 0)` on Windows). A minority describe what the code used to do: `_collection_nav` opens with 'Every collection used to get an unconditional pill in a hard-coded span' (render.py:380-382), `route_path` with 'Assets were emitted at `<id>/assets/` while the stylesheet href was built from the route, so any collection declaring `at:` 404'd' (config.py:195-197), the mount check with 'This was previously enforced by nothing at all' (build.py:191), `collection_css` with 'These were an inline `style` attribute on `<body>`' (render.py:570). No ADR or convention (cv-*) records a comment style, so this is judgement, not a decision.
+    why_it_matters: |-
+      History-shaped comments are true today and confusing in a year, when the reader has no memory of the old shape and has to work out which half of the sentence is current. The decision record (docs/decisions.yaml) already holds the before/after; the code needs only the invariant and the pointer.
+    recommendation: |-
+      When a comment is next touched, keep the invariant and the `(gh-NN)`/`(adr-NNN)` pointer and drop the 'used to' clause; leave the rest alone - the density in render.py and build.py is appropriate for code whose behaviour is mostly boundary decisions.
+    related_decision: ''
+    checked: Confirmed by reading the cited comments; a judgement call, recorded as info.
+  recommendations:
+  - id: rec-01
+    title: Make the dev server rebuild against the files on disk
+    effort: hours
+    why: |-
+      Construct a fresh `Config` per rebuild, key the hooks cache by path and mtime the way `symbols.index_for` already does, and apply `configure()` to a copy of the collection data. Today an author editing collection.yaml or hooks.py under `yss serve` sees a rebuild message and no change.
+    addresses:
+    - arch-serve-stale-config
+    task: m14-serve-reload
+    verify: |-
+      A test that edits collection.yaml between two rebuild() calls and asserts the second build sees the change passes.
+  - id: rec-02
+    title: One binding context, shared by the renderer and yss query
+    effort: hours
+    why: |-
+      A single `binding_context(...)` function builds the virtual roots for both callers, `resolve_from` raises on a root the context lacks instead of defaulting to empty, and `yss query` grows a `--collection` flag so collection-local expressions can be reproduced from the CLI.
+    addresses:
+    - arch-query-context-drift
+    task: m14-query-context
+    verify: python -m yss query '$collections' --fields id
+  - id: rec-03
+    title: Hand providers the build's filtered load instead of reloading
+    effort: hours
+    why: |-
+      Extend the provider `spec` with the target's already-filtered `Loaded` when called from `build()`, fall back to `load_all` only from `yss dynamic` and the server, and make buildinfo count the filtered docs. Removes five extra full loads per `build --target all` and closes the one provider that ignores `_target`.
+    addresses:
+    - arch-providers-reload-per-source
+    task: m14-provider-loaded
+    verify: A test asserts the public dynamic/buildinfo.json doc count excludes a private doc.
+  - id: rec-04
+    title: Move the loading facade into loader.py
+    effort: hours
+    why: |-
+      `Loaded`, `load_all` and `cross_checks` belong to loading, not building; moving them lets the providers import at top level and removes the only cycle in the package. build.py keeps re-exporting the names so callers change one import line.
+    addresses:
+    - arch-load-facade-in-build
+    - arch-codemap-depends-on-drift
+    task: m14-load-facade
+    verify: python -c "from yss.loader import load_all, Loaded, cross_checks"
+  - id: rec-05
+    title: Give the trust rules an owner
+    effort: hours
+    why: |-
+      `Collection.visible_in(target)`, a mount-targets helper and `Config.resolve_dynamic_source(name, collection_id)` replace the seven restatements in build.py, render.py and visibility.py, and visibility can derive from the target's `redact` flag rather than the literal name `public`.
+    addresses:
+    - arch-visibility-rules-spelled-thrice
+    task: m14-visibility-owner
+    verify: Select-String -Path yss\build.py,yss\render.py -Pattern 'or \["private"\]' returns no matches
+  - id: rec-06
+    title: The front-end fixes that need no decision
+    effort: hours
+    why: |-
+      Change `var(--border)` to `var(--line)`; emit a `<noscript>` note in dynamic sections and beside the worksheet actions; label the worksheet's free-text controls; give module-list's exports table a header row; move `.empty` and the five `tone-*` classes into yss.css; give worksheet and decision-list a `level` param and clamp card's to 2 through 6; add a test that every prefab selector starts with the prefab's class or declared prefix and flip cv-prefab-css to `enforced_by: test`.
+    addresses:
+    - frontend-undefined-border-token
+    - frontend-no-js-degradation-note-missing
+    - frontend-a11y-names-headers-outline
+    - frontend-prefab-css-scope-not-enforced
+    task: m14-frontend-fixes
+    verify: |-
+      python -m yss build --target all --no-dynamic; Select-String -Path yss\prefabs\collection-index.yaml -Pattern 'var\(--border\)' returns no matches
+  - id: rec-07
+    title: Typed warnings and one failure formatter
+    effort: hours
+    why: |-
+      A small warning record with a kind on `BuildReport` lets `build()` append once and derive strict failures by kind, and a `_fail()` helper in cli.py sends every error to stderr with the same prefix. Adding the next gate then touches one place instead of four.
+    addresses:
+    - quality-string-warnings-parallel-lists
+    - quality-cli-error-streams
+    task: m14-typed-warnings
+    verify: |-
+      python -m yss validate 2>$null; $LASTEXITCODE -eq 0 (and a failing validate prints nothing to stdout)
+  - id: rec-08
+    title: Render every collection card through the card prefab
+    effort: hours
+    why: |-
+      collection-index gets its cards from `prefab('card', ...)` with two small optional slots (`image`, `links`) added to card, so `level`, `kicker`, `options`, evidence badges and the coming `data-src` emission are written once. The dynamic cards view in yss.js is a different runtime and can stay, with the divergence noted.
+    addresses:
+    - frontend-card-markup-duplicated-three-ways
+    task: m14-card-consolidation
+    verify: Select-String -Path yss\prefabs\collection-index.yaml -Pattern '<article' returns no matches
+  - id: rec-09
+    title: Stage build() and split the two views out of Renderer
+    effort: days
+    why: |-
+      Stage functions with one signature under the lock, a `PageContext` passed explicitly instead of ambient fields, and stateless `nav` and `collections_view` modules. A pure move with the existing suite as the net; it is what makes the gate tests stop needing a whole pipeline run each. Waits on the maintainer's call in the audit worksheet.
+    addresses:
+    - arch-build-monolith
+    - arch-renderer-god-object
+    - arch-refs-logic-in-cli
+    task: m14-orchestration
+    verify: python -m unittest discover -s tests; and build() is under 80 lines
+  - id: rec-10
+    title: The small consolidations
+    effort: days
+    why: |-
+      Delete the seven dead names; one `Config.doc_roots(doc)` and `Config.rel(path)`; one YAML loader shared by config.py and loader.py; `Config.markdown`, `Config.redaction` and `Config.hooks_path` accessors; a `yss/meta.py` naming the reserved keys and an `evidence.worst()` used by render.py; a `Provider` alias and a `Hooks` protocol so the extension surface is typed; a bounded, policy-gated import fallback in the evidence checker.
+    addresses:
+    - quality-dead-names
+    - quality-duplicate-root-resolution
+    - quality-two-yaml-loaders
+    - quality-config-accessor-bypass
+    - quality-sentinel-and-status-literals
+    - quality-extension-surface-least-typed
+    - arch-evidence-import-fallback-side-effects
+    task: m14-consolidations
+    verify: |-
+      Select-String -Path yss\*.py -Pattern 'ANNOTATION_KEYS|python_executable' returns no matches; python -m unittest discover -s tests
+  - id: rec-11
+    title: Run the seven dimensions this pass could not
+    effort: days
+    why: |-
+      Error handling, tests, security and redaction, schemas, packaging and CI, docs drift, and performance were never examined: their finders were cut off by the session limit twice. They include the dimensions with the highest stakes for a public build. The plan task carries the brief; the worksheet asks how to run it.
+    addresses: []
+    task: m14-second-pass
+    verify: docs/audit.yaml scorecard shows a score for all ten dimensions.
+  strengths:
+  - title: A real leaf layer with zero intra-package imports
+    location: |-
+      yss/config.py, yss/binding.py, yss/visibility.py, yss/symbols.py, yss/hooks.py, yss/attribution.py:24
+    note: |-
+      config, binding, visibility, symbols and hooks import nothing from yss, and attribution imports only binding; binding and attribution operate on plain dicts and are tested on spec dictionaries alone (tests/test_gh12.py, test_gh29.py, test_gh30.py). The grep of `from .` edges shows the rest of the package strictly above them, so the dependency direction is data -> loading -> rendering -> orchestration -> surfaces with no upward static edge.
+  - title: Constraint k-per-musing holds in the code, not just the docs
+    location: |-
+      examples/demo-musing/hooks.py, examples/demo-musing/collection.yaml, yss/loader.py:363-375, yss/dynamic.py:37-45, yss/build.py:387-394, yss/build.py:513-520
+    note: |-
+      A grep of yss/ for demo-musing, hooked, inventory, cannon finds nothing outside generic comments and schema examples. The demo collection exercises every extension point (configure, load_docs, a hooks provider, after_build, per-collection vocabulary, limits, evidence policy, dynamic source, mount with include) purely through collection.yaml and hooks.py, and each is reached through one named seam in core (`_collection_items`, `dynamic.collect`, `build()` hook calls).
+  - title: Prefab examples are exercised twice, and a broken one fails the public build
+    location: |-
+      tests/test_yss.py:238-244, site/prefabs/prefab-gallery.yaml:25-31, site/pages/reference.yaml:8-14, tests/test_gh11.py:235-238
+    note: |-
+      `test_every_prefab_example_renders` calls `renderer.prefab(name, example["args"])` for every loaded prefab and asserts non-empty output; the Reference page (public, no visibility key) binds `$prefabs` into prefab-gallery, whose template calls `prefab(p.name, ex.args)` for each example, so CI's strict public build renders them all. test_gh11 additionally asserts examples ship no dead reference links. The skill's claim that "the test suite renders every example" is true.
+  - title: One exception type per module, mapped to exit codes in one place
+    location: |-
+      yss/cli.py:495-499, yss/build.py:26, yss/loader.py:37, yss/config.py:108, yss/hooks.py:22, yss/binding.py:17, yss/render.py:45, yss/dynamic.py:24, yss/symbols.py:226
+    note: |-
+      ConfigError/LoadError map to exit 2 and BuildError/BindError/ScaffoldError/GhError to exit 1 in `main` and the `cmd_*` adapters; lower layers wrap foreign exceptions into their own (`HookError` at hooks.py:46, `SymbolError` carrying only a repo-relative path per adr-004, `RenderError` wrapping Jinja `TemplateError` at render.py:566). Errors carry file and path, which is what design p-validate-early asks for.
+  - title: A pure core with constructor injection, so the hard logic is testable without a filesystem
+    location: |-
+      yss/attribution.py:1-18, yss/binding.py:293-350, yss/visibility.py:19-54, yss/symbols.py:71-108, yss/config.py:237-242, yss/render.py:89-99
+    note: |-
+      attribution.py, binding.py, visibility.py and symbols.py take dicts, strings and Paths and return values; `attribute()` and `describe()` are explicitly designed to run on spec dictionaries alone (attribution.py:6-9) and six test files import these modules directly. `Config(root, data)` accepts an in-memory dict, and `Renderer` receives docs, pages, prefabs, `all_doc_ids`, `build_info` and `evidence` as constructor arguments rather than loading them, so a renderer can be built over hand-written docs (tests/test_yss.py:240, 490).
+  - title: Theme layer overrides tokens only, and a test pins it
+    location: |-
+      site/assets/theme-bamboo.css:14-44, examples/demo-musing/assets/theme.css, tests/test_features.py:249-260, yss/assets/yss.css:149-167
+    note: |-
+      Both shipped themes touch custom properties (or collection-class-scoped rules) and no layout; `test_site_theme_css_is_linked_after_the_base_stylesheet` asserts link order and that the theme contains no `.site-header` rule. The adr-031 tokens are consumed as `var(--x, var(--old))` at the point of use with the substitution-rule rationale written into the stylesheet itself, so a palette that declares none of them renders unchanged.
+  - title: Static-first is real in the places the decision log claims it
+    location: |-
+      yss/templates/default.html:26-34, yss/render.py:600-620, yss/prefabs/module-list.yaml:29-36, yss/assets/yss.css:30, yss/prefabs/status-board.yaml:29-40
+    note: |-
+      Nav menus are `<details>`; attribution is a `title` attribute plus a `hidden` caption; code-map deep links carry real `#L<start>-L<end>` anchors computed at render time so they work with scripting off; anchor offsetting is a single `--header-offset` token spent as `scroll-padding-top`; the status board switches to kanban columns with a container query because it sits beside the TOC; wide tables get a `.table-scroll` wrapper. A skip link, `aria-expanded`/`aria-controls` on the toggle, `aria-label` on the TOC aside, `aria-live` on the worksheet status and `aria-pressed` on toggles are all present.
+  - title: |-
+      Hygiene basics are consistently right: no mutable defaults, 84% fully typed, no cross-module underscore access
+    location: yss/*.py, yss/providers/*.py
+    note: |-
+      An AST scan found no `def f(x=[])`/`={}` defaults anywhere; 253 of 300 functions have every parameter and the return annotated; every module starts with `from __future__ import annotations`; and a grep for `from .x import _name` and `obj._attr` across module boundaries returned nothing - private helpers stay private. Module-level state is limited to two caches (`hooks._cache`, `symbols._CACHE`, the latter mtime-keyed) and one immutable MarkdownIt instance.
+  - title: Prefab argument checking fails loudly and keeps vocabularies as data
+    location: yss/render.py:525-566, yss/render.py:187-195, yss/prefabs/card.yaml:23-28, yss/prefabs/card.yaml:22
+    note: |-
+      `prefab()` names the prefab and param on a missing required arg or a type mismatch, distinguishes bool from integer, and coerces numbers to strings for string params; the `fail()` global lets a template reject its own arguments with a readable message. card keeps its closed `tone` set as a `_known_tones` param default rather than a template literal (adr-011), and the `level` param threaded through card-grid and group-sections keeps the heading outline correct when cards sit under a group heading.
+  - title: Single sources of truth where drift had actually bitten
+    location: yss/config.py:192-204, yss/symbols.py:311-326, yss/hooks.py:33-48
+    note: |-
+      `Collection.route_path` is the one answer for asset emit, mount prefix, card links and emblem hrefs (adr-027), and the build's asset copy and `_mount` both go through it (build.py:462, 520). `symbols.index_for` is shared by the evidence checker, the renderer's `symbol_range` global and the symbols provider, is cached by mtime, and never imports. These are the places the issue history shows were fixed by consolidation rather than by patching each caller.
+  - title: Tests almost never reach through private members
+    location: tests/test_gh23.py, tests/test_gh28.py, tests/test_gh29.py
+    note: |-
+      Across 29 test files only four calls touch an underscore member (`renderer._nav_groups`, `renderer._collection_nav`, `renderer._refs`, `Renderer._bind`); everything else drives `load_all`, `build`, `Renderer.render_page`, `resolve_binding` and the CLI. That keeps the refactors recommended above (extracting nav and collection views from Renderer, staging `build()`) low-risk, because the suite tests behaviour at the module boundary rather than the internal shape.
+  - title: Dynamic rendering is a small, uniform envelope with graceful failure paths
+    location: yss/assets/yss.js:106-147, yss/render.py:676-700, yss/prefabs/module-list.yaml:81-95
+    note: |-
+      Every dynamic view reads the same `{source, collected_at, ok, data|error}` envelope, an unavailable source in this target renders the page-authored `empty` text without a fetch, fetch failures print the HTTP status beside that text, and the source-reader upgrade in module-list lets the click through to the real link on any miss (no index, not pinned, 404). The runtime is 173 lines with no dependencies.
+  - title: The extension API is small, dict-based and needs no yss import
+    location: examples/demo-musing/hooks.py:1-47, yss/hooks.py:1-14, yss/config.py:218-233
+    note: |-
+      The reference hooks.py implements `configure`, `load_docs`, a provider and `after_build` in 47 lines using only `pathlib` and plain dicts; the collection it receives is `Collection.summary()` (a JSON-able dict) plus `root`, so a hook author never touches Config internals. Loading is by file path with the repo root on sys.path, and every hook is optional with `call(..., default=...)`, which is what k-per-musing asks for.
+  - title: Comments explain boundaries and are navigable to their evidence
+    location: |-
+      yss/build.py:213-217, yss/build.py:376-378, yss/binding.py:74-85, yss/render.py:277-286, yss/attribution.py:60-67
+    note: |-
+      The 45 gh/adr citations each resolve to a tests/test_ghNN.py or a decisions.yaml entry, so a reader can go from a puzzling `(?<![-\w])` in LINK_RE to the exact test that pins it. The docstrings that matter most say what would go wrong otherwise: why `_source_stamp` copies rather than mutates (the JSON export would leak `_src`), why `_resolve_doc_ref` takes an `exact` flag (a generated id pushed through the scope-relative resolver is silently rewritten), why `binding_specs` scans YAML instead of hooking `_bind` (four of six section types never reach it).
+  corrections:
+  - finding: '[[#arch-renderer-god-object]]'
+    correction: build.py reads `renderer.ctx['collections']` at two sites (532, 593), not three.
+  - finding: '[[#quality-sentinel-and-status-literals]]'
+    correction: The `_source` literal appears 30 times across 7 files at this commit, not 23; the point stands.
+  - finding: '[[#arch-codemap-depends-on-drift]]'
+    correction: |-
+      Two more lists were wrong than the finder listed: scaffold and server both omit `config`. All seven were corrected when this audit was published.
