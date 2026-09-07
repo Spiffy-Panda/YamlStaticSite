@@ -22,7 +22,9 @@ Say so in `collection.yaml`'s `agent_notes` in as many words.
 
 Everything here is a view over handles, so start with `yss-doc`'s handle section if you have not.
 In one paragraph: a doc declares `mnemonic: XYZ`, each of its items declares `handle: XYZ.3`, and
-the site-wide index resolves `XYZ.3` to that item. Handles are **append-only** — never renumbered,
+the site-wide index resolves `XYZ.3` to that item. A series belongs to the **site**: `mnemonic:`
+takes one value or a list, two docs may declare the same one, and what is enforced is that a handle
+is unique across the site - which is why a register's `covers:` names series rather than docs. Handles are **append-only** — never renumbered,
 never reused, struck in place rather than rewritten. The ordinal identifies the item and says
 nothing about when it was written.
 

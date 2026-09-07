@@ -5,7 +5,7 @@ kind: register
 id: register
 title: Demo musing register
 summary: Every DMP handle in one place, with the contradictions quoted on both sides. The worked example the yss-register skill points at.
-visibility: private
+visibility: public          # see agent_notes: this is the worked example, not the default
 status: active
 updated: 2026-09-07
 owners: [agent]
@@ -22,6 +22,8 @@ intro: |
   Nothing here is a verdict. Mark rows, press **Build the instruction**, and hand the text to an
   agent - who records each verdict *where the handle lives* first, and updates these rows second.
 agent_notes: |
+  **Why this one is public.** This collection is the shipped worked example, so it is public - the one exception to the rule. A real register quotes internal disagreement and half-formed rules and stays `visibility: private`; this one holds invented content about a demo playable and exists to be looked at (adr-057). Do not copy this line into a register that is not an example.
+
   Every claimed contradiction quotes both sides verbatim, from the item the handle names. A
   contradiction that cannot be quoted is one an agent invented, and inventing them is worse than
   missing them - so a candidate that fails the test goes in `dismissed` with its reasoning rather

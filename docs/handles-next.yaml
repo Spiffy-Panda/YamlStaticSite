@@ -5,7 +5,7 @@ id: handles-next
 mnemonic: HND
 title: After handles
 summary: What building the handle layer and the register left for Panda - whether a series must belong to one doc, how far the gap check reaches, whether a tooltip is too crowded, items with no id, a register's bootstrap wrinkle, and whether the worked example should be visible.
-status: active
+status: archived
 updated: 2026-09-07
 owners: [agent]
 related: [register-skill, plan, decisions, codemap]
@@ -15,20 +15,27 @@ intro: |
   it. Only N.6 blocks work that is queued, and none is a bug - each is a place where
   the implementation had to pick a behaviour and the pick is reversible.
 
-  Recommended defaults are pre-selected. Open **pros and cons** under an option before changing one,
-  press **Build the instruction**, and hand the text to an agent in a fresh session.
+  **Applied 2026-09-07.** Every question carries what its verdict became; the options as they were
+  offered are in the foldout under each one. Nothing was left open, so no successor sheet was
+  started - the next call will open one.
 warn: |
-  🐼❗ N.6 blocks the adoption of the first repository outright - its docs cannot declare mnemonics
-  under the rule as shipped, and the two cheap workarounds both require renaming minted handles.
-  Answer it before that migration starts.
-
-  N.5 is the one with a real leak surface. The demo register is `visibility: private`, which is
-  the shipped default and the safe one - but it means the worked example the `yss-register` skill
-  points at never renders on the public site, so nobody evaluating yss can see the instrument that
-  the skill spends two thousand words on.
+  🐼❗ Kept as the record. N.6 was the one that mattered: it blocked the first repository's adoption
+  outright, and answering it `site-owned` withdrew a check yss had invented - that a handle must use
+  its own doc's mnemonic - in favour of the one that was doing the work, which is that a handle is
+  unique across the site.
 
 questions:
   - id: n-gap-check
+    resolution:
+      applied: 2026-09-07
+      by: Panda
+      chose: [register-only]
+      recorded_in: [decisions/adr-054, codemap/cv-handles-append-only]
+      summary: |
+        Gap checking stays inside the live-rules generator. A gap outside a register is usually a
+        deleted item rather than a lost one - deleting outright is still legal, only renumbering is
+        forbidden - so `cv-handles-append-only` keeps `enforced_by: none` with the nuance in its
+        rationale, and `yss handles` prints gaps for anyone who wants them.
     handle: HND.1
     call: N.1
     lead: Should a gap in a handle series be reported outside a register?
@@ -66,6 +73,15 @@ questions:
         cons: [Most series are unchecked, yss handles prints gaps nothing acts on, A lost item looks like a deleted one]
 
   - id: n-tooltip-default
+    resolution:
+      applied: 2026-09-07
+      by: Panda
+      chose: [full]
+      recorded_in: [decisions/adr-046]
+      summary: |
+        `full` stays the default and is now written explicitly in site.yaml under `handles.tooltip`,
+        so the four lines are a stated choice rather than a fallback. `meta` is the three provenance
+        lines alone, `compact` hides provenance, `text` is the words only.
     handle: HND.2
     call: N.2
     lead: Is the default citation tooltip carrying one line too many?
@@ -98,6 +114,16 @@ questions:
         cons: [A reader cannot see which file the claim lives in, Loses the series label a register configures]
 
   - id: n-idless-items
+    resolution:
+      applied: 2026-09-07
+      by: Panda
+      chose: [leave]
+      recorded_in: [decisions/adr-055, codemap/cv-handles]
+      summary: |
+        An item with no `id` carries no handle, because there would be no anchor to link to. The
+        rule is stated as *every item that carries an id* in the code map and both skills, and a doc
+        whose items have no ids keeps a mnemonic with an empty series - `yss handles` shows it as
+        zero.
     handle: HND.3
     call: N.3
     lead: Should an item that carries identity but no `id` be able to carry a handle?
@@ -130,6 +156,15 @@ questions:
         cons: [A citation that never links looks broken, Two classes of bound handle, The difference is invisible until someone clicks]
 
   - id: n-bootstrap
+    resolution:
+      applied: 2026-09-07
+      by: Panda
+      chose: [document]
+      recorded_in: [decisions/adr-056]
+      summary: |
+        Left as the documented two-step: write the register without the forward link, generate, add
+        the link, regenerate. No placeholder is scaffolded, so no generated file ever exists that is
+        not a real projection of a register.
     handle: HND.4
     call: N.4
     lead: Should the generator scaffold its output doc so a register can link to it from the start?
@@ -162,6 +197,15 @@ questions:
         cons: [The redirect is missing from the page an agent opens by mistake, Weakens the do-not-read-this-one rule, The skill has to explain the asymmetry]
 
   - id: n-example-visibility
+    resolution:
+      applied: 2026-09-07
+      by: Panda
+      chose: [public]
+      recorded_in: [decisions/adr-057]
+      summary: |
+        The demo collection's register, its generated live-rules list and both pages are public,
+        each carrying the reason and the warning that a real register stays private. The shipped
+        default is unchanged; `yss-register` repeats the warning where an agent will meet it.
     handle: HND.5
     call: N.5
     lead: Should the demo collection's register be public, as the worked example the skill points at?
@@ -200,6 +244,17 @@ questions:
         cons: [A screenshot goes stale silently, No evidence claim can prove it current, The controls cannot be tried]
 
   - id: n-series-ownership
+    resolution:
+      applied: 2026-09-07
+      by: Panda
+      chose: [site-owned]
+      recorded_in: [decisions/adr-053]
+      summary: |
+        `mnemonic:` now takes one value or a list, several docs may declare the same series, and the
+        invariant is that a *handle* is unique across the site. The in-scope form scopes to a doc's
+        first declared mnemonic. The check that a handle uses its own doc's mnemonic is withdrawn
+        and replaced by the check that its prefix is declared somewhere, which still catches a typo.
+        adr-053 supersedes that clause of adr-046.
     handle: HND.6
     call: N.6
     lead: Must a handle series belong to exactly one doc?

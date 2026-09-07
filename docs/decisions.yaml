@@ -1604,3 +1604,130 @@ entries:
       - "Rename the tagged handles to their own prefixes (rejected - renaming a minted handle is precisely what append-only forbids, and they are cited in prose across the repo)."
       - "Leave those docs without mnemonics so their handles stay mentions (rejected - it strands the docs that used handles most, and they are exactly the ones with registers)."
       - "Allow an unbounded tag (rejected - `OS.Design1` would read as a handle, and the sweep would start reporting prose)."
+
+  - id: adr-053
+    handle: ADR.53
+    date: 2026-09-07
+    title: A handle series belongs to the site, not to one doc
+    status: accepted
+    supersedes: adr-046
+    context: |
+      Two rules went into the handle layer with no real data behind them: a doc declares **one**
+      mnemonic, and every handle in it must use that mnemonic. Both are assumptions, and the first
+      repository to adopt handles breaks both. Seven of its docs carry two or three prefixes each -
+      one carries `FB`, `FBK` and `VFB` - and two prefixes span two docs apiece. That is not
+      disorder: a musing whose questions, decisions and beats grew across a plan file and a spec
+      file is the ordinary shape of the work.
+
+      Neither cheap fix was available. Folding a second prefix into a sub-series tag (`AGRP.1`
+      becoming `AGR.P1`) renames minted handles, which is precisely what append-only forbids and
+      what the whole instrument promises never to do. Splitting seven docs is a large content
+      migration in another repository, decided here rather than there, for a constraint yss
+      invented.
+    decision: |
+      `mnemonic:` takes one value or a list; several docs may declare the same series; and the
+      invariant that carries the weight is that a **handle** is unique across the site, which is
+      enforced independently and unchanged.
+
+      A declaration now buys exactly two things: a scope for the in-scope reference form, which is
+      the **first** mnemonic a doc lists, and a prefix the mention sweep will trust. The check that
+      a handle uses its own doc's mnemonic is withdrawn; the check that its prefix is declared
+      *somewhere* replaces it.
+    consequences:
+      - The adopting repository's docs can declare their series as they actually are, with no handle renamed.
+      - "A handle written into the wrong doc is no longer caught - the trade this makes. A typo'd prefix still is, because it is declared nowhere."
+      - "`Mnemonic.doc_id` is now the *first* doc to declare a series, used for the tooltip's series line and nothing else."
+      - "adr-046 keeps `status: accepted` and no `superseded_by`: this record and adr-052 each amend one clause of it, and its core - a handle is a second key on the index that already exists - is untouched."
+    alternatives:
+      - "Split the docs that carry several prefixes (rejected - a large migration in another repository to satisfy a rule yss invented)."
+      - "Fold second prefixes into sub-series tags (rejected - it renames minted handles, which append-only forbids)."
+      - "One primary mnemonic plus declared guests (rejected - a concept invented for this case alone, and it still fails where one prefix spans two docs)."
+
+  - id: adr-054
+    handle: ADR.54
+    date: 2026-09-07
+    title: A gap in a handle series is checked only where a register covers it
+    status: accepted
+    context: |
+      Append-only makes a gap a missing row rather than a free number, and the live-rules generator
+      hard-fails on one. That check runs only for series a register covers; every other series can
+      develop a gap in silence. The question was whether `validate` should report gaps everywhere.
+    decision: |
+      Leave it where it is. A gap outside a register is usually a deleted item rather than a lost
+      one - deleting an item outright is still legal, and only *renumbering* is forbidden - so a
+      site-wide error would make an ordinary edit illegal, and a site-wide warning would be one more
+      line agents learn to scroll past. `python -m yss handles` prints gaps for anyone who wants
+      them; where the discipline was actually agreed, the generator enforces it.
+    consequences:
+      - Most series are unchecked for gaps, and that is the intended state rather than an omission.
+      - A register is the thing that turns append-only from a convention into an enforced rule for the series it covers.
+      - "`cv-handles-append-only` stays `enforced_by: none`, with the nuance written into its rationale."
+    alternatives:
+      - "A validate warning everywhere (rejected - a warning nobody acts on, for a case that is usually a legal deletion)."
+      - "A validate error everywhere (rejected - it makes deleting an item illegal repo-wide, which nobody asked for)."
+
+  - id: adr-055
+    handle: ADR.55
+    date: 2026-09-07
+    title: An item with no id carries no handle
+    status: accepted
+    context: |
+      Handles were backfilled onto every item carrying an `id`, because an id is what an anchor and
+      a reference already resolve to. Some items carry identity another way - a changelog release is
+      named by its `version` - and now sit under a mnemonic with an empty series, which reads as an
+      oversight.
+    decision: |
+      Leave them. Nothing has ever needed to cite a release by handle, its version already names it,
+      and inventing ids so that handles become possible is a migration in search of a reader. A
+      handle on an item with no anchor would resolve and quote but never link, which is a second
+      class of citation whose difference is invisible until someone clicks.
+    consequences:
+      - "A doc whose items have no ids keeps a mnemonic with an empty series; `yss handles` shows it as zero."
+      - "The rule is `every item that carries an id`, not `every item` - stated that way in the code map and both skills."
+    alternatives:
+      - "Give those items ids and then handles (rejected - ids invented for items nobody addresses)."
+      - "Allow a handle with no id, quoting but never linking (rejected - a citation that never links looks broken)."
+
+  - id: adr-056
+    handle: ADR.56
+    date: 2026-09-07
+    title: A register's bootstrap stays a documented two-step
+    status: accepted
+    context: |
+      A register that points a reader at its generated list - which the skill says it should - cannot
+      validate until that list exists, because the reference is checked and the file has not been
+      generated yet. The way through is to write the register without the forward link, generate,
+      add the link, regenerate.
+    decision: |
+      Leave it a documented two-step; do not scaffold a placeholder output doc. A placeholder is a
+      file that claims to be generated while being a projection of nothing, and someone would commit
+      it. The sequence is four commands and the skill spells them out.
+    consequences:
+      - An agent setting up its first register meets a validation error before it meets the instruction, which the skill's setup section pre-empts.
+      - No generated file ever exists that is not a real projection of a register.
+    alternatives:
+      - "Scaffold an empty generated doc (rejected - a file that is not yet a projection of anything, and someone commits it)."
+      - "Drop the register's forward link entirely (rejected - the redirect belongs on the page an agent opens by mistake)."
+
+  - id: adr-057
+    handle: ADR.57
+    date: 2026-09-07
+    title: The demo collection's register is public, as the one worked example
+    status: accepted
+    context: |
+      Register docs default to `visibility: private`, which is right: a register quotes internal
+      disagreement and half-formed rules, and the public tree is uploaded wholesale. That left the
+      only rendered example of the instrument invisible to anyone who has not cloned the repository
+      - including anyone deciding whether to adopt yss at all.
+    decision: |
+      The demo collection's register, its generated live-rules list and both pages are public, with
+      the reason written on each. The default is unchanged; this is one collection opting out of it
+      deliberately, which the skill already documents as possible. Its content is invented material
+      about a demo playable.
+    consequences:
+      - The register prefab and the live-rules tables now render in the public build, where the skill's reader can see them.
+      - "A public register is an example of the exception rather than the rule, so each file says so in as many words; the `yss-register` skill repeats the warning."
+      - Copying the demo collection inherits public visibility, which is the risk this accepts.
+    alternatives:
+      - "Keep it private like every other register (rejected - the worked example the skill spends two thousand words on would be invisible)."
+      - "A screenshot on a public page (rejected - it goes stale silently, no evidence claim can prove it current, and the controls cannot be tried)."

@@ -23,14 +23,22 @@ properties:
     $ref: "#/$defs/slug"
     description: Stable id used in page bindings (`<id>.<field>`). Defaults to the file stem; collections prefix it with `<collection>/`.
   mnemonic:
-    type: string
-    pattern: "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+    oneOf:
+      - {type: string, pattern: "^[A-Za-z0-9][A-Za-z0-9_-]*$"}
+      - type: array
+        minItems: 1
+        items: {type: string, pattern: "^[A-Za-z0-9][A-Za-z0-9_-]*$"}
     description: >-
-      This doc's handle series: `mnemonic: PLN` makes its items citable as `PLN.7` from anywhere,
-      including files yss does not read. Any short slug, unique across the site case-insensitively
-      (a collision is a validate error naming both docs); `.` and `/` are excluded because they are
-      already the handle and doc-id separators. Declaring one mints nothing on its own - each item
-      still declares its own `handle`.
+      The handle series this doc participates in: `mnemonic: PLN` makes its items citable as `PLN.7`
+      from anywhere, including files yss does not read. Any short slug; `.` and `/` are excluded
+      because they are already the handle and doc-id separators.
+
+      One value or a list, and **a series belongs to the site rather than to a doc** (adr-053): a doc
+      may declare several, and two docs may declare the same one. The invariant that carries the
+      weight is that a *handle* is unique across the site. A declaration buys two things only - a
+      scope for the in-scope reference form, which is the **first** mnemonic listed, and a prefix the
+      mention sweep will trust. Declaring one mints nothing on its own; each item still declares its
+      own `handle`, and a handle whose prefix no doc anywhere declares is an error.
   title:
     type: string
     x-limit: title

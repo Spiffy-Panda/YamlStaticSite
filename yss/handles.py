@@ -6,6 +6,11 @@ time somebody sorts a list, and not from the item's slug, which is a coincidence
 rule. The pair is what makes a handle citable from anywhere: `[[PLN.7]]` and `[[plan#m14-audit]]`
 go through the same resolver to the same item.
 
+**A series belongs to the site, not to a doc** (adr-053). `mnemonic:` takes one value or a list, and
+two docs may declare the same one - a musing whose questions, decisions and beats grew across two
+files is the normal case, not a mistake. The invariant that carries the weight is that a *handle* is
+unique across the site; a declaration only buys a scope for `[[.7]]` and a prefix the sweep trusts.
+
 Two classes, and the difference is what each can promise:
 
 - A **bound handle** lives on a doc item. It resolves to that item, so its text can be quoted
@@ -277,48 +282,51 @@ def _claim(index: HandleIndex, entry: Handle, errors: list[str]) -> None:
     index.handles[entry.handle] = entry
 
 
+def declared_mnemonics(doc: dict) -> list[str]:
+    """The mnemonics a doc declares, in declaration order. One value or a list (adr-053)."""
+    raw = doc.get("mnemonic")
+    if raw is None:
+        return []
+    return [str(x) for x in (raw if isinstance(raw, list) else [raw])]
+
+
 def build_index(docs: dict[str, dict], archived: Iterable[tuple[str, dict]] = ()) -> tuple[HandleIndex, list[str]]:
     """Index every declared mnemonic and handle. Returns (index, errors).
 
-    Errors are the ones no JSON Schema can state, because they compare one document with another:
-    a mnemonic two docs both claim, a handle two items both carry, a handle whose prefix is not its
-    own doc's mnemonic.
+    Errors are the ones no JSON Schema can state, because they compare one document with another.
+    The invariant is that a **handle** is unique across the site - not that a series belongs to one
+    doc. A doc may declare several mnemonics and several docs may declare the same one (adr-053);
+    what a declaration buys is a scope for the in-scope form and a prefix the sweep will trust.
     """
     index = HandleIndex()
     errors: list[str] = []
 
     for doc_id, doc in sorted(docs.items()):
-        raw = doc.get("mnemonic")
-        if raw is None:
-            continue
         source = doc.get("_source", doc_id)
-        if not isinstance(raw, str) or not MNEMONIC_RE.match(raw):
-            errors.append(
-                f"{source}: at mnemonic: '{raw}' is not a mnemonic; any short slug is allowed "
-                f"but not '.' or '/', which are the handle and doc separators"
-            )
-            continue
-        name = canon(raw)
-        clash = index.mnemonics.get(name)
-        if clash is not None:
-            errors.append(
-                f"{source}: at mnemonic: '{raw}' is already declared by {clash.source} "
-                f"(doc '{clash.doc_id}'); mnemonics are unique across the site, case-insensitively"
-            )
-            continue
-        index.mnemonics[name] = Mnemonic(
-            name=name,
-            spelled=raw,
-            doc_id=doc_id,
-            doc_title=str(doc.get("title") or doc_id),
-            source=source,
-            label="",  # filled from a collection's `register.series` when one names this prefix
-        )
-        index._by_doc[doc_id] = name
+        for position, raw in enumerate(declared_mnemonics(doc)):
+            if not MNEMONIC_RE.match(raw):
+                errors.append(
+                    f"{source}: at mnemonic: '{raw}' is not a mnemonic; any short slug is allowed "
+                    f"but not '.' or '/', which are the handle and doc separators"
+                )
+                continue
+            name = canon(raw)
+            # First declaration wins the entry, which is only used for the tooltip's series line;
+            # a second doc declaring the same series is legal and adds nothing here.
+            index.mnemonics.setdefault(name, Mnemonic(
+                name=name,
+                spelled=raw,
+                doc_id=doc_id,
+                doc_title=str(doc.get("title") or doc_id),
+                source=source,
+                label="",  # filled from a collection's `register.series` when one names this prefix
+            ))
+            # The in-scope form `[[.7]]` needs one answer per doc: its *first* declared mnemonic.
+            if position == 0:
+                index._by_doc[doc_id] = name
 
     for doc_id, doc in sorted(docs.items()):
         source = doc.get("_source", doc_id)
-        own = index.mnemonic_of(doc_id)
         for field_name, item in _walk_items(doc):
             spelled = item.get("handle")
             if spelled is None:
@@ -328,16 +336,11 @@ def build_index(docs: dict[str, dict], archived: Iterable[tuple[str, dict]] = ()
                     f"{source}: at {field_name}: '{spelled}' is not a handle (expected PREFIX.<n>, "
                     f"or PREFIX.<tag><n> with up to three tag letters)")
                 continue
-            if own is None:
+            if ref.mnemonic not in index.mnemonics:
                 errors.append(
-                    f"{source}: at {field_name}: item carries handle '{spelled}' but the doc "
-                    f"declares no mnemonic"
-                )
-                continue
-            if ref.mnemonic != own:
-                errors.append(
-                    f"{source}: at {field_name}: handle '{spelled}' does not use this doc's "
-                    f"mnemonic '{index.mnemonics[own].spelled}'"
+                    f"{source}: at {field_name}: handle '{spelled}' uses mnemonic "
+                    f"'{ref.mnemonic}', which no doc declares. Declare it in this doc's "
+                    f"`mnemonic:` (a doc may declare several) or fix the spelling."
                 )
                 continue
             _claim(index, Handle(

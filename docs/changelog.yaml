@@ -8,6 +8,27 @@ status: active
 updated: 2026-09-07
 
 releases:
+  - version: 0.6.1
+    date: 2026-09-07
+    status: released
+    summary: The after-handles verdicts. A handle series belongs to the site rather than to one doc, which is what let the first adopting repository declare its series as they actually are; the worked example becomes visible; and four smaller calls are written down rather than left implicit.
+    changes:
+      - type: changed
+        text: "`mnemonic:` takes one value or a list, and several docs may declare the same series. The invariant is that a *handle* is unique across the site; a prefix no doc declares is still an error (adr-053)."
+      - type: changed
+        text: The in-scope reference form scopes to a doc's first declared mnemonic.
+      - type: changed
+        text: "The demo collection's register, its generated live-rules list and both pages are public - the one worked example, with the reason and the warning written on each. The shipped default is unchanged (adr-057)."
+      - type: added
+        text: "`handles.tooltip: full` is stated explicitly in site.yaml, so the four lines are a choice rather than a fallback (N.2)."
+      - type: changed
+        text: "A gap in a handle series is checked only where a register covers it; elsewhere `yss handles` prints gaps and nothing acts on them, because deleting an item outright is legal and leaves one (adr-054)."
+      - type: changed
+        text: "An item with no `id` carries no handle - there would be no anchor to link to - and its doc keeps a mnemonic with an empty series (adr-055)."
+      - type: fixed
+        text: "A register row anchors on its own item id as well as its handle, so the evidence links its `lives_in:` claim generates resolve (gh-11)."
+      - type: fixed
+        text: "Two `description:` values in doc.register's flow mappings contained a comma and were read as further keys; quoted."
   - version: 0.6.0
     date: 2026-09-07
     status: released

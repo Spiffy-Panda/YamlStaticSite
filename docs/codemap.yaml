@@ -459,13 +459,13 @@ conventions:
     enforced_by: test
   - id: cv-handles
     handle: MAP.45
-    rule: "A doc declares `mnemonic:`; every item it owns declares its own `handle:`. Declared, never derived - a handle read out of list position breaks the first time a list is sorted."
-    rationale: Handles are what make an item citable from files yss does not read, which a doc#item reference never was.
+    rule: "A doc declares `mnemonic:` (one value or a list); every item that carries an `id` declares its own `handle:`. Declared, never derived - a handle read out of list position breaks the first time a list is sorted."
+    rationale: Handles are what make an item citable from files yss does not read, which a doc#item reference never was. An item with no id has no anchor to link to, so it carries no handle and its doc keeps a mnemonic with an empty series (adr-055).
     enforced_by: validate
   - id: cv-handles-append-only
     handle: MAP.46
-    rule: Handles are append-only - never renumbered, never reused, struck in place rather than rewritten. An ordinal identifies an item and dates nothing.
-    rationale: Existing docs were backfilled in file order, so a lower number is not older; retirement and successor-minting both stand on the number never moving.
+    rule: Handles are append-only - never renumbered, never reused, struck in place rather than rewritten. An ordinal identifies an item and dates nothing, and a gap is a missing row rather than a free number.
+    rationale: Reuse is a validate error; a gap is checked only where a register covers the series (adr-054), because deleting an item outright is legal and leaves one. Elsewhere `yss handles` prints gaps and nothing acts on them.
     enforced_by: none
   - id: cv-handles-cite
     handle: MAP.47

@@ -1,10 +1,12 @@
 # The contradiction register, rendered as an instruction builder. Private, explicitly and never
 # inherited: sibling pages in this folder are public. Binding a private doc from a public page is a
 # build error, and a register quotes internal disagreement - do not flip this.
+# Public, deliberately: this is the worked example the yss-register skill points at (adr-057).
+# A real register's doc AND page are `visibility: private`, explicitly and never inherited.
 id: register
 title: Demo musing register
 summary: Where this musing disagrees with itself. For an agent auditing history - a working agent loads the live-rules list instead.
-visibility: private
+visibility: public
 nav: {label: Register, order: 8}
 docs: [register]
 sections:

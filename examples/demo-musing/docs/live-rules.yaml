@@ -5,7 +5,7 @@ id: live-rules
 title: Live rules - Demo musing register
 summary: Generated. What still binds, projected from the contradiction register; retired rules reach this
   list as bare numbers.
-visibility: private
+visibility: public
 status: active
 updated: '2026-09-07'
 shape: live-rules
@@ -19,7 +19,7 @@ agent_notes: 'GENERATED - never hand-edit; every edit is lost on the next run of
 data:
   generated_from:
     doc: register
-    digest: 178e6973a3383043791d38dfe054fddde0a00061c35cadf14e6af8b90eef73f0
+    digest: 4fd215356563acd09e05b34d443747fab716b5888074597f060fb9e449acefa8
   in_force:
   - subject: DMP.1
     says: Ship the playable

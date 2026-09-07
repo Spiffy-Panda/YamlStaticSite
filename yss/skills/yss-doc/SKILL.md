@@ -53,9 +53,17 @@ inside the doc that owns the series. A citation renders with the item's own word
   tag is up to three letters, and **ordinals count within a series**, so `VFB.D4` leaves no gap at
   4 in `VFB.Q` and each series mints its own next number. `[[.Q5]]` is the in-scope form.
 - **Append-only.** Never renumber, never reuse, never rewrite an item to match a later ruling -
-  strike it in place and mint a successor. `python -m yss handles` prints each series' mint pointer.
+  strike it in place and mint a successor. `python -m yss handles` prints each series' mint pointer
+  and its gaps. Reuse is a validate error; a **gap** is only checked where a register covers the
+  series, because deleting an item outright is legal and leaves one.
+- **A series belongs to the site, not to a doc.** `mnemonic:` takes one value or a list, and two
+  docs may declare the same one. What is enforced is that a *handle* is unique across the site; a
+  declaration only buys a scope for `[[.7]]` (the **first** mnemonic listed) and a prefix the sweep
+  trusts. A handle whose prefix no doc anywhere declares is still an error.
 - **One namespace, one spelling.** Lookup folds case; the canonical form is uppercase. Mnemonics are
-  any short slug, unique across the site - a collision is a validate error naming both docs.
+  any short slug.
+- **An item with no `id` carries no handle** - there would be no anchor to link to. Its doc keeps a
+  mnemonic with an empty series, which is not an oversight.
 - **An ordinal identifies an item and dates nothing.** Existing docs were backfilled in file order,
   so a lower number is not older.
 - **Bound handles vs mentions.** A handle on a doc item is *bound*: it resolves to exact text and can

@@ -49,6 +49,19 @@ def doc(id_: str, mnemonic: str, rows: list[tuple[str, str, str]], title: str = 
     return DOC.format(id=id_, mnemonic=mnemonic, title=title, rows=body)
 
 
+#: A doc participating in two series at once - legal since adr-053, and the shape that made the
+#: rule necessary: a musing whose questions and decisions grew into one file.
+DOC_TWO_SERIES = """kind: generic
+id: h2c
+mnemonic: [ONE, TWO]
+title: T
+data:
+  rules:
+    - {id: a, handle: ONE.1, title: first}
+    - {id: b, handle: TWO.1, title: second}
+"""
+
+
 class ParsingTests(unittest.TestCase):
     def test_parse_handle(self):
         self.assertEqual(parse_handle("PLN.7"), ("PLN", "", 7))
@@ -96,26 +109,45 @@ class IndexTests(TempSiteCase):
         self.assertIsNotNone(loaded.handles.get("hx.2"))
         self.assertEqual(loaded.handles.get("hx.2").spelled, "HX.2", "storage keeps what the file wrote")
 
-    def test_mnemonic_collision_is_an_error(self):
+    def test_two_docs_may_declare_one_series(self):
+        """A series belongs to the site (adr-053): a musing whose items grew across two files is
+        the normal case, and handle uniqueness is what actually keeps them apart."""
         self.write_doc("h2.yaml", doc("h2", "dup", [("a", "dup.1", "x")]))
-        self.write_doc("h3.yaml", doc("h3", "DUP", [("b", "DUP.1", "y")]))
+        self.write_doc("h3.yaml", doc("h3", "DUP", [("b", "DUP.2", "y")]))
         loaded = load_all(self.cfg)
-        self.assertTrue(any("already declared" in e for e in loaded.errors), loaded.errors)
+        self.assertEqual(loaded.errors, [])
+        self.assertEqual(loaded.handles.get("DUP.1").doc_id, "h2")
+        self.assertEqual(loaded.handles.get("DUP.2").doc_id, "h3")
+
+    def test_a_shared_series_still_cannot_reuse_a_number(self):
+        self.write_doc("h2b.yaml", doc("h2b", "shr", [("a", "shr.1", "x")]))
+        self.write_doc("h3b.yaml", doc("h3b", "SHR", [("b", "SHR.1", "y")]))
+        loaded = load_all(self.cfg)
+        self.assertTrue(any("never reused" in e for e in loaded.errors), loaded.errors)
+
+    def test_a_doc_may_declare_several_mnemonics(self):
+        self.write_doc("h2c.yaml", DOC_TWO_SERIES)
+        loaded = load_all(self.cfg)
+        self.assertEqual(loaded.errors, [])
+        self.assertEqual(loaded.handles.mnemonic_of("h2c"), "ONE", "the first listed is the scope")
+        self.assertIsNotNone(loaded.handles.get("TWO.1"))
 
     def test_handle_reuse_is_an_error(self):
         self.write_doc("h4.yaml", doc("h4", "rus", [("a", "rus.1", "x"), ("b", "rus.1", "y")]))
         loaded = load_all(self.cfg)
         self.assertTrue(any("never reused" in e for e in loaded.errors), loaded.errors)
 
-    def test_handle_must_use_its_own_docs_mnemonic(self):
-        self.write_doc("h5.yaml", doc("h5", "own", [("a", "other.1", "x")]))
+    def test_a_handle_may_use_a_series_another_doc_declares(self):
+        self.write_doc("h5a.yaml", doc("h5a", "elsewhere", [("z", "elsewhere.9", "declared here")]))
+        self.write_doc("h5.yaml", doc("h5", "own", [("a", "elsewhere.1", "used here")]))
         loaded = load_all(self.cfg)
-        self.assertTrue(any("does not use this doc's mnemonic" in e for e in loaded.errors), loaded.errors)
+        self.assertEqual(loaded.errors, [], "the series is the site's, not one doc's (adr-053)")
 
-    def test_handle_without_a_mnemonic_is_an_error(self):
+    def test_a_prefix_no_doc_declares_is_an_error(self):
+        """The check that survives adr-053: a typo'd prefix still has nowhere to live."""
         self.write_doc("h6.yaml", "kind: generic\nid: h6\ntitle: T\ndata:\n  rules:\n    - {id: a, handle: NOPE.1, title: x}\n")
         loaded = load_all(self.cfg)
-        self.assertTrue(any("declares no mnemonic" in e for e in loaded.errors), loaded.errors)
+        self.assertTrue(any("which no doc declares" in e for e in loaded.errors), loaded.errors)
 
     def test_mint_pointer_and_gaps(self):
         self.write_doc("h7.yaml", doc("h7", "gap", [("a", "gap.1", "x"), ("c", "gap.3", "z")]))
@@ -138,10 +170,10 @@ class IndexTests(TempSiteCase):
         self.assertEqual(loaded.handles.next_number("SUB.Q"), 3)
         self.assertEqual(len(loaded.handles.series("SUB")), 3, "the mnemonic still names them all")
 
-    def test_a_tagged_handle_belongs_to_its_docs_mnemonic(self):
-        self.write_doc("h7c.yaml", doc("h7c", "own2", [("a", "else.Q1", "x")]))
+    def test_a_tagged_handle_needs_its_prefix_declared_somewhere(self):
+        self.write_doc("h7c.yaml", doc("h7c", "own2", [("a", "nowhere.Q1", "x")]))
         loaded = load_all(self.cfg)
-        self.assertTrue(any("does not use this doc's mnemonic" in e for e in loaded.errors), loaded.errors)
+        self.assertTrue(any("which no doc declares" in e for e in loaded.errors), loaded.errors)
 
 
 class ArchiveTests(TempSiteCase):

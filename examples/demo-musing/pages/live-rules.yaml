@@ -1,9 +1,11 @@
 # The generated live-rules list: what binds right now. This is the page a working agent is pointed
 # at; the register is the one for auditing history. Both are private, explicitly.
+# Public for the same reason as the register page beside it (adr-057), and for the same
+# reason it is an exception: a real live-rules list is private.
 id: live-rules
 title: Live rules
 summary: What still binds in this musing, generated from the register. Retired handles appear as bare numbers with no text.
-visibility: private
+visibility: public
 nav: {label: Live rules, order: 7}
 docs: [live-rules]
 sections:

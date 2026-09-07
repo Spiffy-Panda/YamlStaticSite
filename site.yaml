@@ -31,6 +31,13 @@ build:
 vocabularies:
   link_kind: [repo, issue, pr, doc, page, play, external, file]
 
+handles:
+  tooltip: full                       # series, handle, source, then the cited item's own words.
+                                      # The words are why a citation is worth hovering, so they stay
+                                      # in the default (N.2); a part with nothing to say drops its
+                                      # own line. `meta` is the three provenance lines alone,
+                                      # `compact` hides provenance, `text` is the words only.
+
 evidence:
   git_recency: true                   # warn when cited code changed after a doc's `updated` date
   run_commands: false                 # `yss check --run-commands` runs command claims on demand
