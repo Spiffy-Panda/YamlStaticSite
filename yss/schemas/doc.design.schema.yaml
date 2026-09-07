@@ -28,12 +28,7 @@ properties:
         options:
           type: array
           items: {$ref: "#/$defs/option"}
-          description: >-
-            The alternatives this item is open between. An item at `status: open` is by definition
-            a decision not yet made, and the alternatives are the most useful thing about it; with
-            nowhere to put them they degrade to prose, which no page can table, count or link.
-            `alternatives[]` below is the closed case - it requires `rejected_because` and is not
-            attached to any item.
+          description: The alternatives this item is open between; shape is $defs/option.
       unevaluatedProperties: false
   components:
     type: array
@@ -54,12 +49,7 @@ properties:
         options:
           type: array
           items: {$ref: "#/$defs/option"}
-          description: >-
-            The alternatives this item is open between. An item at `status: open` is by definition
-            a decision not yet made, and the alternatives are the most useful thing about it; with
-            nowhere to put them they degrade to prose, which no page can table, count or link.
-            `alternatives[]` below is the closed case - it requires `rejected_because` and is not
-            attached to any item.
+          description: The alternatives this item is open between; shape is $defs/option.
       unevaluatedProperties: false
   interfaces:
     type: array
@@ -78,12 +68,7 @@ properties:
         options:
           type: array
           items: {$ref: "#/$defs/option"}
-          description: >-
-            The alternatives this item is open between. An item at `status: open` is by definition
-            a decision not yet made, and the alternatives are the most useful thing about it; with
-            nowhere to put them they degrade to prose, which no page can table, count or link.
-            `alternatives[]` below is the closed case - it requires `rejected_because` and is not
-            attached to any item.
+          description: The alternatives this item is open between; shape is $defs/option.
       unevaluatedProperties: false
   flows:
     type: array
@@ -109,12 +94,7 @@ properties:
         options:
           type: array
           items: {$ref: "#/$defs/option"}
-          description: >-
-            The alternatives this item is open between. An item at `status: open` is by definition
-            a decision not yet made, and the alternatives are the most useful thing about it; with
-            nowhere to put them they degrade to prose, which no page can table, count or link.
-            `alternatives[]` below is the closed case - it requires `rejected_because` and is not
-            attached to any item.
+          description: The alternatives this item is open between; shape is $defs/option.
       unevaluatedProperties: false
   constraints:
     type: array
@@ -130,12 +110,7 @@ properties:
         options:
           type: array
           items: {$ref: "#/$defs/option"}
-          description: >-
-            The alternatives this item is open between. An item at `status: open` is by definition
-            a decision not yet made, and the alternatives are the most useful thing about it; with
-            nowhere to put them they degrade to prose, which no page can table, count or link.
-            `alternatives[]` below is the closed case - it requires `rejected_because` and is not
-            attached to any item.
+          description: The alternatives this item is open between; shape is $defs/option.
       unevaluatedProperties: false
   alternatives:
     type: array
@@ -151,10 +126,5 @@ properties:
         options:
           type: array
           items: {$ref: "#/$defs/option"}
-          description: >-
-            The alternatives this item is open between. An item at `status: open` is by definition
-            a decision not yet made, and the alternatives are the most useful thing about it; with
-            nowhere to put them they degrade to prose, which no page can table, count or link.
-            `alternatives[]` below is the closed case - it requires `rejected_because` and is not
-            attached to any item.
+          description: The alternatives this item is open between; shape is $defs/option.
       unevaluatedProperties: false

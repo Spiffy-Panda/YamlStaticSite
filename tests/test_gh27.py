@@ -47,7 +47,10 @@ class SchemaShapeTests(TempSiteCase):
         self.assertIn("option", design["$defs"], "the shape should come from the envelope's $defs")
         option = design["$defs"]["option"]
         self.assertEqual(option["required"], ["text"])
-        self.assertEqual(set(option["properties"]), {"text", "why", "pros", "cons"})
+        self.assertEqual(
+            set(option["properties"]),
+            {"text", "why", "pros", "cons", "evidence", "notes"},
+        )
         self.assertFalse(option.get("additionalProperties", True))
 
     def test_the_worksheet_keys_that_do_not_belong_are_absent(self):

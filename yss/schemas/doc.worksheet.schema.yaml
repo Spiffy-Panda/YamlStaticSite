@@ -12,6 +12,19 @@ required: [kind, title, questions]
 additionalProperties: false
 properties:
   kind: {const: worksheet}
+  visibility:
+    type: string
+    enum: [public, private, on_resolution]
+    default: public
+    description: >-
+      As the envelope, plus one value only a worksheet may use. `on_resolution` is *derived*, not
+      authored: the sheet is private while any question that requires an answer lacks a
+      `resolution`, and publishes the moment the last one lands - so no human decides per sheet
+      whether it is safe. What publishes is a projection, not the authored document: the questions,
+      the options as they were offered and `resolution.chose[]` reach the public target, while
+      `resolution.summary`, `agent_notes` and `private_notes` are elided and a `kind: text` answer
+      is reduced to the `resolution.answered` marker. See `yss/visibility.py` (gh-37). Per *item*
+      visibility stays two-valued: half a sheet is not an artefact.
   intro: {type: string, x-limit: markdown, description: "In plain words: jargon-free explainer shown first."}
   warn: {type: string, x-limit: markdown, description: "The trap to avoid; rendered as a must-read box."}
   questions:
@@ -45,10 +58,22 @@ properties:
             a foldout underneath. A question without one is still live.
           properties:
             summary: {type: string, x-limit: markdown, description: "What addressed it, written in the past tense."}
+            answered:
+              type: boolean
+              description: >-
+                For a `kind: text` question, whether the human wrote anything - the only part of a
+                free-text answer that is ever published, rendered as `<filled>` / `<empty>`. The
+                text itself is not persisted anywhere (see this schema's description), so this
+                marker is the whole public record of that answer. Required on a resolved text
+                question of an `on_resolution` worksheet; ignored on option questions, whose
+                published answer is `chose[]`.
             chose:
               type: array
               items: {type: string}
-              description: The option `value`s that were picked; each must name an option of this question.
+              description: >-
+                The option `value`s that were picked; each must name an option of this question.
+                Enforced, not merely described: `yss validate` rejects a value no option declares
+                (gh-37), which used to render as a plausible answer nothing matched.
             applied: {type: string, format: date, description: ISO date the verdict was applied.}
             by: {type: string, description: Handle of whoever made the call.}
             recorded_in:

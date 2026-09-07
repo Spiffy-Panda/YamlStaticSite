@@ -1,3 +1,7 @@
 /* Collection theme: applied to every page of the demo musing (collection.yaml theme.css). */
 .in-collection .collection-bar { background: color-mix(in srgb, var(--accent) 14%, var(--bg-2)); }
 .in-collection .page-header h1 { color: var(--accent); }
+
+/* Dark mode needs a lighter accent: #7a3e9d draws 2.29:1 on --bg-2, well under WCAG AA.
+   #c79bea measures 7.08:1 on --bg-2 and 7.87:1 on --bg (gh-31, enforced by the contrast gate). */
+@media (prefers-color-scheme: dark) { :root { --accent: #c79bea; } }

@@ -44,10 +44,23 @@ Any list item may also carry `visibility`, `private_notes`, `tags`, `links`, `no
 evidence:
   - {path: yss/cli.py}                              # exists (globs allowed; also tried relative to the collection root)
   - {path: yss/cli.py, contains: "def main("}       # and contains the text
+  - {path: yss/cli.py, not_contains: "TODO"}        # and does NOT contain it - proves a removal
+  - {path: docs/design.yaml, at: "components[*].status", equals: live}   # anchored: parse the YAML
+  - {path: docs/plan.yaml, at: "milestones[*].status", in: [active, blocked]}
+  - {path: docs/plan.yaml, at: "open_questions[*].id", absent: true}     # resolves to nothing
   - {glob: "yss/prefabs/*.yaml", min: 10}           # at least min matches
   - {symbol: "yss.build:build"}                     # importable
   - {command: "python -m yss validate", expect: 0}  # runs only with `yss check --run-commands`
 ```
+
+`contains`/`not_contains` are whole-file substring tests; `at` parses the file as YAML and judges
+the *values* at an anchor (`key`, `key.key`, `key[i]`, `key[*]`), with `equals`, `in` or
+`absent: true` - and every leaf must satisfy it. **Prefer `at` whenever the target is YAML and the
+claim is about a value.** `{contains: "status: open"}` cannot tell an item's status from the
+document's own top-level `status:`, so such a claim passes forever; `yss check` now reports it
+`warn` ("matched the envelope's own 'status' -- consider at:"). `at`/`not_contains` require `path`;
+`equals`/`in`/`absent` require `at`. A non-YAML target, an unparsable file or an anchor that
+resolves to nothing is `stale` with a reason, never a crash.
 
 Fields annotated in the schemas are checked without any extra authoring: codemap `roots.path`,
 `modules.path`, `modules.tests`; design `components.code`. `python -m yss check` prints ok/stale per
@@ -62,7 +75,7 @@ doc; `-v` lists passing claims; a stale claim means fix the doc or the code, the
 ## Kinds at a glance
 
 - **plan**: `goals[]`, `non_goals[]`, `milestones[] {id, title, status, priority 1-5, target_date, depends_on[], done_when, tasks[] {id, title, status, owner, estimate, depends_on[], done_when, verify, evidence[]}}`, `risks[] {id, title, likelihood, impact, mitigation, status}`, `open_questions[] {id, question, context, options[], owner, status, answer}`. Milestones and tasks use `work_status`; risks `risk_status`; questions `question_status`. **Open work only** - see Archive.
-- **design**: `overview` (markdown), `principles[]`, `components[] {id, name, kind, responsibility, inputs[], outputs[], depends_on[], code[] (evidence), status}`, `interfaces[] {id, name, kind, signature, description, component}`, `flows[] {id, title, trigger, steps[] {actor, action, produces}}`, `constraints[]`, `alternatives[]`. Every design list's `status` is `claim_status` (live|decided|open|superseded), components included - a component that exists in the code is `live`, not `active`. Any design item may also carry `options[] {text, why, pros[], cons[]}` - the alternatives it is open between. An item at `status: open` should have them; without the field they degrade to prose no page can table or link. The shape is the envelope's `$defs/option`, a narrowing of the worksheet's; it is **not** on `item_base`, because `doc.plan`'s `open_questions[].options` (strings) and `doc.worksheet`'s (objects requiring `value`) would intersect with it and fail. `alternatives[]` is the closed case - paths not taken, with `rejected_because`.
+- **design**: `overview` (markdown), `principles[]`, `components[] {id, name, kind, responsibility, inputs[], outputs[], depends_on[], code[] (evidence), status}`, `interfaces[] {id, name, kind, signature, description, component}`, `flows[] {id, title, trigger, steps[] {actor, action, produces}}`, `constraints[]`, `alternatives[]`. Every design list's `status` is `claim_status` (live|decided|open|superseded), components included - a component that exists in the code is `live`, not `active`. Any design item may also carry `options[] {text, why, pros[], cons[], evidence[], notes}` - the alternatives it is open between; an option's `evidence:` is checked like any other and reported under the enclosing item's id. An item at `status: open` should have them; without the field they degrade to prose no page can table or link. The shape is the envelope's `$defs/option`, a narrowing of the worksheet's; it is **not** on `item_base`, because `doc.plan`'s `open_questions[].options` (strings) and `doc.worksheet`'s (objects requiring `value`) would intersect with it and fail. `alternatives[]` is the closed case - paths not taken, with `rejected_because`.
 - **codemap**: `roots[] {path (evidence), purpose}`, `modules[] {id, path (evidence), purpose, language, status, exports[], depends_on[], tests[] (evidence)}`, `entrypoints[] {id, name, command, module, description}`, `conventions[] {id, rule, rationale, enforced_by}`. A convention is a repo-level rule on any agent working here; `enforced_by` names the surface that catches a breach (`validate`|`check`|`build`|`scan`|`test`) or `none` when the rule holds by discipline alone.
   Each `exports[].name` is evidence too: it is resolved by parsing the file at `modules[].path`, so a renamed export is a stale claim rather than a dead link. **Python and Rust are parsed** (`yss/langs/`); a module in any other language is still valid and simply carries no line ranges. A `path` may be a file or a directory - a directory prefixes each file's names with its stem (`buildinfo.collect`, `ballistics::GRAVITY`) and leaves `__init__.py`, `mod.rs`, `lib.rs` and `main.rs` bare. In a collection, paths are relative to the collection folder.
   Rust names: `fn`/`struct`/`enum`/`trait`/`type`/`mod`/`const`/`static` at the top level, `Type::method` for an `impl` or `trait` member (a trait impl indexes under the **type**), `Enum::Variant`, `mod_name::item` one level into an inline `mod`, and a `use ... as` rename. Not indexed: struct fields, anything inside a function body, anything a macro generates. Write `Type::method`; `Type.method` resolves to the same lines but reads as another language's spelling.
@@ -70,6 +83,7 @@ doc; `-v` lists passing claims; a stale claim means fix the doc or the code, the
 - **glossary**: `terms[] {id, term, definition (one paragraph), aliases[], see_also[]}`.
 - **changelog**: `releases[] {version, date, status, summary, changes[] {type, text, refs[]}}`, newest first. This is the record of shipped work.
 - **worksheet**: `intro`, `warn`, `questions[] {id, call, lead, help, kind radio|check|text, required, options[] {value, text, why, recommended, prompt, pros[], cons[]}, applies_to, blocks[] (doc/item ids waiting on the answer), compare}`, `prompt {task, background, steps[], do_not_touch[], flag_only[], rules[]}`. Agents write them; only humans answer them (on the rendered page, which builds a paste-ready instruction with a VERDICTS block).
+- **worksheet, once it is answered**: a question's `resolution {summary, chose[] (must name option `value`s - validated), answered (kind: text only), applied, by, recorded_in[]}` turns it into a record. A sheet may then archive itself: `visibility: on_resolution` at the top of the doc is derived, not authored - private while any question that requires an answer lacks a `resolution`, public the moment the last one lands. What publishes is a **projection**, not the doc you wrote: `resolution.summary`, `agent_notes` and `private_notes` are elided, and a `kind: text` answer publishes only as the `answered` marker (`<filled>` / `<empty>`), so record the marker when you apply a text verdict or validation fails. Write one sheet per deliberation, not one accumulating sheet: a sheet with a live question in it can never flip.
 - **generic**: `shape` and `data` (any object/array). Escape hatch; promote to a real kind when it repeats.
 
 ## Vocabularies and limits are data

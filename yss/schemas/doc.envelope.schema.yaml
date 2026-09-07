@@ -9,7 +9,10 @@ description: |
   (vocabularies, limits); `x-ref` fields must point at existing ids; `x-evidence` fields are
   checked by `yss check`. Any object may carry `evidence:` claims.
   Visibility rules: any object (doc, list item, nested mapping) with `visibility: private` is removed
-  from public builds; any `private_notes` key is stripped from public builds.
+  from public builds; any `private_notes` key is stripped from public builds. `doc.worksheet` adds a
+  third, derived value - `visibility: on_resolution`, private while the sheet is still asking and a
+  redacted projection of itself once answered (gh-37); it is declared there, not here, because it is
+  meaningless on a doc with no questions and on a single list item.
 type: object
 required: [kind, title]
 properties:
@@ -27,7 +30,17 @@ properties:
     x-limit: summary
     description: One paragraph of plain text. Shown in doc indexes and page headers.
   visibility:
-    $ref: "#/$defs/visibility"
+    type: string
+    enum: [public, private, on_resolution]
+    default: public
+    description: >-
+      `public` and `private` are authored and read literally. `on_resolution` is derived and legal
+      only on a `doc.worksheet` (gh-37), where the sheet is private while it is still asking and
+      publishes a redacted projection of itself once answered; `yss validate` rejects it on any
+      other kind, and a build treats it as private there rather than trusting it. It is spelled out
+      here rather than widening `$defs/visibility` because per-item visibility stays two-valued: a
+      half-published sheet has holes in its numbering and links pointing at questions the public
+      reader cannot see.
   status:
     type: string
     x-vocab: lifecycle
@@ -84,6 +97,10 @@ $defs:
     type: string
     enum: [public, private]
     default: public
+    description: >-
+      Authored and read literally: `private` removes this object from public builds. A doc kind may
+      widen this for itself - `doc.worksheet` adds the derived `on_resolution` (gh-37) - but the
+      per-item value stays two-valued everywhere.
   link:
     type: object
     required: [href]
@@ -93,11 +110,24 @@ $defs:
       kind: {type: string, x-vocab: link_kind, description: "One shared link vocabulary with the collection card contract (adr-020); `play` is a prototype link."}
     additionalProperties: false
   evidence_item:
-    description: "One checkable claim. Exactly one of path, glob, symbol, command."
+    description: |
+      One checkable claim. Exactly one of path, glob, symbol, command.
+
+      A `path` claim reads in one of four ways, most specific first: `at` (parse the file as YAML
+      and judge the values at that anchor), `not_contains` (the negative substring test),
+      `contains` (the positive one), or bare existence. Prefer `at` over `contains` whenever the
+      target is YAML and the claim is about a *value*: a whole-file substring test cannot tell an
+      item's `status: open` apart from the document's own top-level `status:`, which is how a
+      claim written to track a defect passed while the defect was still open (gh-32).
     type: object
     properties:
       path: {type: string, description: "Repo-relative file or folder (globs allowed); also tried relative to the collection root."}
       contains: {type: string, description: "With path: text the file must contain."}
+      not_contains: {type: string, description: "With path: text every matched file must NOT contain. Proves a removal - a dropped flag, a deleted workaround - which no positive claim can."}
+      at: {type: string, description: "With path (a YAML file): an anchor into the parsed document. Grammar is `key`, `key.key`, `key[i]` and `key[*]`, e.g. `components[*].status`. The values it resolves to are judged by `equals`, `in` or `absent`; with none of those the claim just asserts the anchor resolves to something."}
+      equals: {type: [string, number, boolean], description: "With at: every value at the anchor must equal this."}
+      in: {type: array, description: "With at: every value at the anchor must be one of these."}
+      absent: {type: boolean, description: "With at: the anchor must resolve to no values at all."}
       glob: {type: string, description: "Glob pattern that must match at least `min` files."}
       min: {type: integer, minimum: 0, default: 1}
       symbol: {type: string, description: "module:attribute that must import, e.g. yss.build:build"}
@@ -110,6 +140,13 @@ $defs:
       - {required: [glob]}
       - {required: [symbol]}
       - {required: [command]}
+    dependentRequired:
+      at: [path]
+      not_contains: [path]
+      contains: [path]
+      equals: [at]
+      in: [at]
+      absent: [at]
     additionalProperties: false
   group:
     description: |
@@ -129,7 +166,17 @@ $defs:
     unevaluatedProperties: false
   option:
     description: |
-      One alternative an item is open between. Narrowed from `doc.worksheet`'s
+      One alternative an item is open between. An item at `status: open` is by definition a decision
+      not yet made, and the alternatives are the most useful thing about it; with nowhere to put
+      them they degrade to prose, which no page can table, count or link. `doc.design`'s
+      `alternatives[]` is the closed case - it requires `rejected_because` and is not attached to
+      any item.
+
+      An option may carry its own `evidence:` (gh-35), which is how "we already tried this" or
+      "this file does not exist yet" becomes a checked claim instead of an assertion. Claims found
+      here are collected under the *enclosing item's* id, pointing at the option that made them.
+
+      Narrowed from `doc.worksheet`'s
       `questions[].options[]` rather than invented separately, so the two shapes stay recognisable
       as the same thing (gh-27). Dropped from the worksheet's version: `value`, which exists for
       form submission, and `recommended`/`prompt`, which exist to steer a human towards an answer -
@@ -147,6 +194,8 @@ $defs:
       why: {type: string, x-limit: summary, description: "What choosing this lets you say, or costs you."}
       pros: {type: array, items: {type: string, x-limit: line}}
       cons: {type: array, items: {type: string, x-limit: line}}
+      evidence: {type: array, items: {$ref: "#/$defs/evidence_item"}, description: "Claims `yss check` proves about this alternative; reported under the enclosing item's id (gh-35)."}
+      notes: {type: string, x-limit: markdown, description: Markdown notes about this alternative shown to humans.}
     additionalProperties: false
   item_base:
     description: Fields any list item may carry in addition to its own.

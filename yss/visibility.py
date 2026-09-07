@@ -1,4 +1,34 @@
-"""Visibility filtering (public/private) and forbidden-string scanning."""
+"""Visibility filtering (public/private/on_resolution) and forbidden-string scanning.
+
+Two of the three visibility values are *authored*: `public` and `private` are read literally off
+whichever object carries them. The third, `on_resolution`, is *derived* - it is legal only on a
+`doc.worksheet` and means "private while this sheet is still asking, public once it is answered"
+(gh-37). A worksheet is written private because of its candid free text, and that reason does not
+expire when the questions are answered; but the two things worth publishing from a finished sheet -
+the prompt it was built to produce and which option was picked - are already structured data. So an
+`on_resolution` sheet does not publish the authored document: it publishes a *projection* of it.
+
+The projection rule, stated once here because it is the thing that decides what reaches `dist/`:
+
+    Structured answers publish; prose written to steer or record a human deliberation does not.
+
+Kept: everything a reader needs to see the deliberation as a record - `intro`, `warn`, the whole
+`prompt` block, and per question `call`, `lead`, `help`, `applies_to`, `blocks`, `compare`, the
+`options[]` as they were offered (including `why`, `pros` and `cons`) and, from the resolution,
+`chose[]`, `applied`, `by` and `recorded_in[]`. A selection is an enum, so publishing it costs
+nothing and needs no transcription.
+
+Elided: `private_notes` (everywhere, as before), the doc's `agent_notes` (instructions to the agent
+that wrote the sheet, never reader-facing), and every question's `resolution.summary` - free prose
+an agent wrote about what happened, the one field on a resolved question that nobody vetted for
+publication. For a `kind: text` question the answer itself was never persisted at all; what
+publishes is the two-state marker `resolution.answered`, rendered as `<filled>` / `<empty>`.
+
+`filter_for_target` applies the projection wherever it meets such a doc, so every caller - the
+build's page render, the `data/docs/<id>.json` export, `yss export`, the symbols provider - gets the
+projected document from one implementation. The projected copy is stamped `visibility: public`, so
+projecting twice is the same as projecting once.
+"""
 from __future__ import annotations
 
 import fnmatch
@@ -7,6 +37,11 @@ from pathlib import Path
 from typing import Any, Callable
 
 PRIVATE_KEYS = ("private_notes",)
+ON_RESOLUTION = "on_resolution"
+#: Doc-level keys dropped from an `on_resolution` worksheet when it publishes.
+WORKSHEET_PRIVATE_KEYS = ("agent_notes",)
+#: Keys dropped from each `questions[].resolution` when an `on_resolution` worksheet publishes.
+RESOLUTION_PRIVATE_KEYS = ("summary",)
 TEXT_SUFFIXES = {
     ".html", ".htm", ".json", ".css", ".js", ".txt", ".md", ".xml", ".svg",
     ".yaml", ".yml", ".csv", ".map", ".py", ".toml", ".cfg", ".ini",
@@ -16,12 +51,137 @@ DEFAULT_SKIP_DIRS = (".git", "__pycache__", "node_modules", ".yss", "dist", ".ve
 _REMOVED = object()
 
 
+def question_requires_answer(question: Any) -> bool:
+    """Would a reader have to answer this question? `required` defaults to true (worksheet schema)."""
+    if not isinstance(question, dict):
+        return False
+    return question.get("required", True) is not False
+
+
+def worksheet_resolved(doc: Any) -> bool:
+    """Is every question that requires an answer answered?
+
+    The predicate behind `visibility: on_resolution` and behind the nav's waiting count
+    (`Renderer._page_state`), so the two can never disagree. A question is answered when it carries
+    a `resolution`; a question with `required: false` is not asked of anybody and cannot hold the
+    sheet closed. A worksheet with no questions at all is not "resolved" - there is nothing in it to
+    have been decided, and flipping an empty sheet public would be a redaction hole, not an archive.
+    """
+    if not isinstance(doc, dict):
+        return False
+    questions = doc.get("questions")
+    if not isinstance(questions, list) or not questions:
+        return False
+    return all(
+        q.get("resolution") for q in questions if question_requires_answer(q)
+    )
+
+
+def is_derived_worksheet(obj: Any) -> bool:
+    return (
+        isinstance(obj, dict)
+        and obj.get("visibility") == ON_RESOLUTION
+        and obj.get("kind") == "worksheet"
+    )
+
+
 def is_visible(obj: Any, target: str) -> bool:
     if target != "public":
         return True
     if isinstance(obj, dict):
-        return obj.get("visibility", "public") != "private"
+        visibility = obj.get("visibility", "public")
+        if visibility == ON_RESOLUTION:
+            # Derived, not authored: only a resolved worksheet publishes, and only a worksheet may
+            # claim the keyword at all (the schema says so; anything else is treated as private
+            # rather than trusted, so a misplaced keyword fails closed).
+            return is_derived_worksheet(obj) and worksheet_resolved(obj)
+        return visibility != "private"
     return True
+
+
+def project_worksheet(doc: dict) -> dict:
+    """The public form of a resolved `on_resolution` worksheet - see this module's docstring.
+
+    Shallow-copies only what it rewrites; the caller owns `doc` (`_filter` has already made a copy).
+    """
+    out = dict(doc)
+    out["visibility"] = "public"
+    for key in WORKSHEET_PRIVATE_KEYS:
+        out.pop(key, None)
+    questions = out.get("questions")
+    if isinstance(questions, list):
+        projected = []
+        for question in questions:
+            if not isinstance(question, dict):
+                projected.append(question)
+                continue
+            resolution = question.get("resolution")
+            if isinstance(resolution, dict):
+                question = dict(question)
+                kept = {k: v for k, v in resolution.items() if k not in RESOLUTION_PRIVATE_KEYS}
+                if (question.get("kind") or "radio") == "text":
+                    # The free text was never persisted; the marker is the whole public answer.
+                    kept["answered"] = bool(resolution.get("answered"))
+                question["resolution"] = kept
+            projected.append(question)
+        out["questions"] = projected
+    return out
+
+
+def check_worksheets(docs: dict[str, Any]) -> list[str]:
+    """Validate what the worksheet schema can only describe in prose (gh-37).
+
+    1. `resolution.chose[]` must name an option `value` of its own question. The prefab falls back
+       to printing the raw value, so a typo used to render as a plausible-looking answer that no
+       option matched.
+    2. On an `on_resolution` sheet a resolved `kind: text` question must carry `resolution.answered`.
+       The free text is never published, so without the marker there is nothing publishable to say
+       about that question and the sheet has no safe public form.
+    3. `visibility: on_resolution` is legal only on a worksheet. The keyword is spelled in the
+       envelope so one enum covers every kind, and this is what keeps it from being written on a
+       doc with no questions - where it would silently mean "never public" (`is_visible` fails
+       closed) rather than what the author meant.
+    """
+    errors: list[str] = []
+    for doc_id, doc in sorted(docs.items()):
+        if not isinstance(doc, dict):
+            continue
+        where = doc.get("_source", doc_id)
+        if doc.get("kind") != "worksheet":
+            if doc.get("visibility") == ON_RESOLUTION:
+                errors.append(
+                    f"{where}: at visibility: '{ON_RESOLUTION}' is derived from a worksheet's "
+                    f"questions, so it is only legal on `kind: worksheet` (this doc is "
+                    f"`kind: {doc.get('kind')}`); use public or private"
+                )
+            continue
+        derived = doc.get("visibility") == ON_RESOLUTION
+        for index, question in enumerate(doc.get("questions") or []):
+            if not isinstance(question, dict):
+                continue
+            resolution = question.get("resolution")
+            if not isinstance(resolution, dict):
+                continue
+            qid = question.get("id", index)
+            values = {
+                o.get("value")
+                for o in (question.get("options") or [])
+                if isinstance(o, dict)
+            }
+            for choice in resolution.get("chose") or []:
+                if choice not in values:
+                    known = ", ".join(sorted(v for v in values if isinstance(v, str))) or "none"
+                    errors.append(
+                        f"{where}: at questions/{index}/resolution/chose: '{choice}' is not an "
+                        f"option `value` of question '{qid}' (options: {known})"
+                    )
+            if derived and (question.get("kind") or "radio") == "text" and "answered" not in resolution:
+                errors.append(
+                    f"{where}: at questions/{index}/resolution: question '{qid}' is `kind: text` on "
+                    f"a `visibility: {ON_RESOLUTION}` worksheet, so its resolution must carry "
+                    f"`answered: true|false` - the text itself is never published, the marker is"
+                )
+    return errors
 
 
 def filter_for_target(data: Any, target: str) -> Any:
@@ -42,6 +202,9 @@ def _filter(data: Any, target: str) -> Any:
             if filtered is _REMOVED:
                 continue
             out[key] = filtered
+        if target == "public" and is_derived_worksheet(data):
+            # `is_visible` above has already established that it is resolved.
+            out = project_worksheet(out)
         return out
     if isinstance(data, list):
         items = []

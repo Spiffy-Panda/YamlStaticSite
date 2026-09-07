@@ -1,8 +1,8 @@
 name: worksheet
-description: "Decision instrument: questions with a recommended default, a consequence per option, pros/cons foldouts and a compare-all table, a required-answer gate, and a Build button that produces a plain-text agent instruction (rules trailer appended). A question carrying a `resolution` is rendered as a record instead - the summary of what addressed it replaces the choices, which move into a foldout underneath with the taken one marked - and a worksheet whose questions all carry one drops its form controls entirely. No persistence, no network. Bind from a `worksheet` doc: questions, prompt, intro, warn."
+description: "Decision instrument: questions with a recommended default, a consequence per option, pros/cons foldouts and a compare-all table, a required-answer gate, and a Build button that produces a plain-text agent instruction (rules trailer appended). A question carrying a `resolution` is rendered as a record instead - the summary of what addressed it replaces the choices, which move into a foldout underneath with the taken one marked - and a worksheet whose questions all carry one drops its form controls entirely. No persistence, no network. Renders the redacted form too: on a `visibility: on_resolution` sheet (gh-37) the public build strips each `resolution.summary` and reduces a `kind: text` answer to `answered`, so every part of a record is drawn only if it survived - a published sheet shows the questions, the options as offered and the chosen ones, with no empty headings where prose was elided. Bind from a `worksheet` doc: questions, prompt, intro, warn."
 category: layout
 params:
-  questions: {type: list, required: true, item: {id: required, call: label, lead: the question, help: markdown, kind: "radio|check|text", required: bool, options: "list of {value, text, why, recommended, prompt, pros[], cons[]}", applies_to: where the verdict is recorded, blocks: "doc/item ids waiting on the answer", compare: markdown, resolution: "{summary, chose[], applied, by, recorded_in[]} - what addressed it, once applied"}}
+  questions: {type: list, required: true, item: {id: required, call: label, lead: the question, help: markdown, kind: "radio|check|text", required: bool, options: "list of {value, text, why, recommended, prompt, pros[], cons[]}", applies_to: where the verdict is recorded, blocks: "doc/item ids waiting on the answer", compare: markdown, resolution: "{summary, chose[], answered, applied, by, recorded_in[]} - what addressed it, once applied; `answered` is the two-state marker a `kind: text` answer publishes as"}}
   prompt: {type: object, description: "{task, background, steps[], do_not_touch[], flag_only[], rules[]}"}
   intro: {type: markdown, description: In plain words box.}
   warn: {type: markdown, description: Must-read warning box.}
@@ -53,9 +53,10 @@ template: |
   {% set applied_by = resolved | map(attribute='resolution.by') | select | unique | list %}
   <div class="worksheet{% if all_done %} worksheet-record{% endif %}" id="ws-{{ wsid }}" data-worksheet="{{ wsid }}">
     {% if all_done %}
+    {% set any_summary = resolved | map(attribute='resolution.summary') | select | list %}
     <div class="ws-record">
       <h4>The record</h4>
-      <p>Every question here was answered and the answer has been applied{% if applied_on %} (last on {{ applied_on | last }}){% endif %}{% if applied_by %}, by {{ applied_by | join(', ') }}{% endif %}. What addressed each one is written under it, and the choices as they were offered are kept in the foldout beneath. There is nothing left to answer on this page.</p>
+      <p>Every question here was answered and the answer has been applied{% if applied_on %} (last on {{ applied_on | last }}){% endif %}{% if applied_by %}, by {{ applied_by | join(', ') }}{% endif %}. {% if any_summary %}What addressed each one is written under it, and the choices{% else %}What was chosen is written under each one, and the choices{% endif %} as they were offered are kept in the foldout beneath. There is nothing left to answer on this page.{% if not any_summary %} This is the published form of the sheet: the reasoning written while it was open is not part of it.{% endif %}</p>
     </div>
     {% endif %}
     {% if intro %}<div class="ws-plain"><h4>In plain words</h4>{{ intro | md }}</div>{% endif %}
@@ -80,13 +81,16 @@ template: |
         {% if q.help %}<div class="ws-help">{{ q.help | md }}</div>{% endif %}
         {% if q.blocks %}<div class="ws-blocks{% if res %} ws-blocks-done{% endif %}">{% if res %}Released{% else %}Blocks{% endif %}: {% for b in q.blocks %}{{ reflink(b) }}{% if not loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
         {% if res %}
+          {% if res.summary or res.chose or res.recorded_in or res.by or res.answered is defined %}
           <div class="ws-resolved">
-            <h5>What addressed it</h5>
-            {{ res.summary | md }}
+            {% if res.summary %}<h5>What addressed it</h5>
+            {{ res.summary | md }}{% endif %}
+            {% if res.answered is defined %}<div class="ws-res-line"><span class="ws-res-label">Answer</span> <code class="ws-marker">{{ '<filled>' if res.answered else '<empty>' }}</code> <span class="ws-elided">free text is not published; whether it was written is</span></div>{% endif %}
             {% if res.chose %}<div class="ws-res-line"><span class="ws-res-label">Chosen</span> {% for v in res.chose %}{{ ((q.options or []) | selectattr('value', 'equalto', v) | map(attribute='text') | first) or v }}{% if not loop.last %}; {% endif %}{% endfor %}</div>{% endif %}
             {% if res.recorded_in %}<div class="ws-res-line"><span class="ws-res-label">Recorded in</span> {% for b in res.recorded_in %}{{ reflink(b) }}{% if not loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
             {% if res.by and not res.applied %}<div class="ws-res-line"><span class="ws-res-label">Decided by</span> {{ res.by }}</div>{% endif %}
           </div>
+          {% endif %}
           {% if q.options %}<details class="ws-was"><summary>The choices as they were offered</summary>{{ past_options(q) }}</details>{% endif %}
         {% elif qkind == 'text' %}
           <textarea class="ws-text" name="{{ wsid }}-{{ q.id }}" rows="3" placeholder="{{ q.placeholder or '' }}"></textarea>
@@ -193,6 +197,8 @@ css: |
   .ws-resolved p:last-of-type { margin-bottom: .3rem; }
   .ws-res-line { font-size: .85rem; color: var(--fg-2); margin-top: .2rem; }
   .ws-res-label { font-weight: 600; color: var(--fg-2); }
+  .ws-marker { font-family: ui-monospace, Consolas, monospace; background: var(--code); border-radius: 4px; padding: 0 .3rem; }
+  .ws-elided { font-size: .8rem; color: var(--fg-2); }
   .ws-was { font-size: .9rem; margin-top: .3rem; }
   .ws-was > summary { cursor: pointer; color: var(--fg-2); }
   .ws-opt-past { cursor: default; opacity: .75; }

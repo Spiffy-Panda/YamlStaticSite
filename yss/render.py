@@ -23,7 +23,7 @@ from .config import PKG_DIR, Collection, Config
 from .hooks import call, load_hooks
 from .loader import CODE_SPAN_RE, find_inline_refs, index_ids, iter_strings, resolve_doc_id
 from .symbols import lookup as symbol_lookup, supported as symbols_supported
-from .visibility import slugify
+from .visibility import question_requires_answer, slugify
 
 _md = MarkdownIt("commonmark", {"html": True}).enable("table").enable("strikethrough")
 
@@ -117,6 +117,12 @@ class Renderer:
         # Non-fatal things a binding noticed while rendering; the build folds these into
         # report.warnings, so a page that quietly renders the wrong shape still says so (gh-12).
         self.warnings: list[str] = []
+        # Every prefab this renderer actually rendered, recorded by `prefab()` (gh-39). One
+        # Renderer serves exactly one target, so the css/js bundle it emits can be narrowed to
+        # what the visible pages used: a prefab reached only from a `visibility: private` page
+        # no longer ships its styles - or its selectors, which are themselves a description of
+        # the private page - to the public target.
+        self.used_prefabs: set[str] = set()
         # Off unless site.yaml says otherwise (gh-29). The filter half of an attribution is
         # private-only: `where:` clauses are authored in page YAML and have never reached dist/.
         self.attribution = bool((cfg.data.get("build") or {}).get("attribution"))
@@ -348,6 +354,11 @@ class Renderer:
         archived, and a worksheet is still asking because some of its questions have no
         `resolution` yet (adr-009 - state is derived, never hand-set). `waiting` is the number of
         calls a reader would have to make if they opened it.
+
+        A question marked `required: false` is not a call anybody has to make, so it is not counted
+        - the same predicate `visibility: on_resolution` publishes on (gh-37, `worksheet_resolved`).
+        The nav's count and the archival flip therefore cannot disagree: a sheet the nav reports as
+        waiting on nothing is exactly a sheet that would publish.
         """
         ids = [d for d in (page.get("docs") or []) if d in self.docs]
         docs = [self.docs[d] for d in ids]
@@ -360,7 +371,7 @@ class Renderer:
             for doc in docs
             if doc.get("kind") == "worksheet"
             for q in (doc.get("questions") or [])
-            if not q.get("resolution")
+            if question_requires_answer(q) and not q.get("resolution")
         )
         return {"archived": docs[0].get("status") == "archived", "waiting": waiting}
 
@@ -561,6 +572,11 @@ class Renderer:
     def prefab(self, name: str, *arg_dicts: dict, **kwargs: Any) -> Markup:
         if name not in self.prefabs:
             raise RenderError(f"unknown prefab '{name}' (known: {', '.join(sorted(self.prefabs))})")
+        # The single choke point every prefab render passes through, nested `prefab('badge', ...)`
+        # calls from inside another prefab's template included - so recording here is enough to
+        # know what the target's asset bundle has to carry (gh-39). Recorded before rendering:
+        # a prefab that raises still had its css/js referenced by the markup up to that point.
+        self.used_prefabs.add(name)
         spec = self.prefabs[name]
         args: dict[str, Any] = {}
         for d in arg_dicts:
@@ -617,11 +633,27 @@ class Renderer:
         return "\n".join(parts) + "\n"
 
     def prefab_css(self) -> str:
-        parts = [f"/* prefab: {n} */\n{p['css'].strip()}" for n, p in sorted(self.prefabs.items()) if p.get("css")]
+        """The css of the prefabs this target's pages actually used (gh-39).
+
+        Every prefab in the registry used to be bundled into both targets, so `dist/public/`
+        carried the styles - and the class names, which describe the markup - of prefabs only a
+        `visibility: private` page renders. Call this after the pages are rendered; both files are
+        still written when nothing was used, so the `<link>`/`<script>` in the layout never 404s.
+        """
+        parts = [
+            f"/* prefab: {n} */\n{p['css'].strip()}"
+            for n, p in sorted(self.prefabs.items())
+            if p.get("css") and n in self.used_prefabs
+        ]
         return "\n\n".join(parts) + "\n"
 
     def prefab_js(self) -> str:
-        parts = [f"/* prefab: {n} */\n{p['js'].strip()}" for n, p in sorted(self.prefabs.items()) if p.get("js")]
+        """The js of the prefabs this target's pages actually used - see `prefab_css` (gh-39)."""
+        parts = [
+            f"/* prefab: {n} */\n{p['js'].strip()}"
+            for n, p in sorted(self.prefabs.items())
+            if p.get("js") and n in self.used_prefabs
+        ]
         return "\n\n".join(parts) + "\n"
 
     # --- sections --------------------------------------------------------

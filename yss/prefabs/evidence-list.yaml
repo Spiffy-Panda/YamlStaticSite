@@ -2,7 +2,7 @@ name: evidence-list
 description: "Evidence claims grouped by doc with a status badge per claim (ok, stale, warn, skipped). Bind `claims` from `$evidence`; use `where` to show only failures."
 category: data
 params:
-  claims: {type: list, required: true, item: {doc: doc id, item: item id or null, field: path in doc, kind: "path|glob|symbol|command|contains|git", target: what was checked, status: "ok|stale|warn|unknown|skipped", detail: message}}
+  claims: {type: list, required: true, item: {doc: doc id, item: item id or null, field: path in doc, kind: "path|contains|not_contains|at|glob|symbol|export|command|git", target: what was checked, status: "ok|stale|warn|unknown|skipped", detail: message}}
   empty: {type: string, default: No evidence claims.}
   show_ok: {type: boolean, default: false, description: Also list passing claims.}
 template: |

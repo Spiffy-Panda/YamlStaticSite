@@ -81,6 +81,7 @@ modules:
       - {name: load_pages, kind: function, signature: "(cfg, reg) -> (pages, errors)", description: Routes prefixed by collection.}
       - {name: load_prefabs, kind: function, signature: "(cfg, reg) -> (prefabs_by_name, errors)"}
       - {name: check_refs, kind: function, signature: "(docs, reg, pages) -> [errors]", description: x-ref fields and inline references.}
+      - {name: check_code_span_refs, kind: function, signature: "(docs, pages) -> [warnings]", description: "Advisory: an inline reference in backticks that would have resolved (adr-043)."}
       - {name: resolve_doc_id, kind: function, signature: "(ref, collection_id, docs) -> id | None", description: "Collection-local first, then exact; `/doc` forces root."}
     tests: [tests/test_yss.py]
   - id: symbols
@@ -116,7 +117,7 @@ modules:
 
   - id: evidence
     path: yss/evidence.py
-    purpose: Collect and evaluate evidence claims; git recency; inject `_evidence` freshness; format reports. Policy resolves per doc - CLI flag, then collection.yaml, then site.yaml.
+    purpose: Collect and evaluate evidence claims - path, contains, not_contains, anchored at over parsed YAML, glob, symbol, export, command; git recency; inject `_evidence` freshness; format reports. Policy resolves per doc - CLI flag, then collection.yaml, then site.yaml.
     language: python
     status: active
     depends_on: [config, loader, symbols]
@@ -126,15 +127,34 @@ modules:
       - {name: Claim, kind: class}
       - {name: _check_export, kind: function, signature: "(cfg, claim) -> None", description: "`x-evidence: export` - resolves `<path>::<name>` by parsing (adr-024)."}
     tests: [tests/test_yss.py]
-  - id: visibility
-    path: yss/visibility.py
-    purpose: filter_for_target, is_visible, scan_tree, slugify.
+  - id: contrast
+    path: yss/contrast.py
+    purpose: "WCAG 2.x contrast arithmetic and a tolerant regex scanner for token declarations in a stylesheet's :root and prefers-color-scheme blocks. Pure - handed CSS text, returns numbers and strings; the file IO lives in build.py (adr-044)."
     language: python
     status: active
     exports:
-      - {name: filter_for_target, kind: function, signature: "(data, target) -> data"}
+      - {name: relative_luminance, kind: function, signature: "(color) -> float | None", description: "None when the colour is not a hex literal."}
+      - {name: contrast_ratio, kind: function, signature: "(a, b) -> float | None"}
+      - {name: parse_hex, kind: function, signature: "(value) -> tuple | None", description: "#rgb and #rrggbb only; #rrggbbaa is unknown because alpha composites."}
+      - {name: scan_stylesheet, kind: function, signature: "(text) -> dict", description: "{light, dark} token maps; values verbatim, so an unreadable one survives to be recognised as declared-but-unknown."}
+      - {name: cascade, kind: function, signature: "(scans) -> dict", description: "Flattens scanned sheets in link order; a dark set inherits every light token no dark block overrides."}
+      - {name: resolve_color, kind: function, signature: "(tokens, chain) -> str | None", description: "Walks a var(--a, var(--b)) chain: the first declared token decides, readable or not."}
+      - {name: check_theme, kind: function, signature: "(schemes, label, threshold=4.5) -> [warning]"}
+      - {name: PAIRS, kind: constant, description: "The three pairings yss.css paints on the collection bar."}
+    tests: [tests/test_gh31.py]
+  - id: visibility
+    path: yss/visibility.py
+    purpose: filter_for_target, is_visible (literal public/private, derived on_resolution), the worksheet projection and its cross-checks, scan_tree, slugify.
+    language: python
+    status: active
+    exports:
+      - {name: filter_for_target, kind: function, signature: "(data, target) -> data", description: "Drops private objects and private_notes; publishes the projection, not the authored doc, for an on_resolution worksheet (adr-045)."}
+      - {name: is_visible, kind: function, signature: "(obj, target) -> bool", description: "Literal for public/private; derived for a worksheet's on_resolution, and fails closed anywhere else."}
+      - {name: worksheet_resolved, kind: function, signature: "(doc) -> bool", description: "Every question that requires an answer carries a resolution; also the nav's waiting predicate."}
+      - {name: project_worksheet, kind: function, signature: "(doc) -> doc", description: "The public form: elides resolution.summary, agent_notes and private_notes; a text answer becomes the answered marker."}
+      - {name: check_worksheets, kind: function, signature: "(docs) -> [error]", description: "chose[] must name a real option value; a resolved text question on such a sheet needs answered. Called from build.cross_checks."}
       - {name: scan_tree, kind: function, signature: "(root, forbidden, flags) -> (hits, flag_hits)"}
-    tests: [tests/test_yss.py]
+    tests: [tests/test_yss.py, tests/test_gh37.py]
   - id: binding
     path: yss/binding.py
     purpose: Resolve binding specs against docs; where/sort/limit/map/fields/group_by in that order; collection-local ids; virtual roots, including the doc-local $items that flattens a doc's type arrays and tags each item `_type`.
@@ -346,4 +366,8 @@ conventions:
   - id: cv-release
     rule: "The commit that closes an issue sweep carries the version bump: pyproject.toml, yss/__init__.py and a released changelog entry move together, and the tag is cut on that commit."
     rationale: Two materially different trees reporting the same version give a consumer no signal at all - no tag, no version, no error - which is how nineteen fixes stayed invisible behind v0.2.0.
+    enforced_by: test
+  - id: cv-release-drift
+    rule: "When `yss/` has changed since the newest v<x.y.z> tag, the declared version is no longer that tag's version - a bump lands with the drift, even if the tag itself waits."
+    rationale: A tag and a local editable checkout reporting one version for two trees is the invisibility cv-release describes, seen from the other side; cutting the tag is a human's call, but being unable to tell the trees apart is not.
     enforced_by: test

@@ -16,6 +16,7 @@ python -m yss build --target public       # one target
 python -m yss build --no-dynamic          # skip runtime collection (fast)
 python -m yss build --strict              # flagged strings and stale evidence fail too
 python -m yss build --no-strict           # never fail on them, whatever site.yaml says
+python -m yss build --wait                 # wait up to 60s (or --wait 10) for another build's lock
 python -m yss check --run-commands        # evidence including command claims (slow); exit 1 on stale
 ```
 
@@ -30,10 +31,15 @@ Exit 1 with `file: at path: message` lines on validation errors (schema, vocabul
 references), or the page/section/prefab on render errors. A redacting target that contains a
 **forbidden string deletes its output** and fails - it is the only failure that deletes anything,
 because it is the only one with something to contain. A `--strict` failure (duplicate anchor ids,
-dead references, dead links, flagged strings, stale evidence) runs the build to completion, reports
-every gate's complaint in one error, and **leaves `dist/<target>` in place** so you can open the
-page that caused it. Every build stamps freshness from the fast evidence checks (paths, globs,
+dead references, dead links, contrast failures, flagged strings, stale evidence) runs the build to
+completion, reports every gate's complaint in one error, and **leaves `dist/<target>` in place** so
+you can open the page that caused it. Every build stamps freshness from the fast evidence checks (paths, globs,
 symbols, git recency) and writes `data/evidence.json`.
+
+`assets/prefabs.css` and `assets/prefabs.js` are built per target and carry only the prefabs that
+target's visible pages actually rendered (nested `prefab()` calls included), so a prefab used only
+by a `visibility: private` page ships neither its styles nor its selectors to `public`. Both files
+are always written, even when empty.
 
 A mount's `path` may point outside its collection - that is supported and deliberate, so a
 placeholder collection can mount another generator's output during a migration and keep the
@@ -43,6 +49,21 @@ is checked against the output root as before.
 A rendered page's own local links are checked against the output too: an href/src that lands on
 nothing, or an absolute path outside `base_url`, is a build warning and a `--strict` failure. Mount
 contents are exempt; a page's link into a mount is not.
+
+The **contrast gate** measures what the collection bar actually paints, for the site theme and for
+every visible collection, in both colour schemes (gh-31). It resolves three pairings through the
+same `var()` fallback chains `yss.css` uses - the title (`--on-accent-2` over `--fg`) and the
+resting sub-nav link (`--on-accent-2-muted` over `--fg-2`) against the bar's background
+(`--collection-bar-bg` over `--accent-2`), and the active pill's `--accent` against
+`--on-accent-2-surface` over `--bg-2`. Anything under WCAG AA 4.5:1 is a build warning and a
+`--strict` failure naming the collection, the scheme, both resolved colours, the ratio and the
+token to declare. The stock palettes clear it because their `--accent-2` is a near-neutral tint; a
+theme that uses `--accent-2` as a real secondary accent has to declare the on-accent triple in its
+own `theme.css`, which is where those tokens are meant to live. The scanner reads `--token: <hex>;`
+declarations out of a stylesheet's `:root` and its `prefers-color-scheme: dark` block with a regex,
+so **any value that is not a hex literal - `var()`, `color-mix()`, `oklch()`, a named colour - is
+unknown and skipped in silence**: the gate never guesses at a colour it cannot read, and never
+blocks a theme for computing its own.
 
 ## Redaction
 
@@ -156,9 +177,11 @@ python -m yss serve --no-watch --no-build # just serve what is in dist/
 
 **One process owns `dist/` at a time.** Do not run `yss build` into a `dist/` that a watching
 `yss serve` owns: the build refuses with `another build owns ...` (advisory lock
-`dist/.<target>.build-lock`), and a build whose output is cleared under it exits 1 instead of
-reporting success. Stop the server, use `--out`, or wait; if a crashed build left a lock behind,
-delete that file - it clears itself after 10 minutes.
+`dist/.<target>.build-lock`, which now names both pids), and a build whose output is cleared under
+it exits 1 instead of reporting success. Stop the server, use `--out`, or pass `--wait` (bare: 60
+seconds; `yss serve`'s own rebuilds already wait 10). A lock left behind by a crashed build is
+reclaimed automatically once its pid is provably not running - or after 10 minutes either way - so
+deleting the file by hand is a last resort, not the routine fix.
 
 ## GitHub Pages
 

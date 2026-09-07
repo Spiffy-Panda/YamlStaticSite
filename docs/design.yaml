@@ -190,7 +190,7 @@ components:
     group: g-trust
     name: Visibility and redaction
     kind: module
-    responsibility: Remove private objects and private_notes for public targets; scan output trees for forbidden and flagged strings.
+    responsibility: Remove private objects and private_notes for public targets; publish an on_resolution worksheet as a projection - choices, not the prose that steered them (adr-045); scan output trees for forbidden strings.
     depends_on: [c-config]
     code: [yss/visibility.py]
     status: live
@@ -448,8 +448,18 @@ constraints:
     status: open
     notes: |
       Stated as a rule after [[decisions#adr-031]] fixed the collection bar, which broke it. How far
-      the rule reaches is what is open: the bar has its four tokens, `.nav-count` still hard-codes
-      `#fff`, and nothing has reported the latter. The options below are the shape of that call.
+      the rule reaches was what stayed open: the bar has its four tokens, `.nav-count` still
+      hard-codes `#fff`, and nothing had reported the latter.
+
+      [[decisions#adr-044]] settles the enforcement half: the tokens stay author-declared and
+      undefaulted, and a build-time gate fails any pairing under WCAG AA, so a theme that has not
+      followed the rule is told at build time rather than shipping in silence.
+
+      What stays open is the half this item actually asks - how far the rule reaches. The gate
+      checks the three pairings on the collection bar; `.nav-count`, the pill's own text colour and
+      the two worksheet sites the audit found are neither tokenised nor measured. The options
+      below are still the shape of that call, now with a cheaper second option: adding a pair to
+      the gate is a line, so the case for waiting on a report is weaker than it was.
     options:
       - text: Extend the token set to every on-colour surface in the stylesheet.
         why: One rule, no exceptions to remember, and a theme can reach every surface it paints.

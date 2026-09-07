@@ -59,8 +59,17 @@ data:
   # of them, and the playground does not ask for them. They name roles the twelve cannot express -
   # a foreground for an accent-coloured *surface*, and a surface sitting on that surface. Every use
   # carries the old value as its var() fallback, so leaving them unset renders exactly as before
-  # (gh-26). A theme only needs them when it uses --accent-2 as a real secondary accent rather than
-  # as the near-neutral wash the stock palettes make it.
+  # (gh-26) - and that fallback is defined against --bg, not against --accent-2, which is why
+  # leaving them unset is only safe while --accent-2 stays a near-neutral wash.
+  #
+  # The build enforces this rather than trusting it (gh-31, adr-044). Every build measures the
+  # title, the resting sub-nav link and the active pill for the site theme and each visible
+  # collection, in both colour schemes; under WCAG AA 4.5:1 is a warning and a --strict failure
+  # naming the collection, the scheme, both colours, the ratio and the token to declare. So a
+  # theme that uses --accent-2 as a real secondary accent MUST declare these in its own theme.css,
+  # and will be told at build time if it has not. The one gap is deliberate: a value the scanner
+  # cannot read as a hex literal - color-mix(), oklch(), a named colour - is unknown and skipped in
+  # silence, so a theme that computes its on-accent colours is unchecked rather than blocked.
   optional_tokens:
     - {key: collection-bar-bg, label: Collection bar, role: "Background of the per-collection sub-header. Falls back to --accent-2."}
     - {key: on-accent-2, label: On accent, role: "Text drawn on --accent-2 - the collection title. Falls back to --fg, which is defined against --bg and is why the bar failed contrast."}

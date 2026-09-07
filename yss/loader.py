@@ -327,6 +327,50 @@ def _check_inline(obj: dict, where: str, own_doc: str | None, cid: str | None, d
     return errors
 
 
+def check_code_span_refs(docs: dict[str, dict], pages: list[dict]) -> list[str]:
+    """Warnings (never errors) for `[[refs]]` written inside a code span.
+
+    `strip_code` blanks code spans before validation and `expand_refs` passes them through
+    verbatim, so a reference in backticks is invisible to `validate` and renders as literal
+    text. That is usually deliberate - quoting the syntax - so this is advisory only, and it
+    fires only when the reference *would have resolved*: the doc exists, and either no item
+    was named or the item exists too. A backticked reference to a doc or item that does not
+    exist is exactly what quoting the syntax looks like, and is never reported.
+
+    Bare `[[#item]]` inside a page is skipped: `render_page` resolves a bare item against
+    `docs[0]` only, so there is no single owning doc to check it against here.
+    """
+    warnings: list[str] = []
+    indexes: dict[str, dict] = {doc_id: index_ids(doc)[0] for doc_id, doc in docs.items()}
+
+    def scan(obj: dict, where: str, own_doc: str | None, cid: str | None) -> None:
+        for path, text in iter_strings(obj):
+            if "[[" not in text or "`" not in text:
+                continue
+            for span in CODE_SPAN_RE.finditer(text):
+                for match in INLINE_REF_RE.finditer(span.group(0)):
+                    doc_ref, item = parse_ref(match.group(1))
+                    if doc_ref is None:
+                        target = own_doc  # None for pages: bare refs are not checkable here
+                    else:
+                        target = resolve_doc_id(doc_ref, cid, docs)
+                    if target is None:
+                        continue
+                    if item is not None and item not in indexes.get(target, {}):
+                        continue
+                    warnings.append(
+                        f"{where}: at {path}: [[{match.group(1)}]] is inside a code span, so it "
+                        f"renders literally; both the doc and the item exist -- "
+                        f"did you mean a live link?"
+                    )
+
+    for doc_id, doc in docs.items():
+        scan(doc, doc["_source"], doc_id, doc.get("_collection"))
+    for page in pages or []:
+        scan(page, page["_source"], None, page.get("_collection"))
+    return warnings
+
+
 def find_inline_refs(text: str) -> list[tuple[str, str | None, str | None, str | None]]:
     """[(raw, doc, item, label)] for every [[...]] in text."""
     out = []

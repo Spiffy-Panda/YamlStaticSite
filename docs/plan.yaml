@@ -502,6 +502,12 @@ milestones:
           the `or ["private"]` mount default in two files and `_resolve_source` restating
           `cross_checks`. `Collection.visible_in(target)`, a mount-targets helper and
           `Config.resolve_dynamic_source()`. `arch-visibility-rules-spelled-thrice`.
+
+          Two more callers since (2026-09-07): gh-39 pushed visibility into the asset bundle, so
+          `assets/prefabs.css` and `.js` are built per target from what that target rendered; and
+          gh-37 made `is_visible` consult the document for a worksheet `on_resolution`. The open
+          question for this milestone is whether any other generated asset still ignores the
+          target filter.
         verify: Select-String -Path yss\build.py,yss\render.py -Pattern 'or \["private"\]' returns nothing
       - id: m14-frontend-fixes
         title: The front-end fixes that need no decision

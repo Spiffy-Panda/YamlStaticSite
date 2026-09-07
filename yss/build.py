@@ -8,19 +8,30 @@ import posixpath
 import re
 import shutil
 import subprocess
+import time
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
 from . import __version__
+from . import contrast
 from .config import PKG_DIR, Config
 from .dynamic import write_all
 from .evidence import EvidenceReport, check as evidence_check, inject as evidence_inject
 from .hooks import HookError, call, load_hooks
-from .loader import SchemaRegistry, check_refs, load_collection_configs, load_docs, load_pages, load_prefabs, resolve_doc_id
+from .loader import (
+    SchemaRegistry,
+    check_code_span_refs,
+    check_refs,
+    load_collection_configs,
+    load_docs,
+    load_pages,
+    load_prefabs,
+    resolve_doc_id,
+)
 from .render import ANCHOR_RE, Renderer, RenderError, route_to_path
-from .visibility import filter_for_target, is_visible, scan_tree
+from .visibility import check_worksheets, filter_for_target, is_visible, scan_tree
 
 
 class BuildError(Exception):
@@ -57,6 +68,11 @@ class Loaded:
     pages: list
     prefabs: dict
     errors: list = field(default_factory=list)
+    # Non-fatal notes the load raised - today the code-span ref check (gh-38). Warnings, never
+    # errors: `validate` prints them and still exits 0, and `build` folds them into
+    # `report.warnings` but keeps them out of `strict_failures`, because a resolving reference
+    # inside backticks is sometimes exactly what the author meant.
+    warnings: list = field(default_factory=list)
 
 
 @dataclass
@@ -89,14 +105,18 @@ def load_all(cfg: Config) -> Loaded:
     pages, e2 = load_pages(cfg, registry)
     prefabs, e3 = load_prefabs(cfg, registry)
     errors += e1 + e2 + e3
+    warnings: list[str] = []
     if not errors:
         errors += check_refs(docs, registry, pages)
+        warnings += check_code_span_refs(docs, pages)
         errors += cross_checks(cfg, docs, pages, prefabs)
-    return Loaded(registry, docs, pages, prefabs, errors)
+    return Loaded(registry, docs, pages, prefabs, errors, warnings)
 
 
 def cross_checks(cfg: Config, docs: dict, pages: list, prefabs: dict) -> list[str]:
-    errors = []
+    # Constraints a JSON Schema cannot state, because they compare one part of a document with
+    # another: a worksheet's `resolution.chose[]` against its own `options[]` (gh-37).
+    errors = check_worksheets(docs)
     sources = cfg.dynamic_sources
     for page in pages:
         where = page.get("_source", page["id"])
@@ -127,6 +147,58 @@ def _safe_clear(out_dir: Path, cfg: Config) -> None:
 def _copy_tree(src: Path, dst: Path) -> None:
     if src and src.is_dir():
         shutil.copytree(src, dst, dirs_exist_ok=True)
+
+
+def _stylesheet_text(rel: str, base: Path, assets: Path | None) -> str:
+    """A `theme.css` entry as text. The entry is an output-relative url (`assets/theme.css`), and
+    the assets folder is not always named `assets` on disk (site.yaml `paths.assets`), so both
+    spellings are tried. A stylesheet that is missing or unreadable contributes nothing."""
+    candidates = [base / rel]
+    if assets and rel.startswith("assets/"):
+        candidates.insert(0, assets / rel[len("assets/") :])
+    for path in candidates:
+        try:
+            if path.is_file():
+                return path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+    return ""
+
+
+def _contrast_warnings(cfg: Config, hidden: set[str]) -> list[str]:
+    """Contrast of the collection bar's on-accent pairings, per theme and colour scheme (gh-31).
+
+    gh-26 gave the bar four tokens - `--on-accent-2`, `--on-accent-2-muted`,
+    `--on-accent-2-surface`, `--collection-bar-bg` - and nothing anywhere gives them values, so a
+    theme with a saturated `--accent-2` still paints a 1.06:1 sub-nav link and says nothing. A
+    `:root` default cannot supply one (it would freeze the site's `--fg` over a collection that
+    themes its own), and deriving one into `collections.css` cannot either (that file is linked
+    *before* a collection's own `theme.css`, so the derived rule would beat the author's). So the
+    build measures instead, in the same link order the pages use: base stylesheet, a site override
+    of it, the site theme, the `collections.css` rule this collection's `theme.accent` produces,
+    then the collection's own stylesheets. Anything the scanner cannot read as a hex literal is
+    skipped in silence - `color-mix()` is a legitimate answer and must not fail a build.
+    """
+    site_theme = (cfg.data.get("theme") or {}).get("css") or []
+    assets = cfg.path("assets")
+    layers = [contrast.scan_stylesheet(_stylesheet_text("yss.css", PKG_DIR / "assets", None))]
+    layers.append(contrast.scan_stylesheet(_stylesheet_text("yss.css", assets, assets)))
+    layers += [contrast.scan_stylesheet(_stylesheet_text(p, cfg.root, assets)) for p in site_theme]
+    warnings = contrast.check_theme(contrast.cascade(layers), "site theme")
+    for collection in cfg.collections():
+        if collection.is_root or collection.id in hidden:
+            continue
+        theme = collection.data.get("theme") or {}
+        # What `Renderer.collection_css` emits for this collection: no media query, so it applies
+        # to both schemes, which is exactly how it reaches the browser.
+        generated = {var: theme[key] for key, var in (("accent", "accent"), ("background", "bg")) if theme.get(key)}
+        own = [
+            contrast.scan_stylesheet(_stylesheet_text(p, collection.root, collection.assets_dir))
+            for p in theme.get("css") or []
+        ]
+        stack = layers + [{contrast.LIGHT: generated, contrast.DARK: {}}] + own
+        warnings += contrast.check_theme(contrast.cascade(stack), f"collection {collection.id}")
+    return warnings
 
 
 def _glob_paths(root: Path, pattern: str) -> set[Path]:
@@ -309,20 +381,77 @@ def _lock_age(lock: Path) -> tuple[float | None, dict]:
     return max(ages), (info if isinstance(info, dict) else {})
 
 
-def _acquire_lock(out: Path, target: str) -> tuple[Path, list[str]]:
+def _pid_alive(pid) -> bool | None:
+    """Is that pid a running process? `None` when the platform will not say (gh-34).
+
+    `os.kill(pid, 0)` is the POSIX idiom and is safe there - signal 0 only runs the permission
+    check - but on Windows `os.kill` has no signal argument in the C sense and *terminates* the
+    process, so that idiom must never run on this platform. The Windows branch below asks the
+    kernel directly instead, with the query-only access right, and never touches the process.
+
+    A `None` is deliberately not a negative: an unknown pid is treated as alive by every caller,
+    so the worst case is the old behaviour (refuse the build) rather than clearing a live lock.
+    """
+    try:
+        pid = int(pid)
+    except (TypeError, ValueError):
+        return None
+    if pid <= 0:
+        return None
+    if os.name != "nt":
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True  # it exists; it is simply not ours to signal
+        except OSError:
+            return None
+        return True
+    try:
+        import ctypes
+
+        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+        PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+        STILL_ACTIVE = 259
+        handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+        if not handle:
+            return False
+        try:
+            code = ctypes.c_ulong()
+            if not kernel32.GetExitCodeProcess(handle, ctypes.byref(code)):
+                return None
+            return code.value == STILL_ACTIVE
+        finally:
+            kernel32.CloseHandle(handle)
+    except (OSError, AttributeError, ValueError):
+        return None
+
+
+def _acquire_lock(out: Path, target: str, wait: float = 0.0) -> tuple[Path, list[str]]:
     """Take the advisory lock for `out`, or refuse the build (gh-19).
 
     Two builders on one `dist/<target>/` race silently: the second one's `_safe_clear` deletes
     the first one's output while it is still writing into it, and the first still prints its
     success line. The lock makes the collision loud and early instead.
 
-    A lock older than `LOCK_STALE_SECONDS` is assumed abandoned and replaced with a warning. We
-    never liveness-check the recorded pid: `os.kill(pid, 0)` *terminates* the process on Windows.
+    A lock older than `LOCK_STALE_SECONDS` is assumed abandoned and replaced with a warning, and
+    a *fresh* lock whose pid is provably dead is reclaimed the same way (gh-34) - a build killed
+    with ctrl-c leaves its lock behind, and ten minutes of refusals for a process that is not
+    running is a worse default than checking. The liveness check lives in `_pid_alive` precisely
+    because the obvious `os.kill(pid, 0)` *terminates* the process on Windows.
+
+    `wait` seconds of polling (every 0.5s) before giving up turns the common case - a watching
+    `yss serve` mid-rebuild - from an error into a pause.
     """
     lock = _lock_path(out)
     warnings: list[str] = []
     lock.parent.mkdir(parents=True, exist_ok=True)
-    for _ in range(3):
+    deadline = time.monotonic() + max(0.0, wait)
+    # `attempts` bounds the *reclaim* path only - polling against a live lock is bounded by
+    # `wait` instead - so a lock we keep failing to unlink ends in an error, not a spin.
+    attempts = 0
+    while attempts < 3:
         payload = json.dumps(
             {
                 "pid": os.getpid(),
@@ -340,16 +469,29 @@ def _acquire_lock(out: Path, target: str) -> tuple[Path, list[str]]:
             return lock, warnings
         age, info = _lock_age(lock)
         if age is None:
+            attempts += 1
             continue  # it vanished between the open and the stat; try again
-        if age <= LOCK_STALE_SECONDS:
+        theirs = info.get("pid")
+        if age <= LOCK_STALE_SECONDS and _pid_alive(theirs) is not False:
+            if time.monotonic() < deadline:
+                time.sleep(0.5)
+                continue
             raise BuildError(
-                f"another build owns {out} (lock {lock}, pid {info.get('pid')}, "
-                f"started {info.get('started_at')}); wait for it or delete the lock if that process is gone"
+                f"another build owns {out} (lock {lock}, held by pid {theirs}; "
+                f"this process is {os.getpid()}, started {info.get('started_at')}); "
+                f"wait for it, pass --wait, or delete the lock if that process is gone"
             )
-        warnings.append(
-            f"replaced a stale build lock {lock} (pid {info.get('pid')}, started {info.get('started_at')}, "
-            f"{int(age)}s old, stale after {LOCK_STALE_SECONDS}s)"
-        )
+        if age <= LOCK_STALE_SECONDS:
+            warnings.append(
+                f"reclaimed build lock {lock} (pid {theirs} is not running, "
+                f"started {info.get('started_at')}, {int(age)}s old)"
+            )
+        else:
+            warnings.append(
+                f"replaced a stale build lock {lock} (pid {theirs}, started {info.get('started_at')}, "
+                f"{int(age)}s old, stale after {LOCK_STALE_SECONDS}s)"
+            )
+        attempts += 1
         try:
             lock.unlink()
         except OSError:
@@ -387,6 +529,7 @@ def build(
     run_dynamic: bool = True,
     loaded: Loaded | None = None,
     check_evidence: bool = True,
+    wait: float = 0.0,
 ) -> BuildReport:
     cfg.target(target)  # raises on unknown target
     if strict is None:  # --strict/--no-strict override site.yaml build.strict
@@ -407,7 +550,7 @@ def build(
         if is_visible(page, target) and page.get("_collection", "") not in hidden_collections
     ]
     out = (out_dir or cfg.out_dir(target)).resolve()
-    lock, lock_warnings = _acquire_lock(out, target)
+    lock, lock_warnings = _acquire_lock(out, target, wait=wait)
     try:
         _safe_clear(out, cfg)
         report = BuildReport(target=target, out_dir=out)
@@ -416,6 +559,9 @@ def build(
         except ValueError:
             report.out_label = out.name
         report.warnings += lock_warnings
+        # Load-time notes (gh-38). Warnings only - deliberately not folded into
+        # `strict_failures`, so a deliberate `[[doc#item]]` inside backticks cannot fail a build.
+        report.warnings += list(loaded.warnings)
 
         # evidence (paths, globs, symbols, git recency; commands only when configured)
         evidence_rows: list[dict] = []
@@ -492,6 +638,15 @@ def build(
         report.warnings += dead
         if strict and dead:
             strict_failures.append(f"{len(dead)} dead reference(s).\n  " + "\n  ".join(dead))
+
+        # contrast: the collection bar's on-accent pairings, measured from the stylesheets this
+        # target actually links, in both colour schemes (gh-31)
+        contrast_warnings = _contrast_warnings(cfg, hidden_collections)
+        report.warnings += contrast_warnings
+        if strict and contrast_warnings:
+            strict_failures.append(
+                f"{len(contrast_warnings)} contrast failure(s).\n  " + "\n  ".join(contrast_warnings)
+            )
 
         # data export (agent readable, and available to client-side JS)
         data_dir = out / "data"
@@ -618,8 +773,21 @@ def build(
         if strict and report.flags:
             strict_failures.append("flagged strings present.\n  " + "\n  ".join(report.flags))
         if strict and report.evidence and report.evidence.stale:
+            # Its three sibling gates above inline their hits; this one printed a bare count, so a
+            # strict build's only output was a number and a second command to run (gh-33). Same
+            # line format as the warning emitted above, so the two read identically.
+            stale_lines = [
+                f"{claim.doc} {claim.field} -> {claim.target}: {claim.detail}"
+                for claim in report.evidence.stale
+            ]
+            shown = stale_lines[:50]
+            tail = (
+                f"\n  ... and {len(stale_lines) - 50} more; run `yss check`"
+                if len(stale_lines) > 50
+                else ""
+            )
             strict_failures.append(
-                f"{len(report.evidence.stale)} stale evidence claim(s); run `yss check`"
+                f"{len(stale_lines)} stale evidence claim(s).\n  " + "\n  ".join(shown) + tail
             )
         if strict_failures:
             joiner = f"\n[{target}] strict mode: "

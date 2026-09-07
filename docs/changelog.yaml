@@ -4,9 +4,50 @@ id: changelog
 title: Changelog
 summary: Releases of the yss toolchain.
 status: active
-updated: 2026-09-06
+updated: 2026-09-07
 
 releases:
+  - version: 0.5.1
+    date: 2026-09-07
+    status: released
+    summary: Ten open issues, closed in one sweep. Four gates learn to name what they found instead of counting it, evidence learns to prove a removal, a worksheet learns to publish itself once it is answered, and the contrast rule that had tokens but no values is now measured at build time.
+    changes:
+      - type: fixed
+        text: "Strict mode names every stale evidence claim instead of counting them and deferring to `yss check`, in the same format the build warning already used. Capped at 50 with a tail, so the one branch that hid its hits now reads like its three siblings (gh-33)."
+      - type: changed
+        text: "The build lock reclaims itself when its owner is provably gone. `_pid_alive` asks the platform properly - `OpenProcess` plus `GetExitCodeProcess` on Windows, never `os.kill`, which terminates there - and unknown counts as alive, so the worst case is the old behaviour (gh-34, adr-040)."
+      - type: added
+        text: "`yss build --wait [SECONDS]` polls for a lock a live build holds rather than failing at once, bare `--wait` meaning 60. `yss serve` waits ten seconds on its rebuilds: the watcher is the half of the collision that should yield. The refusal names both pids (gh-34, adr-040)."
+      - type: changed
+        text: "`assets/prefabs.css` and `assets/prefabs.js` are built per target from the prefabs that target rendered, tracked at the single `Renderer.prefab()` choke point so a nested call counts. A prefab only a private page uses ships no styles or selectors to public (gh-39, adr-041)."
+      - type: added
+        text: "Negative evidence. `{path: ..., not_contains: ...}` proves a removal - a dropped flag, a deleted workaround - which no positive claim can express. Every matched file must lack the text, and the stale detail names the file that still has it (gh-32, adr-042)."
+      - type: added
+        text: "Anchored evidence. `{path: <yaml>, at: \"components[*].status\", equals: live}` parses the file and judges the leaves at an anchor with `equals`, `in` or `absent`; every leaf must satisfy it. An unparsable file or an anchor resolving to nothing is stale with a reason (gh-32, adr-042)."
+      - type: fixed
+        text: "A `contains: \"key: value\"` claim whose every match is a top-level line now reports `warn`. It matched the document's own envelope key rather than any item, so it could never fail - the defect it tracked stayed open while the claim stayed green (gh-32, adr-042)."
+      - type: added
+        text: "`$defs/option` carries `evidence[]` and `notes`, so an alternative can prove `we already tried this` instead of asserting it. Claims report under the enclosing item at `.../options/<n>/evidence/<n>`; the collector needed no change (gh-35)."
+      - type: changed
+        text: "The six `options:` use sites in `doc.design` stopped repeating the same five-line description and point at `$defs/option`, where the prose now lives once. The referenced `$defs` were already emitted by `yss schema`, so only the duplication was real (gh-35)."
+      - type: added
+        text: "`yss validate` warns when a `[[ref]]` inside a code span would have resolved. Backticks hid a reference from validator and renderer both, so a literal passed every check. It fires only when doc and item exist, so quoting the syntax stays silent (gh-38, adr-043)."
+      - type: fixed
+        text: "`task-list` renders a milestone's `notes`. The field is on `item_base` for both, but only the task branch printed it, so a milestone note validated, exported to JSON and vanished from the page. Its indent is now scoped to the task level it was written for (gh-40)."
+      - type: added
+        text: "A build-time contrast gate. `yss/contrast.py` measures the collection bar's three on-accent pairings for every visible collection in both schemes; under WCAG AA 4.5:1 is a warning and a `--strict` failure naming the colours, the ratio and the token to declare (gh-31, adr-044)."
+      - type: fixed
+        text: "`examples/demo-musing` declares a dark-mode accent. Its `#7a3e9d` drew 2.29:1 against bamboo's dark `--bg-2`, so the collection the gate was built to protect was the first thing it caught (gh-31)."
+      - type: added
+        text: "A worksheet can publish itself once it is answered. `visibility: on_resolution` on a `doc.worksheet` is derived, not authored: private while any question that requires an answer lacks a `resolution`, public the moment the last one lands (gh-37, adr-045)."
+      - type: added
+        text: "What publishes is a projection, not the sheet as written. `resolution.summary`, `agent_notes` and `private_notes` are elided and a `kind: text` answer publishes only as the new `resolution.answered` marker, while the questions, the options as offered and `chose[]` go public (gh-37, adr-045)."
+      - type: fixed
+        text: "`resolution.chose[]` must name an option `value` of its own question. The schema said so in prose only, so a typo rendered as a plausible answer nothing matched; `yss validate` rejects it now, on every worksheet (gh-37)."
+      - type: added
+        text: "`tests/test_gh36.py` guards the drift gh-20 could not see: when `yss/` has moved past the newest tag, the declared version must have moved too, so a pinned tag and an editable checkout cannot report one string for two trees. Cutting the tag stays a human call (gh-36)."
+      - type: added
+        text: "`buildinfo` publishes `yss_ref`, `git describe --tags --always --dirty` from the package's own checkout, so a page says which tree built it, not merely which version claimed to. Stderr is dropped and the output shape-checked: this reaches dist/ and must carry no path (gh-36)."
   - version: 0.5.0
     date: 2026-09-06
     status: released

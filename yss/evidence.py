@@ -4,6 +4,11 @@ Claims come from two places:
   1. `evidence:` lists on a doc or any item:
        - {path: yss/build.py}                      file or folder exists (globs allowed)
        - {path: yss/build.py, contains: "def build("}  and contains the text
+       - {path: yss/build.py, not_contains: "TODO"}    and does *not* contain the text
+       - {path: docs/design.yaml, at: "components[*].status", equals: live}
+                                                   anchored: parse the YAML, walk the path, and
+                                                   require every leaf to satisfy `equals`, `in` or
+                                                   `absent: true` (gh-32)
        - {glob: "yss/prefabs/*.yaml", min: 10}     at least `min` matches
        - {symbol: "yss.build:build"}               module attribute (parsed, then imported unless
                                                    evidence.import_symbols is off)
@@ -25,8 +30,11 @@ from __future__ import annotations
 
 import glob as globmod
 import importlib
+import re
 import subprocess
 import sys
+
+import yaml
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -93,7 +101,17 @@ def _explicit(entry: Any) -> tuple[str, str, dict] | None:
     if not isinstance(entry, dict):
         return None
     if "path" in entry:
-        return ("contains" if "contains" in entry else "path", str(entry["path"]), entry)
+        # Order matters: `at` is the most specific reading of a path claim, then the two whole-file
+        # substring tests, then bare existence (gh-32).
+        if "at" in entry:
+            kind = "at"
+        elif "not_contains" in entry:
+            kind = "not_contains"
+        elif "contains" in entry:
+            kind = "contains"
+        else:
+            kind = "path"
+        return (kind, str(entry["path"]), entry)
     if "glob" in entry:
         return ("glob", str(entry["glob"]), entry)
     if "symbol" in entry:
@@ -153,6 +171,16 @@ def _extra_detail(extra: dict) -> str:
     bits = []
     if "contains" in extra:
         bits.append(f"contains={extra['contains']!r}")
+    if "not_contains" in extra:
+        bits.append(f"not_contains={extra['not_contains']!r}")
+    if "at" in extra:
+        bits.append(f"at={extra['at']!r}")
+    if "equals" in extra:
+        bits.append(f"equals={extra['equals']!r}")
+    if "in" in extra:
+        bits.append(f"in={list(extra['in'])!r}")
+    if "absent" in extra:
+        bits.append(f"absent={bool(extra['absent'])}")
     if "min" in extra:
         bits.append(f"min={extra['min']}")
     if "expect" in extra:
@@ -177,26 +205,204 @@ def _candidates(cfg: Config, doc: dict, target: str) -> list[Path]:
     return [r / target for r in _bases(cfg, doc)]
 
 
-def _check_path(cfg: Config, doc: dict, claim: Claim, extra: dict) -> None:
-    for candidate in _candidates(cfg, doc, claim.target):
-        matches = globmod.glob(str(candidate)) if any(ch in claim.target for ch in "*?[") else ([str(candidate)] if candidate.exists() else [])
+def _matches_for(cfg: Config, doc: dict, target: str) -> list[str]:
+    """Every existing file the target names, from the collection root first, then the repo root."""
+    for candidate in _candidates(cfg, doc, target):
+        matches = globmod.glob(str(candidate)) if any(ch in target for ch in "*?[") else ([str(candidate)] if candidate.exists() else [])
         if matches:
-            if claim.kind == "contains":
-                needle = str(extra.get("contains", ""))
-                for m in matches:
-                    try:
-                        if needle in Path(m).read_text(encoding="utf-8", errors="ignore"):
+            return matches
+    return []
+
+
+def _shown(cfg: Config, path: str) -> str:
+    """A match named the way the doc named it - never an absolute path, which must not reach dist/."""
+    try:
+        return Path(path).resolve().relative_to(cfg.root.resolve()).as_posix()
+    except (ValueError, OSError):
+        return Path(path).name
+
+
+_KEY_VALUE = re.compile(r"^\s*([A-Za-z0-9_.\-]+):\s*\S")
+
+
+def _envelope_self_match(path: str, needle: str) -> str | None:
+    """gh-32: `contains: "status: open"` against a doc matched the doc's OWN top-level `status:`.
+
+    A whole-file substring test cannot tell a claim about an item apart from the envelope key that
+    happens to spell the same thing, so a defect tracked with such a claim reported `ok` forever.
+    Returns the offending key when *every* line the needle matched is a top-level mapping key in a
+    YAML file - the one case where the claim provably proved nothing about any item.
+    """
+    if Path(path).suffix.lower() not in (".yaml", ".yml"):
+        return None
+    key = _KEY_VALUE.match(needle)
+    if not key or needle.strip() != needle:
+        return None
+    try:
+        lines = [ln for ln in Path(path).read_text(encoding="utf-8", errors="ignore").splitlines() if needle in ln]
+    except OSError:
+        return None
+    if not lines:
+        return None
+    if all(ln.startswith(needle) for ln in lines):
+        return key.group(1)
+    return None
+
+
+def _check_path(cfg: Config, doc: dict, claim: Claim, extra: dict) -> None:
+    matches = _matches_for(cfg, doc, claim.target)
+    if matches:
+        if claim.kind == "contains":
+            needle = str(extra.get("contains", ""))
+            for m in matches:
+                try:
+                    if needle in Path(m).read_text(encoding="utf-8", errors="ignore"):
+                        top = _envelope_self_match(m, needle)
+                        if top:
+                            claim.status = "warn"
+                            claim.detail = f"matched the envelope's own {top!r} -- consider at:"
+                        else:
                             claim.status = "ok"
-                            return
-                    except OSError:
-                        continue
-                claim.status = "stale"
-                claim.detail = f"{claim.target} exists but does not contain {needle!r}"
-                return
-            claim.status = "ok"
+                        return
+                except OSError:
+                    continue
+            claim.status = "stale"
+            claim.detail = f"{claim.target} exists but does not contain {needle!r}"
             return
+        if claim.kind == "not_contains":
+            needle = str(extra.get("not_contains", ""))
+            for m in matches:
+                try:
+                    text = Path(m).read_text(encoding="utf-8", errors="ignore")
+                except OSError:
+                    continue
+                if needle in text:
+                    claim.status = "stale"
+                    claim.detail = f"{_shown(cfg, m)} still contains {needle!r}"
+                    return
+            claim.status = "ok"
+            claim.detail = f"{len(matches)} file(s) lack {needle!r}"
+            return
+        claim.status = "ok"
+        return
     claim.status = "stale"
     claim.detail = f"path not found: {claim.target}"
+
+
+# --- anchored claims (gh-32) ------------------------------------------------
+def _at_steps(expr: str) -> list[tuple[str, str]] | None:
+    """`components[*].status` -> [(key, components), (index, *), (key, status)]. None if malformed.
+
+    Deliberately minimal: keys, dotted keys, `[i]` and `[*]`. Anything richer is a query language,
+    and a doc that needs one is asking the wrong question of an evidence claim.
+    """
+    steps: list[tuple[str, str]] = []
+    for part in expr.split("."):
+        m = re.fullmatch(r"([A-Za-z0-9_\-]+)((?:\[(?:\*|\d+)\])*)", part.strip())
+        if not m:
+            return None
+        steps.append(("key", m.group(1)))
+        for idx in re.findall(r"\[(\*|\d+)\]", m.group(2)):
+            steps.append(("index", idx))
+    return steps or None
+
+
+def _at_leaves(data: Any, steps: list[tuple[str, str]]) -> list:
+    """Every value the path resolves to. A missing key or a short list simply yields fewer leaves."""
+    nodes: list = [data]
+    for kind, tok in steps:
+        nxt: list = []
+        for node in nodes:
+            if kind == "key":
+                if isinstance(node, dict) and tok in node:
+                    nxt.append(node[tok])
+            elif isinstance(node, list):
+                if tok == "*":
+                    nxt.extend(node)
+                elif int(tok) < len(node):
+                    nxt.append(node[int(tok)])
+        nodes = nxt
+        if not nodes:
+            return []
+    return nodes
+
+
+def _sample(values: list) -> str:
+    shown = ", ".join(repr(v) for v in values[:3])
+    return shown + (" ..." if len(values) > 3 else "")
+
+
+def _check_at(cfg: Config, doc: dict, claim: Claim, extra: dict) -> None:
+    """{path, at, equals|in|absent}: read the file as YAML and judge the values at that anchor.
+
+    Every failure mode here is a `stale` with a reason - a target that is not YAML, a file that will
+    not parse, an anchor that resolves to nothing. None of them may raise: `yss check` walks every
+    doc in the repository and one malformed claim must not take the run down with it.
+    """
+    expr = str(extra.get("at", "")).strip()
+    steps = _at_steps(expr)
+    if steps is None:
+        claim.status = "stale"
+        claim.detail = f"cannot parse at: {expr!r}"
+        return
+    matches = _matches_for(cfg, doc, claim.target)
+    if not matches:
+        claim.status = "stale"
+        claim.detail = f"path not found: {claim.target}"
+        return
+    leaves: list = []
+    for m in matches:
+        if Path(m).suffix.lower() not in (".yaml", ".yml"):
+            claim.status = "stale"
+            claim.detail = f"{_shown(cfg, m)} is not YAML, so at: {expr} cannot be read"
+            return
+        try:
+            data = yaml.safe_load(Path(m).read_text(encoding="utf-8", errors="ignore"))
+        except yaml.YAMLError as exc:
+            first = str(exc).splitlines()[0] if str(exc) else type(exc).__name__
+            claim.status = "stale"
+            claim.detail = f"cannot parse {_shown(cfg, m)}: {first}"
+            return
+        except OSError as exc:
+            claim.status = "stale"
+            claim.detail = f"cannot read {_shown(cfg, m)}: {exc}"
+            return
+        leaves.extend(_at_leaves(data, steps))
+
+    if extra.get("absent"):
+        if leaves:
+            claim.status = "stale"
+            claim.detail = f"{expr} still resolves to {len(leaves)} value(s): {_sample(leaves)}"
+        else:
+            claim.status = "ok"
+            claim.detail = f"{expr} is absent"
+        return
+    if not leaves:
+        claim.status = "stale"
+        claim.detail = f"{expr} resolves to nothing in {claim.target}"
+        return
+    if "equals" in extra:
+        want = extra["equals"]
+        bad = [v for v in leaves if v != want]
+        if bad:
+            claim.status = "stale"
+            claim.detail = f"{expr}: {len(bad)} of {len(leaves)} value(s) are not {want!r}: {_sample(bad)}"
+        else:
+            claim.status = "ok"
+            claim.detail = f"{expr}: {len(leaves)} value(s), all {want!r}"
+        return
+    if "in" in extra:
+        allowed = list(extra["in"])
+        bad = [v for v in leaves if v not in allowed]
+        if bad:
+            claim.status = "stale"
+            claim.detail = f"{expr}: {len(bad)} of {len(leaves)} value(s) outside {allowed!r}: {_sample(bad)}"
+        else:
+            claim.status = "ok"
+            claim.detail = f"{expr}: {len(leaves)} value(s), all within {allowed!r}"
+        return
+    claim.status = "ok"
+    claim.detail = f"{expr}: {len(leaves)} value(s)"
 
 
 def _check_glob(cfg: Config, doc: dict, claim: Claim, extra: dict) -> None:
@@ -357,8 +563,10 @@ def evaluate(cfg: Config, docs: dict[str, dict], claims: list[Claim],
         doc = docs.get(claim.doc, {})
         extra = _explicit_extra(doc, claim)
         extras[id(claim)] = extra
-        if claim.kind in ("path", "contains"):
+        if claim.kind in ("path", "contains", "not_contains"):
             _check_path(cfg, doc, claim, extra)
+        elif claim.kind == "at":
+            _check_at(cfg, doc, claim, extra)
         elif claim.kind == "glob":
             _check_glob(cfg, doc, claim, extra)
         elif claim.kind == "symbol":
@@ -375,7 +583,7 @@ def evaluate(cfg: Config, docs: dict[str, dict], claims: list[Claim],
         updated = doc.get("updated")
         if not updated or not _policy(cfg, doc, "git_recency", git_recency, True):
             continue
-        cited = sorted({c.target for c in claims if c.doc == doc_id and c.kind in ("path", "contains") and c.status == "ok"})
+        cited = sorted({c.target for c in claims if c.doc == doc_id and c.kind in ("path", "contains", "not_contains", "at") and c.status == "ok"})
         cited = [p for p in cited if not any(ch in p for ch in "*?[")]
         last = _git_last_change(cfg, cited)
         if last and str(last) > str(updated):
@@ -387,7 +595,8 @@ def evaluate(cfg: Config, docs: dict[str, dict], claims: list[Claim],
 
 
 def _explicit_extra(doc: dict, claim: Claim) -> dict:
-    """Recover the {contains, min, expect} options for an explicit evidence claim from its field path."""
+    """Recover the {contains, not_contains, at, equals, in, absent, min, expect} options for an
+    explicit evidence claim from its field path."""
     if "/evidence/" not in f"/{claim.field}":
         return {}
     cur: Any = doc

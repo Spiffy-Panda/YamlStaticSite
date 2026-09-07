@@ -1125,3 +1125,225 @@ entries:
       - "An open endpoint on the dev server that shells out to the editor (rejected for the reason adr-024 rejected a source endpoint: a local program run from a page request)."
       - A language server in the page over a WebSocket (rejected - it is the editor, rebuilt, for a site whose main content is static HTML).
       - "Nothing, and let the reader copy `file:line` (rejected only once the bridge turned out to be four messages; the copy is still the fallback in any browser)."
+  - id: adr-040
+    date: 2026-09-07
+    title: The build lock checks liveness properly, and callers may wait for it
+    status: accepted
+    context: |
+      [[decisions#adr-019]]'s advisory lock could not tell a held lock from an abandoned one. A
+      build stopped with ctrl-c left its file behind, and every build for the next ten minutes was
+      refused on behalf of a process that no longer exists - recoverable only by deleting the file
+      by hand, which is exactly the state the lock exists to make unnecessary (gh-34).
+
+      The original declined to liveness-check for a real reason, written into its docstring:
+      `os.kill(pid, 0)` is the POSIX idiom, and on Windows it terminates the process. So the choice
+      looked like a bad check or no check, and no check won.
+    decision: |
+      Ask the platform properly. `_pid_alive` uses `os.kill(pid, 0)` on POSIX and `OpenProcess`
+      with PROCESS_QUERY_LIMITED_INFORMATION plus `GetExitCodeProcess` on Windows, and returns
+      None when it cannot tell. A fresh lock whose pid is provably dead is reclaimed with a
+      warning; unknown counts as alive, so the worst case is the behaviour we already had.
+
+      Liveness does not help against a live process holding a lock, so `build(..., wait=)` and
+      `yss build --wait [SECONDS]` poll every half second before giving up, bare `--wait` meaning
+      sixty. `yss serve` waits ten seconds on its own rebuilds: a human running `yss build` by hand
+      while the watcher runs is the common collision, and of the two the rebuild is the one that
+      can be postponed for free.
+    consequences:
+      - A crashed build no longer costs ten minutes or a manual deletion.
+      - The refusal names the holder's pid and our own, so the operator can check the claim rather than trust it.
+      - "Reclaiming is bounded to three attempts and waiting is bounded by `wait`, so neither path can hang."
+      - "A pid recycled onto a live unrelated process reads as alive, which fails safe - the lock is refused, not stolen."
+      - "A live process that leaks a lock is still unrecoverable by liveness alone; `--wait` bounds how long you find that out for, and the message says which pid to look at."
+    alternatives:
+      - "`os.kill(pid, 0)` everywhere (rejected - it terminates the process on Windows, which is the reason the original check was omitted)."
+      - A lock timeout after which any lock is stale (rejected - it either steals a slow build's lock or leaves a dead one held; liveness answers the actual question).
+      - Waiting forever by default (rejected - a build that never returns is worse than one that says why it will not start).
+  - id: adr-041
+    date: 2026-09-07
+    title: The prefab asset bundle is per target, not per registry
+    status: accepted
+    context: |
+      `prefab_css` and `prefab_js` iterated the whole prefab registry, so `dist/public` carried the
+      css and js of every prefab, including ones no public page renders. That is dead weight for
+      every visitor, and a small disclosure besides: a selector set describes markup, and the
+      markup of a `visibility: private` page is private (gh-39).
+    decision: |
+      `Renderer.prefab()` is the single choke point every prefab render passes through, including
+      a nested `prefab('badge', ...)` call from inside another template. It records the name in
+      `Renderer.used_prefabs`, and the two bundle writers filter on that set. Both files are always
+      written, even when the set is empty, so the layout's link and script tags never 404.
+    consequences:
+      - Visibility reaches the asset bundle, not only the markup.
+      - "A prefab reached only at runtime by client-side js would be missed. No such prefab exists, and `Renderer.prefab()` is the place to revisit if one appears."
+      - "On this pilot the bundle is unchanged, because the prefab gallery renders every prefab on both targets. The mechanism is asserted by a synthetic test instead."
+    alternatives:
+      - Declaring used prefabs per page in the page YAML (rejected - a second list to keep in sync with the templates that actually call them).
+      - Static analysis of the templates (rejected - `prefab()` is called with computed names, so only the render knows).
+  - id: adr-042
+    date: 2026-09-07
+    title: An evidence claim may be negative, and may anchor into a document instead of its bytes
+    status: accepted
+    context: |
+      Every `path` claim was a whole-file substring test, and two failures followed from that.
+
+      Nothing could prove a removal. "The workaround is gone", "no TODO is left in this module",
+      "the flag no longer appears" are the claims most worth checking after a cleanup, and a
+      positive `contains` cannot express any of them. The best an author could do was leave the
+      claim off, which reads exactly like never having made it.
+
+      Worse, a claim about a value could be satisfied by an unrelated line. A claim written as
+      `{path: docs/design.yaml, contains: "status: open"}`, to hold a defect open until the item
+      closed, matched the document's own top-level `status:` key. It reported ok from the day it
+      was written and could never have reported anything else. A claim structurally incapable of
+      failing is worse than no claim, because the report then says the doc is proved (gh-32).
+    decision: |
+      Three additions, all on `$defs/evidence_item`, so every kind and every item gets them at once.
+
+      `not_contains:` is the negative form: with `path`, every matched file must lack the text, and
+      the stale detail names the file that still has it.
+
+      `at:` is the anchored form. With a YAML target it parses the file and walks a deliberately
+      minimal grammar - `key`, `key.key`, `key[i]`, `key[*]` - then judges the leaves with
+      `equals`, `in` or `absent: true`. `[*]` is a universal: every leaf must satisfy the test, so
+      one live component does not excuse a dead one. Anything richer would be a query language,
+      and a doc that needs one is asking the wrong question of an evidence claim.
+
+      And because an existing `contains` claim will not rewrite itself, `yss check` reports `warn`
+      on exactly the vacuous case - a `key: value` needle against a YAML file whose every match is
+      a top-level line - naming the key and saying `consider at:`.
+
+      `dependentRequired` ties the keys together, so a misspelled combination fails validation
+      instead of being silently ignored. The same widening reaches `$defs/option`, so an
+      alternative can carry evidence too (gh-35).
+    consequences:
+      - A cleanup can be proved, which is the class of claim the plan and the audit doc most often want and could not write.
+      - A value claim about a doc is checked against the parsed document, so it fails when the value changes rather than when the bytes happen to.
+      - "Existing `contains` claims are unchanged but for the one provably-vacuous shape, which drops from ok to warn. Warn and not stale: the claim may still be what the author meant, and a check run must not start failing on a diagnosis."
+      - "Every `at:` failure is a stale with a reason - not YAML, will not parse, resolves to nothing. `yss check` walks every doc in the repository, so one malformed claim must never take the run down with it."
+      - A third spelling of path evidence is a third thing an author must choose between; the schema states the rule, which is to prefer `at` when the target is YAML and the claim is about a value.
+      - "An option's claims are collected and reported but rendered nowhere - no prefab reads `options[].evidence`. Wiring that up needs a decision about whether options get ids, so it is left open."
+    alternatives:
+      - A general query language such as JSONPath or JMESPath for `at:` (rejected - a dependency and an unbounded surface for a field whose whole job is to stay readable in a diff).
+      - Making the envelope self-match stale (rejected - it would fail check runs on claims that may still be correct, and the remedy is to rewrite the claim, not to block the build).
+      - "A separate `absent` claim kind rather than a modifier on `at:` (rejected - it is the same walk with the leaf count compared against zero)."
+      - "Leaving `contains` alone and documenting the trap in the skill (rejected - the trap was found in a doc that had been green for weeks; documentation checks nothing)."
+  - id: adr-043
+    date: 2026-09-07
+    title: A reference inside a code span is a warning, never an error
+    status: accepted
+    context: |
+      `_check_inline` validates over `strip_code(text)` and `expand_refs` splits on the same
+      pattern, so a reference in backticks is invisible to both. `validate`, `--strict` and
+      `check` all pass on a link that a reader sees as literal text - the one failure mode the
+      reference system was built to prevent, hiding in the one place nothing looks (gh-38).
+
+      The obvious fix - validate inside code spans too - cannot be taken. Backticks are how the
+      syntax gets written about: this repository does it twice on purpose, once in
+      `docs/audit.yaml` and once inside an accepted ADR that must never be edited. An error there
+      would make the decision log unfixable without breaking the append-only rule.
+    decision: |
+      `check_code_span_refs(docs, pages)` in `yss/loader.py` reports a warning, printed by
+      `validate` and folded into every build report, and never fatal - not under `--strict`
+      either. It fires only when the reference would have been a live link: the doc resolves, and
+      the item, if one is named, exists. A backticked reference to a doc or item that does not
+      exist is exactly what quoting the syntax looks like, and stays silent.
+
+      That discriminator is the whole design. Its false-positive rate equals the number of real
+      references someone quotes deliberately, which is small and, being a warning, costs nothing
+      but a line of output.
+    consequences:
+      - This pilot prints two warnings on every validate, both intentional and both correct.
+      - "A bare `[[#item]]` inside a page is skipped - `render_page` resolves it against `docs[0]` only, so there is no single owning doc to check against."
+      - Nothing changes about how the reference renders; the check reports, it does not rewrite.
+    alternatives:
+      - Validating inside code spans as an error (rejected - it would fail on the accepted ADR that quotes the syntax, which cannot be edited).
+      - An opt-out marker on the string (rejected - a second syntax to learn, for a problem a resolvability test already separates).
+      - "Leaving it to review (rejected - the failure is silent by construction; that is why it was filed)."
+  - id: adr-044
+    date: 2026-09-07
+    title: On-accent contrast is measured at build time, not defaulted or derived
+    status: accepted
+    context: |
+      [[decisions#adr-031]] gave the collection bar four optional tokens and consumed each as
+      `var(--token, var(--old-value))`, so stock palettes rendered unchanged. Nothing ever gave
+      them values - not `yss.css`, not the stock palettes, not the generated `collections.css` -
+      so the fallback was always the branch taken, and the fallback is precisely the broken
+      pairing adr-031 was written to fix: `--fg` and `--fg-2` are specified against `--bg`, not
+      against `--accent-2`. A saturated secondary accent still rendered a 1.06:1 sub-nav link,
+      behind a token system that looked like a fix (gh-31).
+
+      This answers half of the open design item [[design#k-on-accent]], which asked how far the
+      on-accent rule reaches. What is settled here is enforcement, not coverage: the rule reaches
+      as far as a theme's own stylesheet, and the toolchain's job is to notice when a theme has
+      not followed it. Which pairings the gate measures stays open on that item.
+    decision: |
+      The tokens stay author-declared and undefaulted, and the build measures the result.
+      `yss/contrast.py` implements WCAG 2.x relative luminance and contrast ratio plus a tolerant
+      regex scanner for `--token: <hex>;` declarations in a stylesheet's `:root` and
+      `prefers-color-scheme: dark` blocks. The build resolves three pairings for the site theme and
+      each visible collection, in both schemes, through the same `var()` fallback chains `yss.css`
+      uses: the title, the resting sub-nav link, and the active pill. Under 4.5:1 is a warning and
+      a `--strict` failure, alongside the dead-link and dead-reference gates.
+
+      A value the scanner cannot read as a hex literal is unknown and skipped in silence. A
+      declared `color-mix()` shadows its fallback exactly as it does in the cascade, so the pair is
+      unresolvable and the gate says nothing. Guessing would be wrong, and failing would block a
+      theme for doing something reasonable.
+    consequences:
+      - A theme that uses --accent-2 as a real secondary accent is told so at build time, by collection, scheme, colour pair and ratio, instead of shipping an unreadable bar in silence.
+      - The gate generalises - it catches the next contrast regression in these pairings, not only this one - which is why it was preferred over a one-time fix.
+      - "The first thing it caught was this repository's own `examples/demo-musing`, whose accent drew 2.29:1 in dark mode. That collection now declares a dark accent."
+      - "A theme computing its on-accent colours is unmeasurable and therefore unchecked; the gate's tolerance is a deliberate false negative, never a false positive."
+      - "`yss.css` is unchanged, so the assertion that no on-accent token is declared in `:root` or the dark block still holds."
+      - "`m7-on-accent-rest` stays blocked, but on a smaller question: which pairings the gate should measure, rather than how the rule is enforced at all. Adding a pair is now a line of configuration."
+    alternatives:
+      - "Derive the triple into `assets/collections.css` (rejected, the closest call). That sheet is linked first and its body-class rule outranks a `:root` declaration, so a guess would beat the author's own answer."
+      - "Declare the tokens on `:root` with `var()` defaults (rejected on adr-031's substitution rule: a custom property resolves its var() where it is declared, so the site's --fg would freeze over a collection theming its own)."
+      - "Derive in CSS with `color-contrast()` or `light-dark()` (rejected on browser support, and it would still be unmeasurable by any checker)."
+      - "Documentation only (rejected as insufficient - the failure is silent, which is the whole complaint; the docs ship alongside the gate, not instead of it)."
+  - id: adr-045
+    date: 2026-09-07
+    title: A worksheet archives itself by deriving its visibility and publishing a projection
+    status: accepted
+    context: |
+      `visibility` was an authored key read literally by `is_visible`, and redaction could only
+      remove a whole object or delete `private_notes`. A worksheet is written private because of
+      its candid free text, and that reason does not expire when the questions are answered - so
+      the sheet worth publishing, the answered one, stayed private forever, and flipping the key by
+      hand would have published the candid parts along with the answers (gh-37). Meanwhile the two
+      things worth publishing from a finished sheet - the prompt it was built to produce, and which
+      option was picked - were already structured data.
+    decision: |
+      Add one derived visibility value, `on_resolution`, legal only on a `doc.worksheet`: the sheet
+      is private while any question that requires an answer lacks a `resolution`, and public once
+      the last one lands. The flip is mechanical, so no human decides per sheet whether it is safe.
+
+      What publishes is not the authored document but a projection of it, applied inside
+      `filter_for_target` so every consumer - the page render, the `data/docs/<id>.json` export,
+      `yss export`, the symbols provider - gets it from one implementation. The rule: structured
+      answers publish; prose written to steer or record a human deliberation does not. Elided are
+      `private_notes` as before, the doc's `agent_notes`, and every `resolution.summary`; a
+      `kind: text` answer publishes only as the two-state marker `resolution.answered`. Everything
+      else - `intro`, `warn`, the whole `prompt`, each question's `call`, `lead`, `help`, `blocks`,
+      the `options[]` as offered and `chose[]`, `applied`, `by`, `recorded_in[]` - reaches the
+      public target unchanged, because a selection is an enum and publishing it costs no
+      transcription.
+
+      The unit that flips is the file, not the item: `$defs/visibility`, and so `item_base`, stays
+      two-valued. A half-published sheet has holes in its numbering and `blocks[]` links pointing
+      at questions the public reader cannot see, and its safety would rest on a per-item judgement
+      rather than one predicate.
+    consequences:
+      - An answered worksheet is publishable by construction rather than by review, so a worksheet index has something to index.
+      - "One sheet per deliberation becomes the useful habit: a sheet with a live question in it can never flip, so an accumulating per-project sheet is now a choice with a cost."
+      - "`is_visible` is no longer a pure literal read. It fails closed: the keyword on a non-worksheet, or on a sheet with no questions, means private."
+      - "`resolution.summary` no longer reaches the public target from such a sheet, so anything an author wants published must be structured - a chosen option or a `recorded_in[]` link."
+      - "A resolved `kind: text` question on such a sheet must carry `answered`, or validation fails - the marker is the whole public record of that answer."
+      - "The nav's waiting count and the flip share one predicate, so they cannot drift apart."
+      - "`chose[]` is now checked against its own question's option values on every worksheet, not only derived ones. The schema had said so in prose since it was written."
+    alternatives:
+      - "An `archive_visibility: public` key the author sets (rejected - still a human deciding per sheet, which is the thing that never happens)."
+      - Whole-object redaction plus a hand-written public copy of the sheet (rejected - two documents that disagree the moment one is edited).
+      - "Per-item `on_resolution` (rejected - a document with holes in its numbering, and safety by per-item judgement)."
+      - "Publishing `resolution.summary` too (rejected as the default - it is unreviewed prose, and `chose[]` already carries the answer; a sheet that wants prose published can put it in `intro`)."

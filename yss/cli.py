@@ -42,6 +42,9 @@ def cmd_validate(args) -> int:
         f"ok: {len(loaded.docs)} docs, {len(loaded.pages)} pages, {len(loaded.prefabs)} prefabs, "
         f"{len(loaded.registry.schemas)} schemas"
     )
+    # Non-fatal notes (gh-38): said out loud, but never a failure - the exit code stays 0.
+    for warning in loaded.warnings:
+        print("  warning: " + warning)
     return 0
 
 
@@ -57,7 +60,15 @@ def cmd_build(args) -> int:
     for target in _targets(cfg, args.target):
         out = Path(args.out) if args.out and args.target != "all" else None
         try:
-            report = build(cfg, target, out_dir=out, strict=args.strict, run_dynamic=not args.no_dynamic, loaded=loaded)
+            report = build(
+                cfg,
+                target,
+                out_dir=out,
+                strict=args.strict,
+                run_dynamic=not args.no_dynamic,
+                loaded=loaded,
+                wait=getattr(args, "wait", 0.0) or 0.0,
+            )
         except BuildError as exc:
             print(str(exc))
             rc = 1
@@ -385,6 +396,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-strict", dest="strict", action="store_false",
                    help="never fail on flagged strings or stale evidence, whatever site.yaml says")
     p.add_argument("--no-dynamic", action="store_true", help="skip dynamic data sources")
+    p.add_argument("--wait", nargs="?", const=60.0, type=float, default=0.0, metavar="SECONDS",
+                   help="wait up to SECONDS (bare --wait: 60) for another build to release the lock")
     p.set_defaults(func=cmd_build)
 
     p = sub.add_parser("serve", help="serve dist/private and dist/public on two local ports")

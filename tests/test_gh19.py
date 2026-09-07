@@ -25,6 +25,9 @@ from unittest import mock
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
+# Also importable as `tests.test_gh19` (not only via `unittest discover -s tests`), so the
+# sibling helper import below resolves either way.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from yss import cli  # noqa: E402
 from yss.build import LOCK_STALE_SECONDS, BuildError, BuildReport, _lock_path, build  # noqa: E402
@@ -69,16 +72,20 @@ class BuildLockTests(TempSiteCase):
         self.assertNotIn(out, lock.parents)
 
     def test_fresh_lock_refuses_the_build(self):
+        # The owner pid has to be a *live* one now: since gh-34 a fresh lock whose pid is provably
+        # dead is reclaimed rather than obeyed, and an invented 4242 would usually be reclaimed.
+        # Our own pid is alive by definition, which is the case this test is really about.
+        alive = os.getpid()
         lock = self.lock_for()
         lock.parent.mkdir(parents=True, exist_ok=True)
         fresh = datetime.now(timezone.utc).isoformat(timespec="seconds")
-        lock.write_text(json.dumps({"pid": 4242, "target": "private", "started_at": fresh}), encoding="utf-8")
+        lock.write_text(json.dumps({"pid": alive, "target": "private", "started_at": fresh}), encoding="utf-8")
         with self.assertRaises(BuildError) as ctx:
             build(self.cfg, "private", run_dynamic=False)
         message = str(ctx.exception)
         self.assertIn("another build owns", message)
         self.assertIn(str(lock), message)
-        self.assertIn("4242", message)
+        self.assertIn(str(alive), message)
         self.assertTrue(lock.is_file(), "a refused build must not steal the other builder's lock")
 
     def test_stale_lock_is_replaced_with_a_warning(self):

@@ -72,7 +72,7 @@ python -m unittest discover -s tests -v
 - A doc field bound by a page must exist; a missing field is a build error naming the page and section.
 - Binding a private doc from a public page fails; mark the section `visibility: private`.
 - Inside a collection, `plan` means the collection's own plan; write `/plan` to reach the root doc.
-- Text like `[[doc#item]]` is a reference and is validated; wrap it in backticks when you only mean the syntax.
+- Text like `[[doc#item]]` is a reference and is validated; wrap it in backticks when you only mean the syntax. A backticked reference whose doc *and* item both exist is warned about (never an error, never strict-fatal) - it renders literally, so that is usually a live link you forgot to unquote.
 - No absolute paths in anything that reaches `dist/` (the public build forbids the checkout path).
 - A code map export is proved by parsing, never by importing or building. Python and Rust have parsers (`yss/langs/`); anything else is a valid module with no line range and no source pane.
 - `map` values that contain `{{` are Jinja; everything else is a field name or literal.

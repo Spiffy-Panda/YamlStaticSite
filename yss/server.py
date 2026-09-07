@@ -166,7 +166,11 @@ def rebuild(cfg: Config, targets: list[str], run_dynamic: bool = True) -> bool:
         return False
     for target in targets:
         try:
-            report = build(cfg, target, loaded=loaded, run_dynamic=run_dynamic)
+            # The watcher is the half of the gh-19 race that should yield: a human running
+            # `yss build` by hand while `yss serve` watches is the common collision, and the
+            # rebuild is cheap to postpone. Ten seconds covers an ordinary build; past that the
+            # refusal is still printed and the next file save triggers another attempt (gh-34).
+            report = build(cfg, target, loaded=loaded, run_dynamic=run_dynamic, wait=10.0)
             print(f"[build] {report.summary()}")
             if not output_ok(report):
                 # Someone else is building into the same dist/. Say so, but do NOT write the
