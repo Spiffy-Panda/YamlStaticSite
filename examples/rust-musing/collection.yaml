@@ -1,0 +1,31 @@
+# Collection configuration - schema: collection (python -m yss schema collection --yaml)
+#
+# A second demo collection, and a narrow one: it exists so the code map has real Rust to point at.
+# `examples/demo-musing/` already exercises the folder-per-musing contract (hooks, mounts, a
+# generated doc, a per-collection vocabulary) and this one deliberately repeats none of that -
+# a collection.yaml, a code map and one page.
+#
+# No `mounts:`. The crate under `prototype/` is read by the symbol index, not copied into
+# `dist/`: the private target reads the working tree and the public target fetches the pinned
+# commit from the repository, which is the whole of adr-024 and the reason a source mirror was
+# declined. A mount here would quietly build the mirror anyway.
+title: Rust in the code map
+emblem: "🦀"
+order: 2
+status: active
+tags: [example, rust]
+summary: >-
+  A small cellular automaton in Rust, mapped the way any module is mapped. It is here so the
+  Rust side of the symbol resolver has something real to answer for, and so the reader can be
+  seen working in a language the toolchain is not written in.
+links:
+  - {label: The code map, href: "", kind: page}
+agent_notes: |
+  The crate is a fixture, not a product. It compiles and its three tests pass
+  (`cargo test` in `prototype/lifelike/`), which is the point - a fixture that stopped
+  compiling would still parse, and the index would go on reporting line ranges for code
+  nobody could build. If you change it, keep every construct that is here for a reason:
+  the `'parse:` loop label (a lifetime-shaped token that is not a lifetime), the
+  `#[cfg(test)] mod tests`, the associated const `Rule::LIFE`, the `impl Default for Rule`
+  and `impl fmt::Display for Board` (trait impls index under the type, not the trait), and
+  the `use rules::Rule as LifeRule` rename.

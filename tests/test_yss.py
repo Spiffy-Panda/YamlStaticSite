@@ -34,9 +34,12 @@ def temp_site() -> Path:
     for name in ("site.yaml", "README.md"):
         if (REPO / name).exists():
             shutil.copy(REPO / name, tmp / name)
-    for sub in ("docs", "site", "schemas", "examples"):
+    for sub in ("docs", "site", "schemas", "examples", "tools"):
         if (REPO / sub).is_dir():
-            shutil.copytree(REPO / sub, tmp / sub)
+            # `target` is the example crate's build output: gigabytes if somebody has run cargo,
+            # and nothing any test reads.
+            shutil.copytree(REPO / sub, tmp / sub,
+                            ignore=shutil.ignore_patterns("__pycache__", "target"))
     # the pilot docs cite yss/, tests/ and dist/ as evidence; mirror them so strict builds stay clean
     shutil.copytree(REPO / "tests", tmp / "tests", ignore=shutil.ignore_patterns("__pycache__"))
     shutil.copytree(REPO / "yss", tmp / "yss", ignore=shutil.ignore_patterns("__pycache__"))
@@ -439,18 +442,18 @@ class ExportEvidenceTests(TempSiteCase):
 
     def test_export_claim_resolves_against_the_enclosing_path(self):
         claim = Claim("codemap", None, "f", "export", "yss/config.py::Config.evidence_for")
-        _check_export(self.cfg, claim)
+        _check_export(self.cfg, {}, claim)
         self.assertEqual(claim.status, "ok")
         self.assertIn("yss/config.py:", claim.detail)
 
     def test_vanished_export_is_stale(self):
         claim = Claim("codemap", None, "f", "export", "yss/config.py::gone_away")
-        _check_export(self.cfg, claim)
+        _check_export(self.cfg, {}, claim)
         self.assertEqual(claim.status, "stale")
 
     def test_non_python_export_is_skipped_not_stale(self):
         claim = Claim("codemap", None, "f", "export", "yss/assets/yss.js::whatever")
-        _check_export(self.cfg, claim)
+        _check_export(self.cfg, {}, claim)
         self.assertEqual(claim.status, "skipped")
 
     def test_symbol_claim_resolves_a_dotted_member_without_importing(self):

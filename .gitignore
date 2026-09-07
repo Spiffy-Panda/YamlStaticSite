@@ -5,3 +5,6 @@ __pycache__/
 *.egg-info/
 .venv/
 *.stackdump
+
+# Rust build output from the example crate; never committed, never scanned.
+target/

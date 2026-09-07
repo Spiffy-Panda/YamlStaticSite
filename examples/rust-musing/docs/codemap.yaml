@@ -1,0 +1,102 @@
+# Code map - schema: doc.codemap (python -m yss schema doc.codemap --yaml)
+# Paths are relative to this collection's folder and are evidence; so is every export name, which
+# is resolved by parsing the file (yss/langs/rust.py) and not by building the crate.
+kind: codemap
+id: codemap
+title: lifelike code map
+summary: A cellular automaton in three files, mapped so the Rust side of the symbol resolver has something real to answer for.
+status: active
+updated: 2026-09-06
+agent_notes: |
+  Every export below is an `x-evidence: export` claim, so `yss check` fails if one moves or is
+  renamed - the same proof the Python modules in the root code map get. Cite members the way
+  Rust spells them (`Board::step`); `Board.step` resolves to the same lines but reads as a
+  transliteration of somebody else's language.
+
+roots:
+  - path: prototype/lifelike/
+    purpose: The crate. `cargo test` there runs the three unit tests; nothing in yss builds it.
+  - path: prototype/lifelike/src/
+    purpose: All three modules. Cited as a directory below as well as file by file, because both spellings have to work.
+
+modules:
+  - id: bin
+    path: prototype/lifelike/src/main.rs
+    purpose: The binary - argument parsing and the generation loop. Its `mod` declarations are what make the other two files modules.
+    language: rust
+    status: active
+    depends_on: [board, rules]
+    exports:
+      - {name: main, kind: function, signature: "fn main()", description: Prints each generation to stdout.}
+      - {name: Options, kind: class, signature: "struct Options { rule, generations, edge }", description: Everything the command line can say.}
+      - {name: "Options::from_args", kind: function, signature: "fn from_args() -> Self", description: "Holds the `'parse:` loop label - a lifetime-shaped token that is not a lifetime."}
+      - {name: DEFAULT_GENERATIONS, kind: constant, description: How many generations to run when nobody says.}
+      - {name: SEED, kind: constant, description: "An R-pentomino, written as a line-continued string literal."}
+  - id: board
+    path: prototype/lifelike/src/board.rs
+    purpose: The grid, the edge policy and the neighbourhood arithmetic. A generation is a whole new board, never an in-place update.
+    language: rust
+    status: active
+    depends_on: [rules]
+    exports:
+      - {name: Board, kind: class, signature: "struct Board { width, height, edge, cells }"}
+      - {name: "Board::new", kind: function, signature: "fn new(width, height, edge) -> Self"}
+      - {name: "Board::parse", kind: function, signature: "fn parse(text: &str, edge: Edge) -> Self", description: "Reads `.` and `#`, one row per line."}
+      - {name: "Board::get", kind: function, signature: "fn get(&self, x: i32, y: i32) -> Cell", description: Resolves the edge policy rather than returning an Option.}
+      - {name: "Board::neighbours", kind: function, signature: "fn neighbours(&self, x: i32, y: i32) -> u8"}
+      - {name: "Board::step", kind: function, signature: "fn step(&self, rule: &LifeRule) -> Board"}
+      - {name: "Board::fmt", kind: function, signature: "fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result", description: "From `impl fmt::Display for Board` - a trait impl indexes under the type, not the trait."}
+      - {name: Cell, kind: type, signature: "enum Cell { Dead, Live }"}
+      - {name: "Cell::Live", kind: constant, description: "An enum variant, addressable in its own right."}
+      - {name: "Cell::count", kind: function, signature: "fn count(self) -> u8"}
+      - {name: Edge, kind: type, signature: "enum Edge { Wrap, Clamp }"}
+      - {name: MOORE, kind: constant, description: "The eight neighbour offsets, a `static` rather than a `const`."}
+      - {name: OUTSIDE, kind: constant, description: What a non-wrapping board finds past its edge.}
+  - id: rules
+    path: prototype/lifelike/src/rules.rs
+    purpose: "A rule is data - two bitmasks over neighbour counts - so B3/S23 and B36/S23 need no code of their own."
+    language: rust
+    status: active
+    exports:
+      - {name: Rule, kind: class, signature: "struct Rule { born: u16, survives: u16 }"}
+      - {name: "Rule::LIFE", kind: constant, signature: "const LIFE: Rule", description: An associated const inside an impl block.}
+      - {name: "Rule::parse", kind: function, signature: "fn parse(notation: &str) -> Result<Self, ParseError>"}
+      - {name: "Rule::apply", kind: function, signature: "fn apply(&self, cell: Cell, neighbours: u8) -> Cell", description: "The whole of a generation, one cell at a time."}
+      - {name: "Rule::notation", kind: function, signature: "fn notation(&self) -> String"}
+      - {name: "Rule::default", kind: function, signature: "fn default() -> Self", description: "From `impl Default for Rule`."}
+      - {name: ParseError, kind: type, signature: "enum ParseError { MissingSlash, BadHalf, CountOutOfRange }"}
+      - {name: "ParseError::CountOutOfRange", kind: constant, description: A digit no neighbourhood can produce.}
+      - {name: CATALOGUE, kind: constant, description: The rules this crate ships with.}
+      - {name: tests, kind: type, signature: "#[cfg(test)] mod tests", description: An inline module; its tests are indexed as members of it.}
+      - {name: "tests::seeds_never_survives", kind: function, description: Reached only because the index goes one level inside an inline mod.}
+  - id: crate-src
+    path: prototype/lifelike/src/
+    purpose: "The same three files cited as a directory: `main.rs` contributes bare names and the others are prefixed with their own stem."
+    language: rust
+    status: active
+    exports:
+      - {name: "board::Board", kind: class, description: "`Board` in board.rs, reached through the directory spelling."}
+      - {name: "rules::Rule::apply", kind: function, description: A member of a type in a submodule - two separators deep.}
+      - {name: main, kind: function, description: "Bare, because `main.rs` is one of the files Rust treats as a module root."}
+
+entrypoints:
+  - id: run
+    name: Run the automaton
+    command: cargo run --manifest-path examples/rust-musing/prototype/lifelike/Cargo.toml -- --rule B36/S23
+    module: bin
+    description: Prints each generation. Nothing in the yss build runs this.
+  - id: test
+    name: Test the rule parser
+    command: cargo test --manifest-path examples/rust-musing/prototype/lifelike/Cargo.toml
+    module: rules
+    description: Three unit tests inside `mod tests`.
+
+conventions:
+  - id: cite-as-rust-spells-it
+    rule: Cite a Rust member as `Type::member`, not `Type.member`.
+    rationale: Both resolve, so the checker cannot enforce this one - it is about the code map reading like the language it describes.
+    enforced_by: none
+  - id: no-build-to-map
+    rule: The symbol index parses source text and never invokes cargo.
+    rationale: A code map that needed a toolchain to render would go stale on any machine without one, and on every CI runner that does not install Rust.
+    enforced_by: test

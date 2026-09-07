@@ -5,7 +5,7 @@ id: design
 title: YamlStaticSite design
 summary: Three schema families (structured docs, UI prefabs, un-inflated pages) feed a build that validates, checks evidence, renders a site per target and exports the same data as JSON; collections make folder-per-topic repos first-class.
 status: active
-updated: 2026-09-04
+updated: 2026-09-06
 owners: [agent]
 related: [plan, codemap, decisions]
 
@@ -134,10 +134,58 @@ components:
     name: Evidence checker
     kind: module
     responsibility: Collect claims from `evidence:` lists and x-evidence fields, evaluate paths, globs, symbols, commands and git recency, and inject freshness into docs and items. Policy per doc - CLI flag, then collection.yaml, then site.yaml.
-    depends_on: [c-schemas]
+    depends_on: [c-schemas, c-symbols]
     outputs: [EvidenceReport, data/evidence.json, _evidence on docs and items]
     code: [yss/evidence.py, yss/providers/evidence.py]
     status: live
+  - id: c-symbols
+    group: g-trust
+    name: Symbol resolver
+    kind: module
+    responsibility: Turn a (module path, export name) pair into a line range by parsing the file - never importing it, never building it - for both the evidence checker and the site's source reader.
+    inputs: [code map module path, export name]
+    outputs: ["(start, end, file)", per-file definition index]
+    depends_on: [c-langs]
+    code: [yss/symbols.py]
+    status: live
+    notes: |
+      Dispatch and cache only since [[decisions#adr-037]]; the parsers live in `c-langs`. The cache
+      key carries the spelling a caller asked for as well as the absolute path, because a directory
+      reached two ways stores two different sets of file paths. `supported()` is what the rest of
+      the toolchain asks before assuming a module can carry a line range at all.
+  - id: c-langs
+    group: g-trust
+    name: Language indexers
+    kind: module
+    responsibility: One parser per language, registered by file suffix, each answering which lines a name occupies and how that language spells a member and a module root.
+    inputs: [a source file]
+    outputs: ["{name: (start, end)}", language label]
+    code: [yss/langs/python.py, yss/langs/rust.py]
+    status: live
+    notes: |
+      Python is read by `ast`; Rust by scanning - blank out every comment, literal body and
+      attribute while preserving offsets, then walk the braces ([[decisions#adr-037]]). Neither
+      imports, compiles or shells out, which is what lets a code map be as true on a runner with no
+      toolchain as on the machine that wrote it. Adding a language is a module and a registry line;
+      `m15-more-languages` is the standing question of whether a third one is worth it.
+  - id: c-source-reader
+    group: g-presentation
+    name: Source reader
+    kind: module
+    responsibility: Open a code map export in place - the right lines, highlighted, with every identifier the index knows as a jump to its definition - and hand the rest to an editor when one is listening.
+    inputs: [symbols and symbolsource dynamic sources, the export link's own data attributes]
+    outputs: [an in-page source pane, yss-code messages]
+    depends_on: [c-symbols, c-dynamic, c-prefabs]
+    code: [yss/prefabs/module-list.yaml, tools/vscode-yss/extension.js]
+    status: live
+    notes: |
+      Layers, each an upgrade over markup that already works ([[decisions#adr-038]],
+      [[decisions#adr-039]]). The anchor in the HTML is real and line-pinned, so the static page is
+      complete with scripting off; the pane is JavaScript over it; the editor bridge is four
+      messages over that, offered only after a host answers a handshake. Highlighting is tokenised
+      in the browser because that is where the source text arrives on both targets, and it is
+      decoration over line numbers that were proved elsewhere - being wrong about a token costs a
+      colour, never a link.
   - id: c-visibility
     group: g-trust
     name: Visibility and redaction

@@ -5,7 +5,7 @@ id: decisions
 title: Decision log
 summary: Why the toolchain is shaped the way it is.
 status: active
-updated: 2026-09-04
+updated: 2026-09-06
 related: [design]
 
 entries:
@@ -983,3 +983,145 @@ entries:
       - "Default the key to false (rejected - existing runtime-only claims would flip to `skipped` on upgrade, which supersedes part of adr-024 for a benefit only a few repositories want)."
       - "Leave the fallback unbounded and add a consequence note (rejected - it leaves a proof step with interpreter-wide side effects and no way to opt out)."
       - "Reuse `evidence.run_commands` as the gate (rejected - running a doc's declared command is a different consent from importing a module the doc only names)."
+
+  - id: adr-037
+    date: 2026-09-06
+    title: A language is a parser module and one registry line, and Rust's is a scanner
+    status: accepted
+    context: |
+      [[decisions#adr-024]] shipped code map deep links and closed with a stated limit: "Only
+      Python is parsed. A javascript or jinja module in the code map gets a plain file link and
+      no range." The first musing to want otherwise is a bevy prototype - eight Rust files whose
+      exports a code map can name and cannot prove, so every one of them is a link to a file and
+      a promise that the reader will scroll.
+
+      `yss/symbols.py` was one module doing three jobs: dispatch, cache, and the `ast` walk
+      itself. `SUPPORTED_SUFFIXES` was a set holding one suffix and the directory index globbed
+      for it, so "which files does a directory contribute" was a Python fact stated in the
+      dispatcher.
+
+      Rust has no parser in the standard library, and the two ways to get one are both worse than
+      the problem. A dependency (tree-sitter, or syn through a shelled-out helper) puts a native
+      build between a reader and a line number. Invoking cargo - `cargo metadata`, rustdoc JSON -
+      makes the code map need a toolchain, so it renders on a machine that has Rust and goes
+      stale on a CI runner that does not, which is the opposite of what evidence is for.
+    decision: |
+      Split the resolver. `yss/langs/` holds one module per language, each exporting `SUFFIXES`,
+      `PACKAGE_STEMS`, `MEMBER_SEP`, `ALIAS_SEPS`, `LABEL` and `file_index(path, rel)`;
+      `yss/symbols.py` keeps its public surface and becomes dispatch and cache only. Adding a
+      language is adding a module and one entry in `REGISTRY` - the directory rule follows from
+      `PACKAGE_STEMS`, so `mod.rs`, `lib.rs` and `main.rs` contribute bare names the way
+      `__init__.py` does, without the dispatcher learning what a crate is.
+
+      Rust is read by scanning, in two stages: blank out every comment, literal body and attribute
+      while preserving offsets, then walk the braces. It indexes free items, `impl` and `trait`
+      members under the type, enum variants, `use` renames, and one level inside an inline `mod`;
+      it indexes nothing inside a function body and no struct fields. A member is `Type::method`,
+      and `Type.method` resolves to the same lines so a code map written in the Python house style
+      is not a wall of false staleness.
+
+      The `x-evidence: export` claim now splits on the *first* separator rather than the last,
+      because a Rust member name contains one and a path never does; and an export claim resolves
+      from its own collection's root before the repo root, the order path evidence already used.
+      Both were latent - the first unreachable while only Python was parsed, the second while only
+      the root code map had exports.
+    consequences:
+      - Every Rust export in a code map is proved by `yss check` and deep-links to its own lines, on both targets, exactly as a Python one does.
+      - Nothing invokes cargo, so the index is identical on a machine with no Rust toolchain, and an unbuildable working tree still maps.
+      - "A scanner is not a compiler: macro-generated items are invisible, and two `impl` blocks defining the same method name resolve to the first. Both are silent, which is why the fixture crate exists."
+      - "`yss/symbols.py` shrank to a dispatcher; `file_index`, `index_for`, `lookup` and `supported` mean what they meant."
+      - The index cache is keyed by the spelling as well as the path - the same directory reached two ways stores two sets of file paths, and one key handed the second caller the first one's.
+      - "`examples/rust-musing/` is a second demo collection whose only job is to be read: a crate carrying a loop label, a trait impl, an associated const and an inline test module - each a way a brace walker goes wrong."
+    alternatives:
+      - A parser dependency, tree-sitter or a shelled-out syn helper (rejected - a native build between a reader and a line number, for a feature whose whole point is that it needs nothing).
+      - "`cargo metadata` or rustdoc JSON (rejected - the code map would then need a toolchain, so it would be true on a developer's machine and stale on any runner without Rust; evidence that depends on the environment is not evidence)."
+      - A regex over the whole file (rejected - a brace in a string or a doc comment ends an item, and a loop label reads as an unterminated character literal that swallows the rest of the file).
+      - Leave Rust unparsed and link whole files (rejected - it is the limit adr-024 wrote down as a limit, and the first real musing hit it immediately).
+
+  - id: adr-038
+    date: 2026-09-06
+    title: The source pane highlights and seeks in the browser, from an index the build publishes
+    status: accepted
+    context: |
+      The pane [[decisions#adr-024]] built shows the right lines as plain text. Reading Rust that
+      way is worse than reading Python that way - one function in the prototype that prompted this
+      is a hundred lines of physics - and the question a reader has next is almost always "where
+      is that defined", which the pane could answer and did not.
+
+      Two constraints decide the shape. The source text arrives at *runtime* on both targets (the
+      private build reads its working tree, the public one fetches the pinned commit), so
+      highlighting at build time would colour text the build does not have. And the symbol table
+      that could answer "where is this defined" already exists - it is the same parse that
+      resolves an export - but the `symbols` source published only the handful of names the code
+      map happened to cite.
+    decision: |
+      Highlight in the browser, and seek from a published index.
+
+      The `module-list` prefab tokenises a whole chunk at once - not line by line, because a doc
+      comment spans lines and a per-line tokeniser restarts inside one and paints the rest as code
+      - with a small per-language spec. It is not a parser and does not need to be: the line
+      ranges and the symbol table come from the real parser, and this only decides what to paint.
+
+      The `symbols` source gains `defs` - every name each cited file defines, spelled as that file
+      spells it, because a bare constant name is what a reader clicks on and its directory-prefixed
+      form appears nowhere in the text - plus `langs`, so the page picks a highlighter rather than
+      guessing from a suffix. An identifier the index knows becomes a link; the same file wins over
+      another one, because a method and a free function of the same name are a real ambiguity and
+      the one you are reading is the one you meant.
+
+      `symbolsource`, already private-only, gains whole files under a line budget. That is what
+      local-first buys: served from `yss serve`, the pane needs no network at all, `whole file` is
+      free, and a seek into a neighbouring file is instant. The public target keeps exactly the
+      behaviour adr-024 gave it.
+    consequences:
+      - The pane is legible in a language nobody on the project reads fluently, and a reader can follow a call without leaving the page.
+      - "`defs` publishes every name in a cited file, not only the cited ones. That is names and line numbers, never text, and `defs: false` on the source turns it off for a repository that would rather publish only what its code map names."
+      - "`dynamic/symbolsource.json` grew to roughly 640KB for this repository. It is private, local, and capped per file and in total; a file over the budget is skipped whole rather than truncated into a lie."
+      - Highlighting is approximate by construction. It is decoration over text whose line numbers are proved, so being wrong about a token costs a colour and never a link.
+      - Six CSS variables carry the token palette, defined for both schemes, so a theme restyles code without touching the prefab.
+    alternatives:
+      - Highlight at build time with Pygments (rejected - a dependency, and it cannot colour text the build never sees; the public target fetches its source at runtime).
+      - Ship a highlighter from a CDN (rejected - the site is readable offline and under file://, and this is the one feature that must not need the network on the private target).
+      - Seek by re-parsing the file in the browser (rejected - a second implementation of the resolver, free to disagree with the one that proved the line numbers).
+      - "Publish whole files on both targets (rejected - adr-024's declined source mirror in a different hat: every source line through the redaction scan)."
+
+  - id: adr-039
+    date: 2026-09-06
+    title: The editor is asked for what a published page cannot know, over a four-message bridge
+    status: accepted
+    context: |
+      [[decisions#adr-038]] answers "where is this defined" for every name the build-time index
+      holds. It cannot answer for the rest, and the rest is most of a file: a local binding, a
+      method on a type from a dependency, anything a macro generated. A text scanner will never
+      see those. A language server already has.
+
+      There is a second thing the page cannot do at all. A reader who has found the line usually
+      wants to edit it, and the page has no way to open a file - an editor URL scheme needs an
+      absolute path, which must never be written into a build ([[decisions#adr-004]]), and the
+      private server has no business shelling out to a local program on a page request.
+    decision: |
+      When the page is framed by a host that answers a handshake, offer the two things only the
+      host can do. The protocol is four messages: the page posts `hello`, a host replies `ready`,
+      and the page may then post `open` or `reveal`, and `definition` - to which the host may reply
+      with a resolved location, so the pane follows the editor.
+
+      `tools/vscode-yss/` is that host: a webview framing the private preview, relaying messages to
+      the editor's own definition provider, which is answered by whatever language server the
+      workspace already has.
+
+      Every path the page sends is repo-relative, and the host resolves it against its own
+      workspace. That is what keeps [[decisions#adr-004]] intact - no absolute path is written
+      anywhere - and it is also the trust boundary: the page is framed content, so the extension
+      refuses absolute paths, drive letters, URL schemes and parent-directory segments, then
+      re-tests the resolved path against the root. The bridge has no message that writes, saves or
+      runs.
+    consequences:
+      - The fullest form of the reader needs an editor, and every lesser form still works - no host means no buttons, and nothing else about the page changes.
+      - "`go to definition` answers for names the index never held, which is most of what a reader clicks on."
+      - "A second surface to keep working: a couple of hundred lines of JavaScript with no build step that no test here can exercise. The suite asserts only that the page treats it as optional."
+      - Detection is a handshake rather than an assumption about being framed, so an unrelated host embedding the site sees nothing new.
+    alternatives:
+      - An editor URL scheme in the page (rejected - the absolute path would be written into dist/, which the public build fails on and the private build should not carry either).
+      - "An open endpoint on the dev server that shells out to the editor (rejected for the reason adr-024 rejected a source endpoint: a local program run from a page request)."
+      - A language server in the page over a WebSocket (rejected - it is the editor, rebuilt, for a site whose main content is static HTML).
+      - "Nothing, and let the reader copy `file:line` (rejected only once the bridge turned out to be four messages; the copy is still the fallback in any browser)."

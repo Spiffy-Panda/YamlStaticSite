@@ -4,9 +4,34 @@ id: changelog
 title: Changelog
 summary: Releases of the yss toolchain.
 status: active
-updated: 2026-09-04
+updated: 2026-09-06
 
 releases:
+  - version: 0.5.0
+    date: 2026-09-06
+    status: released
+    summary: The code map reads Rust. One parser per language behind the same resolver, a source pane that highlights and jumps to a definition without leaving the page, and an optional bridge that asks a real editor for the definitions a text scanner can never find.
+    changes:
+      - type: added
+        text: "Rust in the code map. `yss/langs/rust.py` indexes free items, `impl` and `trait` members under their type, enum variants, `use` renames and one level inside an inline `mod` - by blanking every comment, literal and attribute, then walking the braces. Nothing invokes cargo (adr-037)."
+      - type: changed
+        text: "`yss/symbols.py` is dispatch and cache only; the parsers moved to `yss/langs/`, one module per language declaring its suffixes, package-root stems and member separator. Adding a language is a module and a registry line; the public surface is unchanged (adr-037)."
+      - type: fixed
+        text: "An `x-evidence: export` claim splits on the first `::` rather than the last. A path never contains one and a Rust member name routinely does, so splitting from the right handed the parser half a path - latent while only Python was parsed."
+      - type: fixed
+        text: "An export claim resolves from its own collection's root before the repo root, the order path evidence already used. A collection keeping code under its own folder had every export read as missing while all its `path` claims passed."
+      - type: fixed
+        text: "The symbol index cache is keyed by the spelling as well as the path. One directory reached as `src/` and as its full repo-relative path shared an entry, so the second caller got the first one's file paths."
+      - type: added
+        text: "The source pane is highlighted, tokenised in the browser because that is where the text arrives on both targets. Six CSS variables carry the token palette in both colour schemes, so a theme restyles code without touching the prefab (adr-038)."
+      - type: added
+        text: "Seek to definition. The `symbols` source publishes `defs` - every name each cited file defines, spelled as that file spells it - and `langs`, so an identifier in the pane is a link to where it is defined, in this file or another. `defs: false` turns it off (adr-038)."
+      - type: added
+        text: "`symbolsource` carries whole files on the private target under a per-file and total line budget, so a locally served pane needs no network at all - `whole file` is free and a seek into a neighbour is instant. A file over budget is skipped whole rather than truncated (adr-038)."
+      - type: added
+        text: "`tools/vscode-yss/`, the editor half of the `yss-code` bridge. Framed by it the pane offers `open in VS Code` and `go to definition`, the second answered by the workspace's own language server. Four messages, repo-relative paths only, nothing that writes (adr-039)."
+      - type: added
+        text: "`examples/rust-musing/` - a second demo collection whose only job is to be read. Its crate compiles and its three tests pass, and it carries a loop label, a trait impl, an associated const, enum variants and an inline test module because each is a way a brace walker goes wrong."
   - version: 0.4.1
     date: 2026-09-04
     status: released

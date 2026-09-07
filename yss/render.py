@@ -159,22 +159,58 @@ class Renderer:
             collections=self.ctx["collections"],
             build=self.build_info,
             symbol_range=self.symbol_range,
+            repo_path=self.repo_path,
         )
         self.nav = self._nav()
         self._doc_pages = self._index_doc_pages()
 
     # --- helpers ---------------------------------------------------------
+    def _code_base(self):
+        """Where a code map path resolves from on this page: its collection, else the repo root."""
+        if self.current_collection and not self.current_collection.is_root:
+            return self.current_collection.root
+        return self.cfg.root
+
+    def repo_path(self, path: str) -> str:
+        """`{{ repo_path(m.path) }}` - a cited path spelled from the repository root.
+
+        A collection's code map writes its paths relative to the collection, which is what the
+        checker and the symbol index resolve; a link into the hosting service needs the other
+        spelling. Falls back to the doc's own text for anything outside the checkout, because an
+        absolute path must never reach the output (adr-004).
+        """
+        rel = str(path or "")
+        if not rel:
+            return rel
+        try:
+            return (self._code_base() / rel).resolve().relative_to(self.cfg.root.resolve()).as_posix()
+        except (ValueError, OSError):
+            return rel
+
     def symbol_range(self, path: str, name: str) -> list | None:
-        """`{{ symbol_range(m.path, e.name) }}` -> [start, end] for a code map export, or None.
+        """`{{ symbol_range(m.path, e.name) }}` -> [start, end, file] for an export, or None.
 
         Resolved at render time so a deep link carries real line anchors in the static HTML and
-        works with JavaScript off (p-static-first). Parsing is cached by mtime in yss.symbols, so
-        a page with many exports parses each module once.
+        works with JavaScript off (p-static-first). Parsing is cached in yss.symbols, so a page
+        with many exports parses each module once.
+
+        The path resolves from the page's own collection first - the order the checker and the
+        `symbols` provider both use - and the file that comes back is spelled from the repository
+        root, so it matches the keys in the published index and works as a blob URL (adr-037).
         """
         if not path or not name or not symbols_supported(path):
             return None
-        span = symbol_lookup(self.cfg.root, str(path), str(name))
-        return list(span) if span else None
+        base = self._code_base()
+        if not (base / str(path).rstrip("/")).exists():
+            base = self.cfg.root
+        span = symbol_lookup(base, str(path), str(name))
+        if not span:
+            return None
+        try:
+            file = (base / span[2]).resolve().relative_to(self.cfg.root.resolve()).as_posix()
+        except (ValueError, OSError):
+            file = span[2]
+        return [span[0], span[1], file]
 
     @staticmethod
     def _fail(message: str) -> str:

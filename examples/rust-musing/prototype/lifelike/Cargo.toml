@@ -1,0 +1,9 @@
+[package]
+name = "lifelike"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# No dependencies on purpose. This crate exists so the code map has real Rust to point at, and a
+# fixture that needs a network fetch before it can be read is a fixture that rots.
+[dependencies]

@@ -1,0 +1,484 @@
+# Worksheet - schema: doc.worksheet. Opened 2026-09-06 after a site-local skill was written for one musing.
+# Agents: do not answer these. Panda answers on the rendered page and hands the built instruction to an agent.
+kind: worksheet
+id: register-skill
+title: Shipping the register skill
+summary: How the contradiction register and live-rules instrument becomes a skill shipped with yss rather than one musing's private note - the skill's boundary, whether a doc kind, prefab and generator ship with it, where per-collection config lives, and what the generated markdown does about rule zero.
+status: active
+updated: 2026-09-06
+owners: [agent]
+related: [plan, decisions, design, codemap]
+intro: |
+  The contradiction register and the live-rules list were invented for one musing, generalised to a
+  second the next day, and then written up as a skill **inside that musing's repository**, describing
+  that musing as though it were the instrument. It is not: the shape is general and belongs to any yss
+  collection that gives its enumerated items stable handles. That write-up already carries a `TODO:
+  abstract to any yss site` at the top.
+
+  This worksheet is the correction, made once and in writing so the same misreading cannot happen
+  twice. The product is **a skill shipped with yss** - `yss/skills/<name>/SKILL.md`, installed by
+  `python -m yss skills --install`, listed beside `yss-doc`, `yss-page`, `yss-prefab` and
+  `yss-publish` - and the questions below are the parts nobody has decided yet: what else ships with
+  the skill (a doc kind, a prefab, a generator), where a collection declares its own particulars, and
+  what the two generated files do about rule zero.
+
+  Recommended defaults are pre-selected. Open **pros and cons** under an option before changing one,
+  press **Build the instruction**, and hand the text to an agent in a fresh session.
+warn: |
+  🐼❗ R.4 is the expensive one and everything downstream leans on it. If the generator ships as yss
+  code, R.6's config block, R.8's gate and R.10's failure list are all describing real code an agent
+  must write and test; if it does not, they are describing a script the skill only tells each repo how
+  to write, and the shipped skill can never promise "fail, never drop" - it can only ask for it.
+
+questions:
+  - id: r-skill-name
+    call: R.1
+    lead: What is the shipped skill called, and does it cover both instruments or only the register?
+    help: |
+      The two instruments answer different questions - the register asks *where does this musing
+      disagree with itself*, the live-rules list asks *what binds me right now* - and the skill must
+      keep them from being swapped, because handing a working agent the register is exactly the
+      context poisoning the list exists to stop. One skill can say that in one place; two skills split
+      the audience but risk each one forgetting the other exists.
+    applies_to: "the new yss/skills/<name>/ folder name and its front-matter name field"
+    compare: |
+      Every shipped skill so far is named for the *task* an agent is doing (`yss-doc` authors docs,
+      `yss-page` authors pages), not for the artefact. `yss-register` follows that only loosely - the
+      task is really "run the handle-and-verdict loop for a collection". The `yss-` prefix is not in
+      question; only what follows it, and how many folders there are.
+    options:
+      - value: one-skill
+        text: One skill, yss-register, covering the register, the live-rules list and the maintenance loop
+        recommended: true
+        why: The rule that must never be lost is the relationship between the two files; a single skill states it once and cannot drift out of sync with itself.
+        prompt: "Ship one skill named yss-register covering the contradiction register, the generated live-rules list, and the verdict-batch maintenance loop that connects them."
+        pros: [The do-not-swap-these rule lives in one place, Matches how yss-publish already spans build and redact and deploy, One entry in the yss skill index]
+        cons: [A long skill, Someone who only wants the live-rules list reads the register material first]
+      - value: two-skills
+        text: Two skills - yss-register for the doc and the page, yss-live-rules for the generator and its output
+        why: Each is short and separately loadable, at the cost of stating the relationship twice and having to keep both statements true.
+        prompt: "Ship two skills, yss-register for the register doc and page and yss-live-rules for the generator and its outputs, each pointing at the other."
+        pros: [Shorter loads, A repo that only generates can skip the register half]
+        cons: [The load-bearing relationship is stated twice, Two files to keep in step, No other yss skill is split this finely]
+      - value: fold-in
+        text: No new skill - a register section inside yss-doc and a generator section inside yss-publish
+        why: Adds nothing to the skill list, but buries an instrument with its own failure modes inside two skills that are already long.
+        prompt: "Do not create a new skill; document the register as a section of yss-doc and the live-rules generator as a section of yss-publish."
+        pros: [No new skill to discover, Registers are docs and yss-doc already owns docs]
+        cons: [Two long skills get longer, The instrument has no name to load, Hard for an agent to find when it does not know the word register]
+
+  - id: r-doc-kind
+    call: R.2
+    lead: Does a register get a real doc kind, or stay kind generic with a shape field?
+    help: |
+      Both existing registers are `kind: generic`, `shape: contradiction-register`, and their own
+      headers say to promote this to `doc.register` if registers spread. They rejected the obvious
+      kinds on purpose: `plan` carries the archive rule and holds open work, `worksheet` is answered
+      once and then loses its own form controls, `changelog` versions shipped work. A register is
+      never finished, must never lose its controls, and must never be archived - the settled rows are
+      what make the live ones legible.
+    applies_to: "schemas/doc.register.schema.yaml (or its absence) and the shipped skill's structure section"
+    compare: |
+      A real kind buys validation of the thing that actually breaks - a row with no `lives_in`, a state
+      outside the closed set, a pair with one quote - and buys `python -m yss new doc register <id>`.
+      `generic` buys nothing and validates nothing beyond "is an object". The cost of a real kind is a
+      schema to maintain and a migration for the two existing docs.
+    options:
+      - value: promote
+        text: Ship a doc.register schema, with entries, pairs, dismissed and the closed state vocabulary
+        recommended: true
+        why: The shape is stable across two instances and the fields that go wrong are exactly the ones a schema can catch before the generator has to.
+        prompt: "Ship a doc.register schema with entries, pairs, dismissed and a prompt block, add the state vocabulary to site.yaml vocabularies, and migrate both existing registers from kind generic to kind register."
+        pros: [validate catches a malformed row without running the generator, yss new doc register scaffolds it, The state vocabulary becomes data like every other vocabulary]
+        cons: [A schema to maintain, Both existing registers need migrating, Locks the shape in earlier than three instances would]
+      - value: keep-generic
+        text: Stay kind generic with shape contradiction-register; the skill documents the shape in prose
+        why: Nothing to migrate and the shape can still move, but every structural error waits for the generator or a human to find it.
+        prompt: "Keep registers as kind generic with shape contradiction-register; document the shape in the skill and do not add a schema."
+        pros: [No migration, The shape can still change freely, generic is the documented escape hatch]
+        cons: [validate proves nothing about a register, No scaffold, The state vocabulary stays hard-coded in the generator]
+      - value: both
+        text: Ship doc.register but keep generic working, so a site can start loose and promote later
+        why: Lowest friction for a new site at the price of two documented ways to do one thing, which is how conventions rot.
+        prompt: "Ship a doc.register schema but keep kind generic with shape contradiction-register supported; the skill recommends the kind and documents the generic fallback."
+        pros: [No forced migration, A site can try the shape before adopting the kind]
+        cons: [Two shapes the generator must both read, The skill has to explain both, Neither becomes the obvious default]
+
+  - id: r-prefab
+    call: R.3
+    lead: Does the register page prefab ship as a built-in yss prefab?
+    help: |
+      The rendered page is not decoration - it is the instrument. Contradictions first, then every
+      handle with a discard/retire control and a comment box, then a **Build the instruction** button
+      whose output contains only the rows Panda touched. That button is what makes the register an
+      instruction builder rather than a list. It rendered the second collection's register with no
+      edit at all, which is the usual sign a prefab is general.
+    applies_to: "yss/prefabs/contradiction-register.yaml (or its absence) and the skill's page section"
+    options:
+      - value: ship-builtin
+        text: Ship it as a built-in prefab; sites override it the normal way if they want a different look
+        recommended: true
+        why: A skill that tells an agent to hand-write the controls will get them subtly wrong, and the untouched-rows rule is the part that would go first.
+        prompt: "Ship the contradiction-register prefab as a built-in yss prefab, keep site-local overrides working, and have the skill bind pages to the built-in."
+        pros: [The instruction builder behaves the same everywhere, Already proven on two collections unmodified, Overriding a built-in prefab is an existing documented path]
+        cons: [A built-in prefab to maintain, Its look is now a yss default rather than one site's choice]
+      - value: site-local
+        text: Leave it site-local; the skill tells an agent how to write one and what it must do
+        why: Keeps the built-in set small, at the cost of every adopting site reimplementing the same controls.
+        prompt: "Do not ship the prefab; document in the skill what the register page must render and let each site write its own prefab."
+        pros: [No new built-in to support, Sites keep full control of the look]
+        cons: [Every site rebuilds the same controls, The build-the-instruction rules will drift, Nothing proves a site got them right]
+      - value: minimal
+        text: Ship a plain built-in that renders entries and pairs, and leave the controls to each site
+        why: Splits the difference badly - the read-only half is the easy half and the controls are the part worth shipping.
+        prompt: "Ship a minimal built-in prefab that renders entries and pairs read-only, and document the interactive controls as a site-local extension."
+        pros: [Small built-in, Read-only registers work out of the box]
+        cons: [The instruction builder is not shipped, Two prefabs per site, The interesting half is still reimplemented everywhere]
+
+  - id: r-generator
+    call: R.4
+    lead: Where does the live-rules generator live once the skill ships?
+    help: |
+      Today it is `utils/python/live_rules.py` in one repository, with a `CollectionSpec` per
+      collection and a shim for the first one. Its whole value is two properties: it copies the rule
+      text **verbatim from the register** so it cannot drift into disagreeing with its source, and it
+      **fails rather than drops** - a rule lost to a missed regex is indistinguishable, to the agent
+      reading the output, from a rule that does not exist. Only shipped code can be tested against
+      those two properties.
+    applies_to: "a yss module and CLI subcommand (or their absence) and the skill's generator section"
+    compare: |
+      This is the question that decides whether the skill teaches an algorithm or documents a command.
+      Shipped code means yss owns ten-plus failure modes, a config surface and tests. A template means
+      the skill can describe the failures but never enforce them, and each repo's copy diverges the
+      first time somebody is in a hurry.
+    options:
+      - value: ship-command
+        text: Ship it as yss code with a CLI subcommand, e.g. python -m yss live-rules <collection> [--check]
+        recommended: true
+        why: Fail-never-drop is a promise only tested code can keep, and the same command in every repo is what makes the evidence claim and the skill portable.
+        prompt: "Ship the live-rules generator as yss code with a python -m yss live-rules <collection> [--check] subcommand, port both existing collections onto it, and cover its failure modes with tests."
+        pros: [The failure modes get tests, One command name every repo and every skill can name, --check works as an evidence claim anywhere]
+        cons: [Real engineering - config surface and tests and docs, yss now owns an instrument it did not invent, The first port has to keep two committed outputs byte-identical]
+      - value: library
+        text: Ship a yss library function plus a template script each repo copies and points at its collections
+        why: Keeps the checks in yss while the entry point stays local, which is honest about per-repo differences but leaves a copied file to rot.
+        prompt: "Ship the generator as a yss library function with a documented template entry-point script that each repo copies and configures."
+        pros: [Checks are shipped and tested, Repos keep their own entry point and paths]
+        cons: [A copied script per repo drifts, The evidence command differs per repo, Two places to document]
+      - value: skill-only
+        text: Ship no code - the skill describes the algorithm and the failures, each repo writes its own
+        why: Cheapest to ship and the most likely to produce a generator that silently drops a rule.
+        prompt: "Ship no generator code; document the algorithm, the verbatim rule and the full failure list in the skill so each repo writes its own."
+        pros: [Nothing new in yss to maintain, Each repo fits it to its own layout]
+        cons: [Fail-never-drop cannot be promised only asked for, Every repo reimplements ten checks, A silent drop is invisible by construction]
+
+  - id: r-handle-rule
+    call: R.5
+    lead: yss has no Rule 8. Where does the shipped skill get "every enumerated item has a stable handle" from?
+    help: |
+      The register is a view over handles that live in other files, and the handles exist because that
+      one musings repository has a house rule that mints them. yss itself has no such rule: its docs
+      have `id` slugs, and a slug is stable but is not append-only, never renumbered, never reused, and
+      not swept for across a whole collection. The skill cannot assume Rule 8 without saying where a
+      site that has never heard of it gets the equivalent.
+    applies_to: "the skill's opening section, and any new convention added to docs/codemap.yaml conventions"
+    compare: |
+      There is a real tension here. Doc ids in yss already look like handles and validate as
+      references, which argues for reusing them. But handles are minted on *page items* and prose in
+      several file types, they carry a per-collection prefix, and the append-only guarantee is what the
+      whole retirement rule stands on - none of which yss ids currently promise.
+    options:
+      - value: skill-defines
+        text: The skill defines the handle contract itself - prefixed series, append-only, never renumbered, never reused
+        recommended: true
+        why: Makes the skill self-contained for a repo that has no house rules, and states the one property retirement depends on instead of inheriting it by luck.
+        prompt: "Have the shipped skill define the handle contract itself - a per-collection prefixed series, append-only, never renumbered, never reused, struck in place when retired - without reference to any repository's own numbered rules."
+        pros: [Works in a repo with no conventions of its own, The append-only property is stated where retirement is explained, Nothing to import from another repo]
+        cons: [Defines a convention the origin repo already had under another name, Two spellings of the same rule until the origin repo points at the skill]
+      - value: reuse-ids
+        text: Use existing yss doc-item ids as handles rather than a separate series
+        why: One namespace instead of two, but yss ids are not append-only and are not swept for outside docs, so the guarantees would have to be added anyway.
+        prompt: "Use existing yss doc item ids as register handles rather than a separate numbered series, and add append-only and no-reuse guarantees to id handling."
+        pros: [One namespace, References already validate, No sweep needed for docs]
+        cons: [Handles are minted on prose and page items too not just doc items, No prefix per series, Making ids append-only changes rules for every existing doc]
+      - value: per-site
+        text: The skill requires a handle contract but each site writes its own and declares it in config
+        why: Most honest about how different repos number things; least useful to a repo that wanted the skill to tell it.
+        prompt: "Have the skill require but not define the handle contract, with each site declaring its own series rules in configuration."
+        pros: [Fits repos that already number things their own way, No convention imposed]
+        cons: [A new site gets no answer, The skill cannot state retirement rules concretely, Every site's contract needs reviewing separately]
+
+  - id: r-config-home
+    call: R.6
+    lead: Where does a collection declare its series prefixes, strike forms and unminted handles?
+    help: |
+      These are the two traps the second collection produced. A collection may own **several** series
+      - one had one prefix, the other had six - so gap checks, the mention sweep and the retired list
+      are all per series. And **a strike does not mean the same thing everywhere**: in one collection
+      a strike marks a retired handle, in the other a correction strikes superseded text *inside a
+      live claim*, so pointing the first collection's patterns at the second would have read four live
+      claims as retirements. `unminted` covers handles the prose names before they exist.
+    applies_to: "collection.yaml schema (a register block) or a config field on the register doc; the skill's configuration section"
+    options:
+      - value: collection-yaml
+        text: A register block in collection.yaml - series prefixes, strike forms, unminted handles, sweep extensions
+        recommended: true
+        why: Anything unique to one collection already belongs in that collection's collection.yaml, and the generator needs it before it opens any doc.
+        prompt: "Declare register configuration - series prefixes, strike forms, unminted handles and swept file extensions - in a register block in collection.yaml, and extend the collection schema to validate it."
+        pros: [Matches the existing rule that per-collection particulars live in collection.yaml, Validated by the collection schema, One place for the generator to read]
+        cons: [Config sits away from the register it configures, Collection schema grows]
+      - value: on-the-doc
+        text: On the register doc itself, so the doc carries its own configuration
+        why: Config next to the thing it configures, at the cost of putting build behaviour inside a doc that agents edit constantly.
+        prompt: "Carry register configuration on the register doc itself rather than in collection.yaml."
+        pros: [Config and register in one file, No collection schema change, A site with no collections still works]
+        cons: [Breaks the collection.yaml convention, A doc edit can change generator behaviour, Harder to configure a second register the same way]
+      - value: both-layers
+        text: Defaults in collection.yaml, overridable per register doc for a site with more than one
+        why: Covers the multi-register case properly but is the most surface to specify, validate and explain.
+        prompt: "Put register defaults in collection.yaml with per-doc overrides for sites carrying more than one register."
+        pros: [Handles several registers per collection, Sensible defaults with an escape hatch]
+        cons: [Two places to look, More schema, Nobody has needed the second register yet]
+
+  - id: r-markdown-output
+    call: R.7
+    lead: The live-rules list is a committed markdown file. What does the skill say about rule zero?
+    help: |
+      Rule zero says project knowledge goes in `docs/*.yaml`, never in new markdown files - and yet
+      `LIVE-RULES.md` sits at a collection root, committed rather than gitignored, precisely because a
+      file you must run a generator to read is a file a fresh agent will not read. It is not a
+      violation in spirit: it is a *generated* paste-into-a-prompt export of a doc that also exists as
+      YAML and a page. But an agent reading rule zero and finding that file will either delete it or
+      copy the pattern for something that is not generated.
+    applies_to: "the skill's outputs section, docs/codemap.yaml conventions, and possibly a decision entry"
+    options:
+      - value: named-exception
+        text: Keep it at the collection root, named in the skill and the code map as a generated export, never hand-edited
+        recommended: true
+        why: The file's whole purpose is to be found and pasted by an agent who has run nothing, and writing the exception down is what stops it being read as a precedent.
+        prompt: "Keep the generated markdown list at the collection root, committed, and record it in the skill and in the code map conventions as a generated never-hand-edited export that is an explicit exception to rule zero, with a decision entry stating why."
+        pros: [A fresh agent finds it without running anything, The exception is written down instead of inferred, The YAML doc and page remain the source]
+        cons: [A markdown file at a collection root invites imitation, Rule zero now has a documented exception]
+      - value: yaml-only
+        text: Emit only the YAML doc and the rendered page; no markdown file
+        why: Rule zero stays absolute, and the artefact that was invented to be pasted into a prompt has to be built by hand each time.
+        prompt: "Emit only the live-rules YAML doc and its rendered page; do not generate a markdown file."
+        pros: [No exception to rule zero, One less generated file to keep in step]
+        cons: [The paste-into-a-prompt form is gone, A fresh agent must build the site or read YAML, Loses the reason the list was asked for]
+      - value: generated-dir
+        text: Emit the markdown into a clearly generated location rather than the collection root
+        why: Keeps the export while making it obviously machine-written, if an agent looks in a directory it has no other reason to open.
+        prompt: "Generate the markdown live-rules list into a clearly named generated directory rather than the collection root, and point at it from the collection's own instructions."
+        pros: [Obviously generated, Rule zero holds at the root, Still pasteable]
+        cons: [Findability was the entire point, One more path to teach, A fresh agent looks at the root first]
+
+  - id: r-gate
+    call: R.8
+    lead: How hard does yss push back when a register has been edited and the generator not re-run?
+    help: |
+      Today nothing runs the generator. It is declared as a `command:` evidence claim, so `yss check
+      --run-commands` catches staleness - and CI never sees these private docs, so a register edited
+      without a re-run leaves both outputs quietly stale until someone checks. Detectable, not
+      prevented. That is exactly the state in which an agent reads a live-rules list that is missing a
+      rule Panda made yesterday.
+    applies_to: "the shipped evidence claim, build.strict handling, and the skill's maintenance loop"
+    options:
+      - value: check-claim
+        text: Keep it an evidence claim - yss check --run-commands reports stale outputs, nothing blocks
+        recommended: true
+        why: Consistent with how every other yss claim behaves, and the generator is fast enough that the real fix is putting the re-run in the loop rather than in the build.
+        prompt: "Keep live-rules staleness as a command evidence claim reported by yss check --run-commands, shipped automatically wherever a register doc exists, and put the re-run in the skill's maintenance loop."
+        pros: [Matches how every other claim works, No new build failure mode, Works with the existing Evidence page]
+        cons: [Only runs when someone asks it to, CI never sees private docs, Stale outputs stay quietly stale]
+      - value: build-fails
+        text: yss build regenerates or fails when the outputs are stale, under build.strict
+        why: Nobody can ship a stale list, at the cost of a build that fails on a doc edit an agent has not finished making.
+        prompt: "Make yss build check live-rules freshness and fail under build.strict when the generated outputs are stale."
+        pros: [A stale list cannot survive a build, Strict mode already means this kind of failure]
+        cons: [Mid-edit builds fail, Build now depends on generator config, A private-only concern reaches the shared build path]
+      - value: validate-fails
+        text: yss validate fails when a register's outputs are stale
+        why: The loudest and earliest signal, in the command agents run most, which is also why it would interrupt the most.
+        prompt: "Make yss validate fail when a register's generated outputs are stale."
+        pros: [Caught at the command agents run after every edit, Impossible to forget]
+        cons: [validate is a schema-and-reference command not a freshness command, Fails constantly mid-edit, Forces the generator to run on every validate]
+
+  - id: r-visibility
+    call: R.9
+    lead: Are register and live-rules docs private by default?
+    help: |
+      Both existing ones carry `visibility: private`, explicitly set and never inherited, while sibling
+      pages in the same folder are public. A doc's full source is exported to the target's data
+      directory whether or not a page binds it, and the public tree is uploaded wholesale, so the key
+      is the only guard. There is also a subtler trap on record: a correction written onto a *public*
+      page named the private files by name, and the forbidden-string scan did not catch it because
+      those were ordinary filenames.
+    applies_to: "the shipped skill's visibility section and any scaffold produced for a new register"
+    options:
+      - value: private-default
+        text: Private by default in the scaffold and the skill, flippable by a site that wants it public
+        recommended: true
+        why: A register quotes internal disagreement and half-formed rules; defaulting it public would leak by omission, and a site that wants it public can say so deliberately.
+        prompt: "Default register and live-rules docs and pages to visibility private in the scaffold and the skill, and document how a site makes them public deliberately."
+        pros: [Safe by default, Matches both existing instances, A public register is still possible]
+        cons: [A site that wants them public edits two files, Private docs never reach CI checks]
+      - value: always-private
+        text: Always private - the skill forbids flipping it and the build refuses a public register page
+        why: Removes a whole class of leak at the cost of forbidding a legitimate use for a project working in the open.
+        prompt: "Require register and live-rules docs and pages to be private and make a public register page a build error."
+        pros: [Cannot be leaked by an agent in a hurry, One less decision per site]
+        cons: [Forbids a public register for an open project, A rule yss cannot justify from its own principles]
+      - value: author-decides
+        text: No default - the skill explains the exposure and each site decides
+        why: Least opinionated, and the option most likely to end with a register public because nobody thought about it.
+        prompt: "Set no visibility default for registers; document the exposure and let each site decide."
+        pros: [No policy imposed, Fits public-by-design projects]
+        cons: [Unset means public, The failure mode is a silent leak, Scaffolds cannot be safe]
+
+  - id: r-failures
+    call: R.10
+    kind: check
+    lead: Which generator failures must be hard errors in the shipped instrument rather than warnings?
+    help: |
+      Tick every one that must exit non-zero. The origin implementation treats all of them as hard, on
+      the reasoning that a rule which vanishes to a missed pattern is indistinguishable from a rule
+      that never existed. Anything left unticked becomes a warning an agent can walk past, so tick
+      generously: the cost of a hard error is a failed run, and the cost of a warning is a working
+      agent obeying rules that were struck last week.
+    applies_to: "the generator's error list and the skill's failure section"
+    options:
+      - value: shape
+        text: The register has no data, no updated, or no entries - its shape changed
+        recommended: true
+        why: The generator cannot tell an empty register from one it failed to parse.
+        prompt: "Hard-fail when the register has no data, no updated field, or no entries."
+      - value: row-fields
+        text: A row missing a handle or a state, a malformed handle, or two rows sharing a number
+        recommended: true
+        why: Every one of these makes some rule unaddressable in the output.
+        prompt: "Hard-fail on a row missing handle or state, a handle that does not match its series pattern, or a duplicate number."
+      - value: bad-state
+        text: A state outside the closed vocabulary
+        recommended: true
+        why: An unknown state has no section to be emitted into, so the rule silently disappears.
+        prompt: "Hard-fail on any state outside the closed vocabulary."
+      - value: empty-says
+        text: A row whose text is empty - refuse to emit a rule with no wording
+        recommended: true
+        why: A numbered rule with no text teaches a reader nothing and looks authoritative anyway.
+        prompt: "Hard-fail on a row with an empty says field rather than emitting a rule with no text."
+      - value: lives-in
+        text: A row with no lives_in, or a lives_in path that does not exist
+        recommended: true
+        why: Without a home file nothing can verify the rule is still where the register says.
+        prompt: "Hard-fail on a row with no lives_in or a lives_in path that does not exist."
+      - value: not-mentioned
+        text: A handle not mentioned in its own home file - the register has drifted
+        recommended: true
+        why: This is the check that catches a register describing a file that has moved on.
+        prompt: "Hard-fail when a handle is not mentioned in the file its row names as its home."
+      - value: strike-mismatch
+        text: Retired on the register but not struck in place, or struck in place but not retired on the register
+        recommended: true
+        why: It enforces the rule that a verdict is recorded where the handle lives first, and it must not pick which side is wrong.
+        prompt: "Hard-fail when retirement on the register and the strike in the home file disagree, reporting both without choosing which is correct."
+      - value: series-gap
+        text: A gap in a series - append-only means a gap is a missing row, not a free number
+        recommended: true
+        why: A gap is how a whole rule goes missing without anything else looking wrong.
+        prompt: "Hard-fail on a gap in any series, treating a gap as a missing row rather than an unused number."
+      - value: unregistered
+        text: A handle written anywhere in the collection with no row on the register
+        recommended: true
+        why: The sweep is what stops a rule existing in prose and nowhere in the instrument.
+        prompt: "Hard-fail when a handle appears anywhere in the collection with no row on the register, unless it is declared unminted with a reason."
+      - value: pair-integrity
+        text: A pair naming an unknown handle, closed with no retired subject, or open while naming a retired one
+        recommended: true
+        why: These are the states in which the contradiction list stops describing the handles it lists.
+        prompt: "Hard-fail on a pair naming a handle with no row, a closed pair with no retired subject, or an open pair naming a retired subject."
+      - value: unquoted-pair
+        text: A pair missing a verbatim quote on either side
+        recommended: true
+        why: A contradiction that cannot be quoted is one an agent invented, and inventing them is worse than missing them.
+        prompt: "Hard-fail on any pair missing a verbatim quote on either side."
+
+  - id: r-migration
+    call: R.11
+    lead: What happens to the musing that already has a site-local copy of this skill?
+    help: |
+      One repository currently holds the site-local skill, the site-local prefab, and the generator
+      with two collections registered - one of which has committed outputs naming their generator in
+      several places, including a `command:` evidence claim. Whatever ships here has to land there
+      without those outputs changing for the wrong reason, and the site-local skill has to stop being
+      the copy an agent finds first.
+    applies_to: "the migration plan for the origin repository and the skill's adoption section"
+    compare: |
+      The honest caveat from the second collection also lands here: one of the two has no retired
+      handles at all, so its live-rules list currently withholds nothing and duplicates the register's
+      text. The instrument does not bite until the first retirement - which is an argument for
+      migrating without waiting for it, not for delaying.
+    options:
+      - value: ship-then-migrate
+        text: Ship the skill and anything it brings with it first; migrate the origin repo as a second, separate pass
+        recommended: true
+        why: Keeps a working instrument working while the shipped one is proven, and separates a yss release from a repo migration that could fail for its own reasons.
+        prompt: "Ship the skill and its supporting code first, then migrate the origin repository in a separate pass that deletes the site-local skill, adopts the shipped prefab and generator, and verifies both committed outputs are unchanged except where the change is intended."
+        pros: [Two small failures instead of one large one, The origin repo keeps working throughout, The shipped version gets proven before anything depends on it]
+        cons: [Two copies of the skill exist for a while, An agent could load the stale site-local one in between]
+      - value: one-pass
+        text: One pass - ship and migrate both collections in the same change, deleting the site-local copy immediately
+        why: No window in which two copies disagree, at the cost of a single change that spans two repositories and cannot be half-landed.
+        prompt: "Ship the skill and migrate the origin repository in one pass, deleting the site-local skill and prefab and pointing both collections at the shipped instrument."
+        pros: [No stale copy ever exists, The migration proves the shipped version immediately]
+        cons: [A cross-repository change, Hard to reverse, Identical output has to be confirmed under time pressure]
+      - value: leave-origin
+        text: Ship the general skill and leave the origin repo on its own copy indefinitely
+        why: Cheapest now and guarantees the two drift, which is the situation this worksheet exists to end.
+        prompt: "Ship the general skill and leave the origin repository on its site-local copy, marking the site-local skill as superseded."
+        pros: [Nothing to migrate, No risk to the committed outputs]
+        cons: [Two versions drift, The original misreading survives in the repo it started in, The shipped skill has no real instance]
+
+prompt:
+  task: Write the contradiction register and live-rules instrument as a skill shipped with yss
+  background: |
+    Repository YamlStaticSite - the yss toolchain and its own pilot site. Shipped skills live in
+    `yss/skills/<name>/SKILL.md`, are installed into a repo's `.claude/skills/` by
+    `python -m yss skills --install --force`, and `python -m yss skills` checks the two copies match.
+    The existing suite is yss, yss-doc, yss-page, yss-prefab, yss-publish; a new one joins it with the
+    same `yss-` prefix and the same front-matter shape.
+
+    The instrument being generalised is a **contradiction register** - a view over stable handles that
+    live in other files, quoting every claimed conflict verbatim on both sides - and a **generated
+    live-rules list** that carries only the rules still in force, so a working agent is never handed
+    the register's retired rules in their original confident wording. A site-local write-up of both
+    exists in another repository and describes one musing as though it were the instrument; that
+    write-up is the worked implementation to copy from, not the scope. The shipped skill describes any
+    yss collection.
+  steps:
+    - Load the yss skill first, then yss-doc, yss-page and yss-prefab for whichever parts the verdicts below put in scope.
+    - Write the skill under yss/skills/, then run python -m yss skills --install --force so .claude/skills/ matches.
+    - Keep the two properties that make the instrument worth having - rule text verbatim from the register, and fail rather than drop.
+    - Keep the two instruments distinct throughout - the register is for auditing history, the live-rules list is what a working agent loads.
+    - State in the skill that a register is never archived, and why the archive rule that governs plans does not reach it.
+    - Where a verdict adds a schema, prefab, config block or CLI command, record it in docs/design.yaml and docs/codemap.yaml and add a decision entry.
+    - Add a milestone to docs/plan.yaml for anything the verdicts approve that is more than a document edit.
+    - Archive this worksheet - status archived, a resolution per question naming what the verdict became - and open a new one for anything still open.
+    - Run python -m yss validate, python -m yss check, python -m yss build --target all --no-dynamic and the tests; commit with the verdict block in the message body.
+  do_not_touch:
+    - .yss/local.yaml and anything under dist/.
+    - Accepted decisions - supersede, never edit.
+    - Archived worksheets and anything under docs/_archive/.
+    - The other repository's committed register or generated outputs, unless a verdict above puts that migration in scope.
+  flag_only:
+    - Any change to how ids, references or the archive rule work for existing doc kinds.
+    - Anything that would make an existing public build private or the reverse.
+    - Schema or CLI changes beyond what these verdicts approve.
+  rules:
+    - Project knowledge goes in docs/*.yaml, never in new markdown files; a generated export is an exception only where a verdict says so.
+    - Validate and check after every edit; fix every reported file and path.
+    - Mark anything not for the public site as visibility private or private_notes.
+    - No absolute paths in anything that reaches dist/.
+    - Do not answer a worksheet question yourself; if a verdict is missing, stop and add a question.
+decided_by: true
+extra: true

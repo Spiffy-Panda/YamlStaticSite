@@ -1,0 +1,31 @@
+# Page - schema: page. Presents docs/register-skill.yaml, the live worksheet on shipping the register skill.
+id: register-skill
+route: /register-skill/
+title: Register skill
+summary: How the contradiction register becomes a skill shipped with yss - eleven calls on the skill's boundary, what code ships with it, where per-collection config lives and what happens to the musing that has it today.
+visibility: public          # worksheets stay on the public site (P.2, 2026-09-02)
+nav: {label: Register skill, order: 41, group: decide}
+docs: [register-skill, plan]
+sections:
+  - id: worksheet
+    type: prefab
+    prefab: worksheet
+    args:
+      title: {from: register-skill.title}
+      intro: {from: register-skill.intro}
+      warn: {from: register-skill.warn}
+      questions: {from: register-skill.questions}
+      prompt: {from: register-skill.prompt}
+      decided_by: true
+      extra: true
+
+  - id: other
+    type: markdown
+    heading: Other worksheets
+    markdown: |
+      - [[later]] - the other live worksheet; decisions left over from the issue sweeps.
+      - [[audit-calls]] - applied 2026-09-04; kept as the record.
+      - [[next]] - applied 2026-09-03; kept as the record.
+      - [[open]] - applied 2026-09-02; kept as the record.
+      - [[pending]] - applied 2026-09-02; kept as the record.
+      - [[verdicts]] - applied 2026-09-02; kept as the record.

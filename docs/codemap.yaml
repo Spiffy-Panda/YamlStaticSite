@@ -5,7 +5,7 @@ id: codemap
 title: YamlStaticSite code map
 summary: Where each part of the toolchain lives, what it exports, and how to run it.
 status: active
-updated: 2026-09-04
+updated: 2026-09-06
 related: [design]
 
 roots:
@@ -29,6 +29,10 @@ roots:
     purpose: Done-and-committed plan milestones. Underscore prefix means yss never loads it.
   - path: site/
     purpose: This repo's pages, site-local prefabs, layouts and static assets (including prototypes).
+  - path: examples/rust-musing/
+    purpose: A second collection - a small Rust crate and its own code map, so the Rust half of the symbol resolver has something real to prove itself against.
+  - path: tools/vscode-yss/
+    purpose: The editor half of the yss-code bridge - a VS Code webview that opens files and resolves definitions for the code map's source pane (adr-039). Nothing in the build touches it.
   - path: examples/demo-musing/
     purpose: A demo collection - collection.yaml, hooks.py, docs/, pages/, assets/, play/ - exercising the folder-per-musing contract.
   - path: schemas/
@@ -81,17 +85,34 @@ modules:
     tests: [tests/test_yss.py]
   - id: symbols
     path: yss/symbols.py
-    purpose: Resolve a code map export name to its line range by parsing the module, never importing it; handles dotted class members, module constants and package directories (adr-024).
+    purpose: Dispatch and cache for the symbol resolver - turn a (module path, export name) pair into a line range by parsing, never importing and never building (adr-024, adr-037).
+    language: python
+    status: active
+    depends_on: [langs]
+    exports:
+      - {name: index_for, kind: function, signature: "(root, rel) -> {name: (start, end, file)}", description: "A file or a directory; cached by path, spelling and mtime."}
+      - {name: file_index, kind: function, signature: "(path, rel=None) -> {name: (start, end)}", description: "Empty for a file no language claims, which is a link and not an error."}
+      - {name: lookup, kind: function, signature: "(root, rel, name) -> (start, end, file) | None", description: "Accepts either member separator, so `Approach.is_hit` finds `Approach::is_hit`."}
+      - {name: supported, kind: function, signature: "(rel) -> bool", description: Whether any registered language can give this path line ranges.}
+      - {name: SymbolError, kind: class, description: Carries a repo-relative path only - the message reaches build output.}
+      - {name: SUPPORTED_SUFFIXES, kind: constant, description: "Every suffix the registry claims, not a hard-coded one."}
+    tests: [tests/test_yss.py, tests/test_rust.py]
+
+  - id: langs
+    path: yss/langs/
+    purpose: "One parser per language, registered by file suffix. A language supplies its suffixes, its package-root stems, its member separator and a `file_index`; adding one is a module and a registry line (adr-037)."
     language: python
     status: active
     exports:
-      - {name: index_for, kind: function, signature: "(root, rel) -> {name: (start, end)}", description: A file or a package directory; results cached by mtime.}
-      - {name: file_index, kind: function, signature: "(path, rel=None) -> {name: (start, end)}"}
-      - {name: lookup, kind: function, signature: "(root, rel, name) -> (start, end) | None"}
-      - {name: supported, kind: function, signature: "(rel) -> bool", description: Only Python carries line ranges; anything else gets a plain file link.}
-      - {name: SymbolError, kind: class, description: Carries a repo-relative path only - the message reaches build output.}
-      - {name: SUPPORTED_SUFFIXES, kind: constant}
-    tests: [tests/test_yss.py]
+      - {name: REGISTRY, kind: constant, description: "The languages this build can parse, in no particular order."}
+      - {name: language_for, kind: function, signature: "(suffix) -> module | None"}
+      - {name: label_for, kind: function, signature: "(suffix) -> str", description: "`python`, `rust` or ''; the site uses it to choose a highlighter."}
+      - {name: spellings, kind: function, signature: "(suffix, name) -> [str]", description: Every way a code map may write one member name for that language.}
+      - {name: base.SymbolError, kind: class, description: Its own module so a language can raise it without importing the registry that imports the language.}
+      - {name: python.file_index, kind: function, signature: "(path, rel) -> {name: (start, end)}", description: "By `ast`: top level and one level of class members, so a nested helper never shadows an export."}
+      - {name: rust.file_index, kind: function, signature: "(path, rel) -> {name: (start, end)}", description: "By scanning: blank out comments, literals and attributes, then walk the braces."}
+      - {name: rust.PACKAGE_STEMS, kind: constant, description: "`mod`, `lib` and `main` - the files that contribute bare names when a directory is indexed."}
+    tests: [tests/test_rust.py]
 
   - id: evidence
     path: yss/evidence.py

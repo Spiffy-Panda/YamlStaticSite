@@ -4,9 +4,9 @@
 kind: plan
 id: plan
 title: YamlStaticSite plan
-summary: Forward plan for the yss toolchain. Shipped work lives in the changelog and docs/_archive/; this file holds only what is open - the source reader, the prototype mounts, hardening, and the Musings adoption.
+summary: Forward plan for the yss toolchain. Shipped work lives in the changelog and docs/_archive/; this file holds only what is open - the source reader and its polyglot half, the prototype mounts, hardening, and the Musings adoption.
 status: active
-updated: 2026-09-04
+updated: 2026-09-06
 owners: [panda, agent]
 tags: [toolchain, docs, static-site]
 related: [design, codemap, decisions, verdicts, pending]
@@ -81,6 +81,83 @@ milestones:
           Deliberately unanswered. The reader needs the network on the public target and dies if the
           repository ever goes private; a mirror in `dist/` fixes both and costs the duplication
           [[decisions#adr-024]] declined. No mirror is built until that trade is actually felt.
+
+  - id: m15-polyglot-reader
+    title: The code map reads languages the toolchain is not written in
+    status: active
+    priority: 2
+    summary: Rust exports resolve, prove and deep-link like Python ones; the pane that opens them highlights, seeks to a definition, and asks an editor for what it cannot know.
+    done_when: A Rust code map entry deep-links to its own lines on both targets, a moved Rust export fails `yss check`, and the private pane highlights, seeks and needs no network.
+    notes: |
+      Three decisions: [[decisions#adr-037]] splits the resolver into one parser per language and
+      reads Rust by scanning rather than by building; [[decisions#adr-038]] moves highlighting and
+      seek-to-definition into the browser over an index the build publishes; [[decisions#adr-039]]
+      asks an editor, over four messages, for the definitions a text scanner can never find.
+
+      The local target was built first and deliberately. It is the one that can carry its own
+      working tree, so the pane there needs nothing at runtime - and everything that survives
+      without a network is what the public target already had.
+    tasks:
+      - id: m15-langs
+        title: One parser module per language behind an unchanged dispatcher
+        status: done
+        owner: agent
+        verify: python -m unittest tests.test_rust.RustLookupTests -v
+        evidence: [{path: yss/langs/__init__.py, contains: "REGISTRY"}]
+      - id: m15-rust-scanner
+        title: Index Rust by blanking what is not code and walking the braces
+        status: done
+        owner: agent
+        verify: python -m unittest tests.test_rust.RustScannerTests -v
+        evidence: [{path: yss/langs/rust.py, contains: "def file_index"}]
+      - id: m15-fixture
+        title: A crate that compiles, carrying every construct the scanner can get wrong
+        status: done
+        owner: agent
+        verify: cargo test --manifest-path examples/rust-musing/prototype/lifelike/Cargo.toml
+        evidence: [{path: examples/rust-musing/docs/codemap.yaml, contains: "language: rust"}]
+      - id: m15-collection-exports
+        title: Prove an export from the collection that cites it, not only from the repo root
+        status: done
+        owner: agent
+        verify: python -m unittest tests.test_rust.CollectionExportEvidenceTests -v
+        evidence: [{path: yss/evidence.py, contains: "def _bases"}]
+      - id: m15-highlight
+        title: Colour the pane in the browser, where the source text actually arrives
+        status: done
+        owner: agent
+        verify: python -m yss serve, then open /rust-musing/ and expand a module
+        evidence: [{path: yss/prefabs/module-list.yaml, contains: "function tokenize"}]
+      - id: m15-seek
+        title: Publish every name a cited file defines, and make an identifier a jump
+        status: done
+        owner: agent
+        verify: python -m unittest tests.test_rust.RustCodeMapTests -v
+        evidence: [{path: yss/providers/symbols.py, contains: "def _defs_for"}]
+      - id: m15-bridge
+        title: Ask an editor for the definitions the index will never hold
+        status: done
+        owner: agent
+        verify: F5 in tools/vscode-yss, then `yss - Open the private preview`
+        evidence: [{path: tools/vscode-yss/extension.js, contains: "executeDefinitionProvider"}]
+      - id: m15-more-languages
+        title: Decide which language is worth a parser next, if any
+        status: planned
+        owner: panda
+        notes: |
+          Deliberately unanswered. GDScript is the obvious candidate for a Godot musing and its
+          grammar is close enough to Python's to be tempting; a shell or a jinja template is not.
+          The registry makes each one cheap, which is exactly the pressure that turns a toolchain
+          into a pile of half-right parsers. No third language until a musing is blocked without it.
+      - id: m15-ambiguous-impls
+        title: Decide what to do when two impl blocks define the same method name
+        status: planned
+        owner: panda
+        notes: |
+          Today the first wins, silently, and the code map has no way to say which one it meant -
+          `<Type as Trait>::method` is the spelling Rust has for it and the index does not carry.
+          It has not been felt yet: nothing in the fixture or in target-shooting-gallery hits it.
+          Worth an answer before a musing with a generic trait-heavy crate does.
 
   - id: m6-prototypes
     title: Prototype hosting

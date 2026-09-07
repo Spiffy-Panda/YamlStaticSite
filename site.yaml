@@ -58,12 +58,17 @@ dynamic:
       description: Recent commits and working-tree state.
     symbols:
       provider: yss.providers.symbols:collect
-      description: Line range of every code map export, resolved by parsing (adr-023).
+      description: Line range of every code map export, resolved by parsing (adr-024, adr-037).
+      # defs: false would publish only the cited exports. Left on: `defs` is what makes an
+      # identifier in the source pane a link to where it is defined, and it carries names and
+      # line numbers, never text (adr-038).
     symbolsource:
       provider: yss.providers.symbols:collect_source
       targets: [private]              # the source text itself never reaches the public build
       ttl: 30
-      description: The same ranges plus the lines, read from the working tree.
+      max_file_lines: 4000            # a file longer than this is skipped whole, never truncated
+      max_total_lines: 60000          # and the payload stops growing at roughly this many lines
+      description: The same ranges plus whole files, read from the working tree.
     evidence:
       provider: yss.providers.evidence:collect
       run_commands: true              # the Evidence page's private section runs command claims

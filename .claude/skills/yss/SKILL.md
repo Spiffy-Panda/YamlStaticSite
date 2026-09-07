@@ -74,5 +74,6 @@ python -m unittest discover -s tests -v
 - Inside a collection, `plan` means the collection's own plan; write `/plan` to reach the root doc.
 - Text like `[[doc#item]]` is a reference and is validated; wrap it in backticks when you only mean the syntax.
 - No absolute paths in anything that reaches `dist/` (the public build forbids the checkout path).
+- A code map export is proved by parsing, never by importing or building. Python and Rust have parsers (`yss/langs/`); anything else is a valid module with no line range and no source pane.
 - `map` values that contain `{{` are Jinja; everything else is a field name or literal.
 - Dates stay strings (`2026-09-02`); the loader never converts them. YAML turns bare `on`/`off`/`yes`/`no` into booleans - quote them.

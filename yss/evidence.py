@@ -33,7 +33,7 @@ from typing import Any
 
 from .config import Config
 from .loader import SchemaRegistry
-from .symbols import SymbolError, index_for, supported
+from .symbols import SymbolError, index_for, lookup as symbol_lookup, supported
 
 STATUS_ORDER = {"stale": 0, "warn": 1, "unknown": 2, "skipped": 3, "ok": 4}
 
@@ -161,7 +161,8 @@ def _extra_detail(extra: dict) -> str:
 
 
 # --- evaluating -------------------------------------------------------------
-def _candidates(cfg: Config, doc: dict, target: str) -> list[Path]:
+def _bases(cfg: Config, doc: dict) -> list[Path]:
+    """Where a doc's cited paths resolve from: its own collection first, then the repo root."""
     roots = [cfg.root]
     cid = doc.get("_collection")
     if cid:
@@ -169,7 +170,11 @@ def _candidates(cfg: Config, doc: dict, target: str) -> list[Path]:
             roots.insert(0, cfg.collection(cid).root)
         except Exception:  # noqa: BLE001
             pass
-    return [r / target for r in roots]
+    return roots
+
+
+def _candidates(cfg: Config, doc: dict, target: str) -> list[Path]:
+    return [r / target for r in _bases(cfg, doc)]
 
 
 def _check_path(cfg: Config, doc: dict, claim: Claim, extra: dict) -> None:
@@ -216,30 +221,45 @@ def _module_to_rel(root: Path, module_name: str) -> str | None:
     return None
 
 
-def _check_export(cfg: Config, claim: Claim) -> None:
+def _check_export(cfg: Config, doc: dict, claim: Claim) -> None:
     """An `x-evidence: export` claim: `<path>::<name>`, resolved by parsing that module.
 
-    Reports the line it resolved to, which is the same number the code map's reader links to -
-    so a stale claim here is exactly the case where a published deep link would be wrong.
+    Reports the line it resolved to, which is the same number the code map's reader links to - so
+    a stale claim here is exactly the case where a published deep link would be wrong.
+
+    The path is resolved from the doc's own collection first and then the repo root, the same
+    order `_check_path` uses and the same order the `symbols` provider uses. A collection that
+    keeps its code under its own folder - a musing with a prototype in it - would otherwise have
+    every export read as missing while its `path` claims all passed.
     """
-    rel, _, name = claim.target.rpartition("::")
+    # First `::`, not last: a path never contains one and a Rust member name routinely does
+    # (`Projectile::new`), so splitting from the right would hand the parser half a path.
+    rel, _, name = claim.target.partition("::")
     if not supported(rel):
         claim.status = "skipped"
         claim.detail = f"{rel} is not parsed for exports"
         return
-    try:
-        index = index_for(cfg.root, rel)
-    except SymbolError as exc:
+    for base in _bases(cfg, doc):
+        if not (base / rel.rstrip("/")).exists():
+            continue
+        try:
+            index_for(base, rel)   # only to surface a parse failure as a reason, not a dead link
+        except SymbolError as exc:
+            claim.status = "stale"
+            claim.detail = f"cannot parse {exc.rel}: {exc.reason}"
+            return
+        # `lookup` also accepts the other language's member separator, so a code map that writes
+        # `Approach.is_hit` for Rust proves against the same lines the site links to.
+        span = symbol_lookup(base, rel, name)
+        if span:
+            claim.status = "ok"
+            claim.detail = f"{span[2]}:{span[0]}-{span[1]}"
+            return
         claim.status = "stale"
-        claim.detail = f"cannot parse {exc.rel}: {exc.reason}"
-        return
-    span = index.get(name)
-    if span:
-        claim.status = "ok"
-        claim.detail = f"{span[2]}:{span[0]}-{span[1]}"
+        claim.detail = f"{rel} does not define {name}"
         return
     claim.status = "stale"
-    claim.detail = f"{rel} does not define {name}"
+    claim.detail = f"{rel} is gone, so {name} cannot be resolved"
 
 
 def _check_symbol(cfg: Config, claim: Claim, allow_import: bool = True) -> None:
@@ -344,7 +364,7 @@ def evaluate(cfg: Config, docs: dict[str, dict], claims: list[Claim],
         elif claim.kind == "symbol":
             _check_symbol(cfg, claim, _policy(cfg, doc, "import_symbols", import_symbols, True))
         elif claim.kind == "export":
-            _check_export(cfg, claim)
+            _check_export(cfg, doc, claim)
         elif claim.kind == "command":
             _check_command(cfg, claim, extra, _policy(cfg, doc, "run_commands", run_commands, False))
         else:

@@ -1,0 +1,42 @@
+{
+  "name": "yss-code-reader",
+  "displayName": "yss code reader",
+  "description": "Open a yss private preview in a webview, and let its code map open files and resolve definitions in this editor.",
+  "version": "0.1.0",
+  "publisher": "spiffy-panda",
+  "private": true,
+  "license": "MIT",
+  "engines": { "vscode": "^1.75.0" },
+  "categories": ["Other"],
+  "main": "./extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "yss.openPreview",
+        "title": "yss: Open the private preview",
+        "category": "yss"
+      }
+    ],
+    "configuration": {
+      "title": "yss code reader",
+      "properties": {
+        "yss.url": {
+          "type": "string",
+          "default": "http://127.0.0.1:8800/",
+          "markdownDescription": "The private preview to frame. This is the port `python -m yss serve` uses for the private target; the public preview on 8801 is redacted and carries no source text."
+        },
+        "yss.root": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Workspace-relative folder the site's repo-relative paths resolve against. Empty means the first workspace folder, which is right whenever the editor is open on the repository the site was built from."
+        },
+        "yss.followSeeks": {
+          "type": "boolean",
+          "default": false,
+          "description": "Move the editor every time you follow a link inside the page. Off by default: the page is the thing you are reading, and an editor that jumps under you while you skim is a distraction."
+        }
+      }
+    }
+  }
+}

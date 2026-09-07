@@ -1,0 +1,75 @@
+# Page - schema: page. The collection's own code map, rendered by the same prefab the root one uses.
+id: index
+route: /
+title: Rust in the code map
+summary: A three-file crate, mapped. Open an export to read it in place - highlighted, and with every name the index knows turned into a jump to where it is defined.
+nav: {label: Overview, order: 10}
+docs: [codemap]
+sections:
+  - id: what-this-is
+    type: markdown
+    heading: Why a Rust crate lives in a Python toolchain's examples
+    markdown: |
+      The code map's reader resolves an export to a line range by **parsing** the file - never by
+      importing it, and never by building it. That was true of Python from the start; this
+      collection is what makes it true of Rust, and what keeps it true.
+
+      Everything below is proved. Each `path` is checked by `yss check`, and so is every export
+      name: if `Board::step` is renamed, the claim goes stale and the build says so rather than
+      publishing a link to the wrong lines. The crate compiles and its three unit tests pass, but
+      nothing in the yss build runs `cargo` - a code map that needed a toolchain would go stale on
+      every machine that has not installed one.
+
+  - id: roots
+    type: prefab
+    heading: Layout
+    prefab: table
+    args:
+      rows: {from: codemap.roots}
+      columns: [{key: path, label: Path}, {key: purpose, label: Purpose, md: true}]
+
+  - id: modules
+    type: prefab
+    heading: Modules
+    intro: |
+      Expand a module and click an export. The pane opens at that export's own lines, coloured by
+      language in the browser; `whole file` widens it, and an identifier the index recognises is a
+      link to where that name is defined - in this file or another one.
+    prefab: module-list
+    args:
+      modules: {from: codemap.modules}
+      repo_url: {from: $site.repo}
+      commit: {from: $build.commit}
+      dirty: {from: $build.dirty}
+
+  - id: entrypoints
+    type: prefab
+    heading: Commands
+    prefab: table
+    args:
+      rows: {from: codemap.entrypoints}
+      columns: [{key: name, label: Name}, {key: command, label: Command}, {key: description, label: Notes, md: true}]
+
+  - id: conventions
+    type: prefab
+    heading: Conventions
+    prefab: bullet-list
+    args:
+      items:
+        from: codemap.conventions
+        map: {text: "**{{ id }}** - {{ rule }}{{ ' _' ~ rationale ~ '_' if rationale else '' }}{{ ' (checked by `' ~ enforced_by ~ '`)' if enforced_by and enforced_by != 'none' else ' (by discipline - nothing checks it)' if enforced_by else '' }}"}
+
+  - id: editor
+    type: markdown
+    visibility: private
+    heading: In an editor
+    markdown: |
+      Served locally, the pane needs no network at all: the private build carries the working tree
+      with it, so the text, the line ranges and the symbol table are already on the page.
+
+      Framed by a host that answers the `yss-code` handshake - a VS Code webview running the
+      extension in `tools/vscode-yss/` - two more buttons appear. **open in editor** opens the real
+      file at the real line, and **go to definition** asks the editor's language server, which
+      knows names this page's index never will: a local binding, a method on a type from a
+      dependency, anything a macro generated. The page sends repo-relative paths and the host
+      resolves them against its own workspace, so no absolute path is ever written into a build.

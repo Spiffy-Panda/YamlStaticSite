@@ -25,9 +25,11 @@ def temp_site() -> Path:
     for name in ("site.yaml", "README.md"):
         if (REPO / name).exists():
             shutil.copy(REPO / name, tmp / name)
-    for sub in ("docs", "site", "schemas", "examples"):
+    for sub in ("docs", "site", "schemas", "examples", "tools"):
         if (REPO / sub).is_dir():
-            shutil.copytree(REPO / sub, tmp / sub)
+            # `target` is the example crate's build output: large, and nothing here reads it.
+            shutil.copytree(REPO / sub, tmp / sub,
+                            ignore=shutil.ignore_patterns("__pycache__", "target"))
     # evidence in the pilot docs cites yss/, tests/ and dist/; mirror them so the claims hold
     shutil.copytree(REPO / "tests", tmp / "tests", ignore=shutil.ignore_patterns("__pycache__"))
     shutil.copytree(REPO / "yss", tmp / "yss", ignore=shutil.ignore_patterns("__pycache__"))

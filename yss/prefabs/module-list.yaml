@@ -1,5 +1,5 @@
 name: module-list
-description: Code map modules with path, purpose, exports (collapsible) and dependencies. Bind `modules` from `codemap.modules`. With `repo_url` and `commit`, each export deep-links to its own lines and can be read in place.
+description: Code map modules with path, purpose, exports (collapsible) and dependencies. Bind `modules` from `codemap.modules`. With `repo_url` and `commit`, each export deep-links to its own lines, opens in place with syntax highlighting, and every identifier the code map knows becomes a jump to where it is defined.
 category: list
 params:
   modules: {type: list, required: true, item: {id: anchor, path: required, purpose: required, exports: "list of {name, kind, signature, description}", depends_on: list, tests: list, status: optional}}
@@ -7,14 +7,20 @@ params:
   commit: {type: string, description: "Commit the links are pinned to; bind {from: $build.commit}. Falls back to `main`, which is not line-accurate."}
   dirty: {type: boolean, default: false, description: "The build had uncommitted changes; bind {from: $build.dirty}. Line numbers came from the working tree, so links fall back to `main` and the reader says so."}
   source_reader: {type: boolean, default: true, description: "Upgrade export links into an in-page source pane. Falls back to the link when the source cannot be fetched."}
+  highlight: {type: boolean, default: true, description: "Colour the pane by language. Tokenised in the browser, so it costs the build nothing and works on text fetched at runtime."}
+  seek: {type: boolean, default: true, description: "Make an identifier in the pane a link to where it is defined, using the code map's own symbol index. Off leaves the pane plain text."}
+  editor_bridge: {type: boolean, default: true, description: "Offer `open in editor` when the page is framed by a host that answers the yss-code handshake - a VS Code webview with the extension in tools/vscode-yss (adr-039). Invisible everywhere else."}
 template: |
   {% set pinned = commit and not dirty %}
   {% set ref = commit if pinned else 'main' %}
-  <div class="module-list" data-source-reader="{{ '1' if (source_reader and repo_url) else '0' }}" data-repo="{{ repo_url or '' }}" data-ref="{{ ref }}" data-pinned="{{ '1' if pinned else '0' }}">
+  <div class="module-list" data-source-reader="{{ '1' if (source_reader and repo_url) else '0' }}"
+       data-repo="{{ repo_url or '' }}" data-ref="{{ ref }}" data-pinned="{{ '1' if pinned else '0' }}"
+       data-highlight="{{ '1' if highlight else '0' }}" data-seek="{{ '1' if seek else '0' }}"
+       data-editor="{{ '1' if editor_bridge else '0' }}">
   {% for m in modules %}
-    <div class="module tone-{{ (m.status or 'active') | slug }}" id="{{ m.id }}">
+    <div class="module tone-{{ (m.status or 'active') | slug }}" id="{{ m.id }}" data-lang="{{ m.language or '' }}">
       <div class="module-head">
-        <code class="module-path">{% if repo_url %}<a href="{{ repo_url }}/blob/{{ ref }}/{{ m.path }}">{{ m.path }}</a>{% else %}{{ m.path }}{% endif %}</code>
+        <code class="module-path">{% if repo_url %}<a href="{{ repo_url }}/blob/{{ ref }}/{{ repo_path(m.path) }}">{{ m.path }}</a>{% else %}{{ m.path }}{% endif %}</code>
         {% if m.status %}{{ prefab('badge', text=m.status) }}{% endif %}
         {% if m._evidence and m._evidence.status != 'ok' %}{{ prefab('badge', text=m._evidence.status) }}{% endif %}
         {% if m.language %}<span class="module-lang">{{ m.language }}</span>{% endif %}
@@ -31,11 +37,11 @@ template: |
             <td>
               {% if repo_url and span %}
                 {# A line anchor is only true of the commit it was measured on, so an unpinned build links to the file (adr-024). #}
-                {# span[2] is the file the export is defined in - a module entry may name a package directory. #}
+                {# span[2] is the file the export is defined in - a module entry may name a directory. #}
                 <a class="export-link" href="{{ repo_url }}/blob/{{ ref }}/{{ span[2] }}{% if pinned %}#L{{ span[0] }}-L{{ span[1] }}{% endif %}"
                    data-path="{{ m.path }}" data-file="{{ span[2] }}" data-symbol="{{ e.name }}" data-start="{{ span[0] }}" data-end="{{ span[1] }}"><code>{{ e.name }}</code></a>
               {% elif repo_url %}
-                <a class="export-link is-plain" href="{{ repo_url }}/blob/{{ ref }}/{{ m.path }}"><code>{{ e.name }}</code></a>
+                <a class="export-link is-plain" href="{{ repo_url }}/blob/{{ ref }}/{{ repo_path(m.path) }}"><code>{{ e.name }}</code></a>
               {% else %}
                 <code>{{ e.name }}</code>
               {% endif %}
@@ -66,83 +72,437 @@ css: |
   .export-link:hover { border-bottom-style: solid; }
   .source-pane { margin: .4rem 0 .6rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); overflow: hidden; }
   .source-pane-bar { display: flex; gap: .8rem; align-items: baseline; flex-wrap: wrap; padding: .3rem .6rem; border-bottom: 1px solid var(--line); font-size: .78rem; color: var(--fg-2); background: var(--bg-2); }
-  .source-pane-bar .source-pane-path { font-family: var(--code, monospace); color: var(--fg); }
-  .source-pane-bar button { margin-left: auto; font-size: .78rem; cursor: pointer; background: none; border: 1px solid var(--line); border-radius: var(--radius); color: var(--fg-2); padding: 0 .4rem; }
-  .source-pane pre { margin: 0; padding: .4rem 0; overflow-x: auto; font-size: .8rem; line-height: 1.5; }
-  .source-pane .source-row { display: grid; grid-template-columns: 3.4rem 1fr; }
+  .source-pane-bar .source-pane-path { font-family: var(--code-font, monospace); color: var(--fg); }
+  .source-pane-bar .source-pane-actions { margin-left: auto; display: flex; gap: .35rem; }
+  .source-pane-bar button { font-size: .78rem; cursor: pointer; background: none; border: 1px solid var(--line); border-radius: var(--radius); color: var(--fg-2); padding: 0 .4rem; }
+  .source-pane-bar button:hover { color: var(--accent); border-color: var(--accent); }
+  .source-pane pre { margin: 0; padding: .4rem 0; max-height: 60vh; overflow: auto; font-size: .8rem; line-height: 1.5; }
+  .source-pane .source-row { display: grid; grid-template-columns: 4rem 1fr; }
   .source-pane .source-num { text-align: right; padding-right: .8rem; color: var(--fg-2); user-select: none; font-variant-numeric: tabular-nums; }
   .source-pane .source-text { white-space: pre; padding-right: .8rem; }
+  .source-pane .source-row.is-focus { background: var(--accent-2); }
+  .source-pane .source-row.is-target .source-num { color: var(--accent); font-weight: 700; }
   .source-pane-status { padding: .4rem .6rem; font-size: .82rem; color: var(--fg-2); }
+  /* Token colours. Themes override these six variables and nothing else; the defaults are held
+     against --bg in both schemes so a theme that sets neither is still readable. */
+  :root { --code-com: #6b7a63; --code-kw: #9a3f8f; --code-str: #1f6b52; --code-num: #a6521c; --code-type: #2456a4; --code-fn: #3d5fa8; --code-meta: #7a6a2f; }
+  @media (prefers-color-scheme: dark) {
+    :root { --code-com: #8d9a86; --code-kw: #dda0d6; --code-str: #86d0ab; --code-num: #e0a06a; --code-type: #93b6f0; --code-fn: #a8bff0; --code-meta: #cbb872; }
+  }
+  .tok-com { color: var(--code-com); font-style: italic; }
+  .tok-kw { color: var(--code-kw); }
+  .tok-str { color: var(--code-str); }
+  .tok-num { color: var(--code-num); }
+  .tok-type { color: var(--code-type); }
+  .tok-fn { color: var(--code-fn); }
+  .tok-meta { color: var(--code-meta); }
+  .source-text a.seek { color: inherit; text-decoration: none; border-bottom: 1px dotted transparent; cursor: pointer; }
+  .source-text a.seek:hover { border-bottom-color: currentColor; background: var(--accent-2); }
 js: |
-  /* Click-to-source for code map exports (adr-024).
-     The link in the HTML is already correct and line-pinned; this only upgrades it into an
-     in-page pane. Anything unexpected - no index, a failed fetch, an unpinned build - lets the
-     click through to the hosting service, which is why the anchor is real markup and not built here. */
+  /* Click-to-source for code map exports (adr-024), with highlighting, seek-to-definition
+     (adr-038) and an optional editor bridge (adr-039).
+
+     Every layer is an upgrade over markup that already works. The link in the HTML is real and
+     line-pinned, so with JavaScript off the reader still reaches the right lines on the hosting
+     service; without an index the pane still shows plain text; without a host the editor button
+     never appears. Anything unexpected lets the click through to the link. */
   (function () {
     var lists = document.querySelectorAll('.module-list[data-source-reader="1"]');
     if (!lists.length || !window.fetch) return;
     var base = document.documentElement.dataset.base || (window.yss && window.yss.base) || "/";
-    var localSource = null;   // private target: {file: {symbol: {start, end, lines}}}
-    var localTried = false;
 
-    function loadLocal() {
-      if (localTried) return Promise.resolve(localSource);
-      localTried = true;
-      return fetch(base + "dynamic/symbolsource.json")
+    // --- languages -------------------------------------------------------------------------
+    // Enough of a grammar to colour a pane and to know an identifier when it sees one. It is not
+    // a parser and does not need to be: the line ranges and the symbol table are computed by the
+    // real parser at build time (yss/langs), and this only decides what to paint.
+    var COMMON_TYPES = /^[A-Z]/;
+    var LANGS = {
+      python: {
+        line: "#", block: null, triple: true,
+        kw: "and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield None True False self cls",
+        meta: /^@[A-Za-z_]/
+      },
+      rust: {
+        line: "//", block: ["/*", "*/"], raw: true, lifetime: true, attr: true,
+        kw: "as async await break const continue crate dyn else enum extern false fn for if impl in let loop match mod move mut pub ref return self Self static struct super trait true type union unsafe use where while macro_rules",
+        prim: "bool char f32 f64 i8 i16 i32 i64 i128 isize str u8 u16 u32 u64 u128 usize Vec Option Result String Box"
+      },
+      "": { line: null, block: null, kw: "" }
+    };
+    Object.keys(LANGS).forEach(function (name) {
+      var spec = LANGS[name];
+      spec.words = {};
+      (spec.kw || "").split(" ").forEach(function (w) { if (w) spec.words[w] = "kw"; });
+      (spec.prim || "").split(" ").forEach(function (w) { if (w) spec.words[w] = "type"; });
+    });
+
+    function langOf(file) {
+      var dot = file.lastIndexOf(".");
+      var ext = dot < 0 ? "" : file.slice(dot + 1).toLowerCase();
+      if (index && index.langs && index.langs[file]) return index.langs[file];
+      return ext === "rs" ? "rust" : ext === "py" ? "python" : "";
+    }
+
+    /* Tokenise a whole chunk at once, not line by line: a docstring or a block comment spans
+       lines, and a per-line tokeniser would restart inside one and paint the rest as code. */
+    function tokenize(text, langName) {
+      var spec = LANGS[langName] || LANGS[""];
+      var out = [];
+      var i = 0, n = text.length, plain = 0;
+
+      function flush(to) { if (to > plain) out.push({ t: "", s: text.slice(plain, to) }); }
+      function emit(kind, from, to) { flush(from); out.push({ t: kind, s: text.slice(from, to) }); plain = to; i = to; }
+
+      while (i < n) {
+        var c = text[i];
+
+        if (spec.line && text.startsWith(spec.line, i)) {
+          var eol = text.indexOf("\n", i);
+          emit("com", i, eol < 0 ? n : eol);
+          continue;
+        }
+        if (spec.block && text.startsWith(spec.block[0], i)) {
+          var depth = 0, j = i;
+          while (j < n) {
+            if (text.startsWith(spec.block[0], j)) { depth++; j += spec.block[0].length; }
+            else if (text.startsWith(spec.block[1], j)) { depth--; j += spec.block[1].length; if (!depth) break; }
+            else j++;
+          }
+          emit("com", i, j);
+          continue;
+        }
+        if (spec.attr && (text.startsWith("#[", i) || text.startsWith("#![", i))) {
+          var k = text.indexOf("[", i), d = 0;
+          while (k < n) { if (text[k] === "[") d++; else if (text[k] === "]") { d--; if (!d) { k++; break; } } k++; }
+          emit("meta", i, k);
+          continue;
+        }
+        if (spec.triple && (text.startsWith('"""', i) || text.startsWith("'''", i))) {
+          var q = text.slice(i, i + 3), close = text.indexOf(q, i + 3);
+          emit("str", i, close < 0 ? n : close + 3);
+          continue;
+        }
+        if (spec.raw && /[br]/.test(c) && /^b?r#*["']/.test(text.slice(i, i + 8)) && !/[A-Za-z0-9_]/.test(text[i - 1] || "")) {
+          var m = /^b?r(#*)["']/.exec(text.slice(i));
+          var closer = '"' + m[1], at = text.indexOf(closer, i + m[0].length);
+          emit("str", i, at < 0 ? n : at + closer.length);
+          continue;
+        }
+        if (c === '"' || c === "'") {
+          if (c === "'" && spec.lifetime) {
+            var life = /^'[A-Za-z_][A-Za-z0-9_]*/.exec(text.slice(i));
+            if (life && text[i + life[0].length] !== "'") { emit("kw", i, i + life[0].length); continue; }
+          }
+          var p = i + 1;
+          while (p < n && text[p] !== c) { if (text[p] === "\\") p++; if (text[p] === "\n" && c === "'") break; p++; }
+          emit("str", i, Math.min(p + 1, n));
+          continue;
+        }
+        if (/[0-9]/.test(c) && !/[A-Za-z0-9_]/.test(text[i - 1] || "")) {
+          var num = /^[0-9][0-9_]*(\.[0-9_]+)?([eE][-+]?[0-9]+)?([a-zA-Z0-9_]*)/.exec(text.slice(i));
+          emit("num", i, i + num[0].length);
+          continue;
+        }
+        if (/[A-Za-z_]/.test(c)) {
+          var word = /^[A-Za-z_][A-Za-z0-9_]*/.exec(text.slice(i))[0];
+          var end = i + word.length;
+          var kind = spec.words[word] || (COMMON_TYPES.test(word) ? "type" : "");
+          if (!kind && text[end] === "(") kind = "fn";
+          flush(i);
+          out.push({ t: kind, s: word, id: true });
+          plain = end; i = end;
+          continue;
+        }
+        i++;
+      }
+      flush(n);
+      return out;
+    }
+
+    // --- the symbol index ------------------------------------------------------------------
+    var index = null;       // {defs, langs, modules, text?, files?}
+    var byLast = {};        // last path segment -> [{file, name, span}]
+    var loading = null;
+
+    function buildLookup() {
+      byLast = {};
+      var defs = (index && index.defs) || {};
+      Object.keys(defs).forEach(function (file) {
+        Object.keys(defs[file]).forEach(function (name) {
+          var parts = name.split(/::|\./);
+          var last = parts[parts.length - 1];
+          (byLast[last] = byLast[last] || []).push({ file: file, name: name, span: defs[file][name] });
+        });
+      });
+    }
+
+    function load() {
+      if (loading) return loading;
+      // The private build carries the working tree with it; the public one carries only the
+      // index and fetches text at the pinned commit (adr-024). Try the richer source first.
+      loading = fetch(base + "dynamic/symbolsource.json")
         .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (env) { localSource = (env && env.ok && env.data && env.data.text) || null; return localSource; })
-        .catch(function () { return null; });
+        .then(function (env) {
+          if (env && env.ok && env.data && (env.data.files || env.data.text)) return env.data;
+          return fetch(base + "dynamic/symbols.json")
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (e2) { return (e2 && e2.ok && e2.data) || null; });
+        })
+        .catch(function () { return null; })
+        .then(function (data) { index = data; buildLookup(); return data; });
+      return loading;
     }
 
-    function row(n, text) {
-      var line = document.createElement("div");
-      line.className = "source-row";
-      var num = document.createElement("span");
-      num.className = "source-num";
-      num.textContent = n;
-      var src = document.createElement("span");
-      src.className = "source-text";
-      src.textContent = text;
-      line.appendChild(num);
-      line.appendChild(src);
-      return line;
+    /* Where is `name` defined? The same file wins, because a method and a free function of the
+       same name are a real ambiguity and the one you are reading is the one you meant. */
+    function resolve(name, here) {
+      var hits = byLast[name];
+      if (!hits || !hits.length) return null;
+      var mine = hits.filter(function (h) { return h.file === here; });
+      var pick = (mine.length ? mine : hits)[0];
+      return { file: pick.file, name: pick.name, start: pick.span[0], end: pick.span[1],
+               choices: (mine.length ? mine : hits).length };
     }
 
-    function pane(link, start, lines) {
+    // --- getting the text ------------------------------------------------------------------
+    function remoteUrl(list, file) {
+      var repo = (list.dataset.repo || "").replace(/\/+$/, "");
+      var slug = repo.replace(/^https?:\/\/github\.com\//, "");
+      if (slug === repo) return null;   // not a github remote: no raw origin we can guess
+      return "https://raw.githubusercontent.com/" + slug + "/" + list.dataset.ref + "/" + file;
+    }
+
+    var remoteCache = {};
+
+    /* Resolve a file to {lines, offset} - `offset` being the line number of lines[0], because
+       the fallback is a single symbol's range rather than the whole file. */
+    function sourceFor(list, file, symbol) {
+      var whole = index && index.files && index.files[file];
+      if (whole) return Promise.resolve({ lines: whole.lines, offset: 1, whole: true });
+
+      var url = remoteUrl(list, file);
+      if (url && list.dataset.pinned === "1") {
+        if (!remoteCache[url]) {
+          remoteCache[url] = fetch(url).then(function (r) {
+            if (r.status === 404) throw new Error("not-found");
+            if (!r.ok) throw new Error("http-" + r.status);
+            return r.text();
+          }).then(function (t) { return t.split("\n"); });
+        }
+        return remoteCache[url].then(function (lines) { return { lines: lines, offset: 1, whole: true }; });
+      }
+
+      var slice = index && index.text && index.text[file] && index.text[file][symbol];
+      if (slice) return Promise.resolve({ lines: slice.lines, offset: slice.start, whole: false });
+      return Promise.reject(new Error(url ? "unpinned" : "no-origin"));
+    }
+
+    // --- the editor bridge -----------------------------------------------------------------
+    /* A page inside a VS Code webview can do what a page in a browser cannot: open the real file
+       in the real editor and ask a language server where a symbol is defined. It is detected by
+       handshake rather than assumed, and it sends repo-relative paths only - the host knows its
+       own workspace root, and an absolute path must never reach dist/ (adr-004, adr-039). */
+    var editor = null;
+    function bridge() {
+      if (window.parent === window) return;
+      window.addEventListener("message", function (event) {
+        var msg = event.data;
+        if (!msg || msg.source !== "yss-code-host") return;
+        if (msg.type === "ready") { editor = { name: msg.name || "editor" }; document.querySelectorAll(".source-pane").forEach(refreshActions); }
+        if (msg.type === "definition" && msg.ok && msg.file) openFile(msg.list || null, msg.file, msg.line, msg.line);
+      });
+      window.parent.postMessage({ source: "yss-code", type: "hello", version: 1 }, "*");
+    }
+    function toEditor(type, payload) {
+      if (!editor) return;
+      payload.source = "yss-code";
+      payload.type = type;
+      window.parent.postMessage(payload, "*");
+    }
+
+    // --- the pane --------------------------------------------------------------------------
+    function button(label, title, onClick) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = label;
+      b.title = title;
+      b.addEventListener("click", onClick);
+      return b;
+    }
+
+    function refreshActions(pane) {
+      var actions = pane.querySelector(".source-pane-actions");
+      if (!actions || !pane._render) return;
+      pane._render();
+    }
+
+    function rows(pre, view, file, list, pane) {
+      pre.textContent = "";
+      var text = view.lines.join("\n");
+      var tokens = list.dataset.highlight === "1" ? tokenize(text, langOf(file)) : [{ t: "", s: text }];
+      var seek = list.dataset.seek === "1" && index && index.defs;
+
+      var line = view.offset;
+      var row = null, cell = null;
+      function newRow() {
+        row = document.createElement("div");
+        row.className = "source-row";
+        if (view.focusStart && line >= view.focusStart && line <= view.focusEnd) row.className += " is-focus";
+        if (line === view.focusStart) row.className += " is-target";
+        row.dataset.line = line;
+        var num = document.createElement("span");
+        num.className = "source-num";
+        num.textContent = line;
+        cell = document.createElement("span");
+        cell.className = "source-text";
+        row.appendChild(num);
+        row.appendChild(cell);
+        pre.appendChild(row);
+      }
+      newRow();
+
+      tokens.forEach(function (tok) {
+        var pieces = tok.s.split("\n");
+        pieces.forEach(function (piece, i) {
+          if (i) { line++; newRow(); }
+          if (!piece) return;
+          var target = seek && tok.id && piece.length > 2 && tok.t !== "kw" ? resolve(piece, file) : null;
+          var node;
+          if (target && !(target.file === file && target.start === view.focusStart)) {
+            node = document.createElement("a");
+            node.className = "seek" + (tok.t ? " tok-" + tok.t : "");
+            node.href = "#";
+            node.title = target.name + "  " + target.file + ":" + target.start + (target.choices > 1 ? "  (" + target.choices + " definitions)" : "");
+            node.addEventListener("click", function (event) {
+              event.preventDefault();
+              event.stopPropagation();
+              jump(list, pane, target, piece);
+            });
+          } else {
+            node = document.createElement("span");
+            if (tok.t) node.className = "tok-" + tok.t;
+          }
+          node.textContent = piece;
+          cell.appendChild(node);
+        });
+      });
+    }
+
+    function jump(list, pane, target, symbol) {
+      if (pane._stack) pane._stack.push({ file: pane._file, start: pane._focusStart, end: pane._focusEnd, symbol: pane._symbol });
+      // The editor, if there is one, follows along - and it can answer for names the code map
+      // never indexed, because it has a language server and this page has a table.
+      toEditor("reveal", { file: target.file, line: target.start, endLine: target.end, symbol: symbol });
+      fill(list, pane, target.file, target.start, target.end, target.name);
+    }
+
+    function openFile(list, file, start, end) {
+      var pane = document.querySelector(".source-pane");
+      if (pane && pane._list) fill(pane._list, pane, file, start, end, "");
+    }
+
+    function fill(list, pane, file, focusStart, focusEnd, symbol) {
+      pane._file = file;
+      pane._focusStart = focusStart;
+      pane._focusEnd = focusEnd;
+      pane._symbol = symbol;
+      var body = pane.querySelector(".source-pane-body");
+      body.textContent = "";
+      var note = document.createElement("div");
+      note.className = "source-pane-status";
+      note.textContent = "loading " + file + "…";
+      body.appendChild(note);
+
+      sourceFor(list, file, symbol).then(function (view) {
+        var showWhole = pane._whole && view.whole;
+        if (!showWhole && view.whole) {
+          // Trim to the symbol plus a little of what surrounds it, so the pane opens at a size
+          // a reader can take in and `whole file` is a deliberate second step.
+          var pad = 2;
+          var from = Math.max(1, focusStart - pad);
+          var to = Math.min(view.lines.length, focusEnd + pad);
+          view = { lines: view.lines.slice(from - 1, to), offset: from, whole: true };
+        }
+        view.focusStart = focusStart;
+        view.focusEnd = focusEnd;
+        body.textContent = "";
+        var pre = document.createElement("pre");
+        body.appendChild(pre);
+        rows(pre, view, file, list, pane);
+        pane._render();
+        var focus = pre.querySelector(".is-target");
+        if (focus && pane._whole) focus.scrollIntoView({ block: "center" });
+      }).catch(function (err) {
+        body.textContent = "";
+        var status = document.createElement("div");
+        status.className = "source-pane-status";
+        status.textContent = err.message === "not-found"
+          ? "That file is not readable at this commit - the repository may be private. "
+          : err.message === "unpinned"
+          ? "This build is not pinned to a commit, so line numbers may have moved. "
+          : err.message === "no-origin"
+          ? "No source origin for this repository. "
+          : "Could not fetch the source. ";
+        var open = document.createElement("a");
+        open.href = pane._href || "#";
+        open.textContent = "open on the repository";
+        status.appendChild(open);
+        body.appendChild(status);
+        pane._render();
+      });
+    }
+
+    function pane(list, link) {
       var wrap = document.createElement("div");
       wrap.className = "source-pane";
       var bar = document.createElement("div");
       bar.className = "source-pane-bar";
       var path = document.createElement("span");
       path.className = "source-pane-path";
-      path.textContent = (link.dataset.file || link.dataset.path) + ":" + start;
       var sym = document.createElement("span");
-      sym.textContent = link.dataset.symbol;
-      var close = document.createElement("button");
-      close.type = "button";
-      close.textContent = "close";
-      close.addEventListener("click", function () { wrap.remove(); link.setAttribute("aria-expanded", "false"); });
+      var actions = document.createElement("div");
+      actions.className = "source-pane-actions";
       bar.appendChild(path);
       bar.appendChild(sym);
-      bar.appendChild(close);
-      var pre = document.createElement("pre");
-      lines.forEach(function (text, i) { pre.appendChild(row(start + i, text)); });
+      bar.appendChild(actions);
+      var body = document.createElement("div");
+      body.className = "source-pane-body";
       wrap.appendChild(bar);
-      wrap.appendChild(pre);
-      return wrap;
-    }
+      wrap.appendChild(body);
 
-    function status(link, message) {
-      var wrap = document.createElement("div");
-      wrap.className = "source-pane";
-      var note = document.createElement("div");
-      note.className = "source-pane-status";
-      note.textContent = message + " ";
-      var open = document.createElement("a");
-      open.href = link.href;
-      open.textContent = "open on the repository";
-      note.appendChild(open);
-      wrap.appendChild(note);
+      wrap._list = list;
+      wrap._href = link.href;
+      wrap._stack = [];
+      wrap._whole = false;
+      wrap._render = function () {
+        path.textContent = (wrap._file || "") + ":" + (wrap._focusStart || "");
+        sym.textContent = wrap._symbol || "";
+        actions.textContent = "";
+        if (wrap._stack.length) {
+          actions.appendChild(button("back", "the symbol you came from", function () {
+            var prev = wrap._stack.pop();
+            fill(list, wrap, prev.file, prev.start, prev.end, prev.symbol);
+          }));
+        }
+        actions.appendChild(button(wrap._whole ? "just the symbol" : "whole file",
+          "how much of the file to show", function () {
+            wrap._whole = !wrap._whole;
+            fill(list, wrap, wrap._file, wrap._focusStart, wrap._focusEnd, wrap._symbol);
+          }));
+        if (list.dataset.editor === "1" && editor) {
+          actions.appendChild(button("open in " + editor.name, "open this file at this line in the editor", function () {
+            toEditor("open", { file: wrap._file, line: wrap._focusStart, endLine: wrap._focusEnd, symbol: wrap._symbol });
+          }));
+          actions.appendChild(button("go to definition", "ask the editor's language server, which knows names this page does not", function () {
+            toEditor("definition", { file: wrap._file, line: wrap._focusStart, symbol: wrap._symbol });
+          }));
+        }
+        actions.appendChild(button("close", "close this pane", function () {
+          var holder = wrap.closest(".source-pane-holder");
+          (holder || wrap).remove();
+          link.setAttribute("aria-expanded", "false");
+        }));
+      };
       return wrap;
     }
 
@@ -162,12 +522,7 @@ js: |
       link.setAttribute("aria-expanded", "true");
     }
 
-    function remoteUrl(list, link) {
-      var repo = list.dataset.repo.replace(/\/+$/, "");
-      var slug = repo.replace(/^https?:\/\/github\.com\//, "");
-      if (slug === repo) return null;   // not a github remote: no raw origin we can guess
-      return "https://raw.githubusercontent.com/" + slug + "/" + list.dataset.ref + "/" + (link.dataset.file || link.dataset.path);
-    }
+    if (document.querySelector('.module-list[data-editor="1"]')) bridge();
 
     lists.forEach(function (list) {
       list.addEventListener("click", function (event) {
@@ -175,33 +530,11 @@ js: |
         if (!link || !list.contains(link)) return;
         if (event.metaKey || event.ctrlKey || event.shiftKey || event.button) return;   // let people open a tab
         event.preventDefault();
-
-        var start = parseInt(link.dataset.start, 10);
-        var end = parseInt(link.dataset.end, 10);
-
-        loadLocal().then(function (local) {
-          var file = link.dataset.file || link.dataset.path;
-          var hit = local && local[file] && local[file][link.dataset.symbol];
-          if (hit) { show(link, pane(link, hit.start, hit.lines)); return; }
-
-          var url = remoteUrl(list, link);
-          if (!url) { show(link, status(link, "No source origin for this repository.")); return; }
-          if (list.dataset.pinned !== "1") {
-            show(link, status(link, "This build is not pinned to a commit, so line numbers may have moved."));
-            return;
-          }
-          fetch(url).then(function (r) {
-            if (r.status === 404) throw new Error("not-found");
-            if (!r.ok) throw new Error("http-" + r.status);
-            return r.text();
-          }).then(function (text) {
-            var lines = text.split("\n").slice(start - 1, end);
-            show(link, pane(link, start, lines));
-          }).catch(function (err) {
-            show(link, status(link, err.message === "not-found"
-              ? "That file is not readable at this commit - the repository may be private."
-              : "Could not fetch the source."));
-          });
+        load().then(function () {
+          var box = pane(list, link);
+          show(link, box);
+          fill(list, box, link.dataset.file || link.dataset.path, parseInt(link.dataset.start, 10),
+               parseInt(link.dataset.end, 10), link.dataset.symbol);
         });
       });
     });
@@ -212,3 +545,7 @@ examples:
       repo_url: https://github.com/Spiffy-Panda/YamlStaticSite
       commit: 0000000000000000000000000000000000000000
       modules: [{id: symbols, path: yss/symbols.py, purpose: Resolve an export to its line range., exports: [{name: index_for, kind: function}, {name: SymbolError, kind: class}]}]
+  - args:
+      repo_url: https://github.com/Spiffy-Panda/YamlStaticSite
+      commit: 0000000000000000000000000000000000000000
+      modules: [{id: rustsyms, path: yss/langs/rust.py, language: python, purpose: "The Rust side of the same resolver - scanned, never compiled.", exports: [{name: file_index, kind: function}]}]
