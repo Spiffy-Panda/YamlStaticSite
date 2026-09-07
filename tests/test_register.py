@@ -191,6 +191,16 @@ class FailureTests(RegisterCase):
                                                   "      title: ~~REG.2 The second rule.~~"))
         self.assertRefuses("it is not this program's place to pick which")
 
+    def test_8b_sub_series_do_not_gap_each_other(self):
+        """A tagged series counts its own ordinals; REG.D1 leaves no hole at 1 in REG.Q."""
+        self.write_doc("rules.yaml", HOME.replace("handle: REG.1", "handle: REG.Q1").replace(
+            "handle: REG.2", "handle: REG.D1"))
+        self.write_doc("register.yaml", REGISTER.replace("{subject: REG.1,", "{subject: REG.Q1,").replace(
+            "{subject: REG.2,", "{subject: REG.D1,"))
+        _, text = self.run_generate()
+        self.assertIn("REG.Q1", text)
+        self.assertIn("REG.D1", text)
+
     def test_8_gap_in_the_series(self):
         self.write_doc("rules.yaml", HOME.replace("handle: REG.2", "handle: REG.3"))
         self.write_doc("register.yaml", REGISTER.replace("{subject: REG.2,", "{subject: REG.3,"))

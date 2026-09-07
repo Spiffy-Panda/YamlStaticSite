@@ -47,7 +47,7 @@ properties:
         id: {$ref: "#/$defs/slug"}
         subject:
           type: string
-          pattern: '^[A-Za-z0-9][A-Za-z0-9_-]*\.(0|[1-9][0-9]*)$'
+          pattern: '^[A-Za-z0-9][A-Za-z0-9_-]*\.[A-Za-z]{0,3}(0|[1-9][0-9]*)$'
           description: >-
             The handle this row is about. Deliberately **not** spelled `handle:`, which is the field
             an item uses to *declare* its own handle: a register declares nothing. It is a view over
@@ -141,7 +141,7 @@ $defs:
     properties:
       subject:
         type: string
-        pattern: '^[A-Za-z0-9][A-Za-z0-9_-]*\.(0|[1-9][0-9]*)$'
+        pattern: '^[A-Za-z0-9][A-Za-z0-9_-]*\.[A-Za-z]{0,3}(0|[1-9][0-9]*)$'
       quote:
         type: string
         x-limit: markdown

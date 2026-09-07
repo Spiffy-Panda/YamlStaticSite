@@ -51,20 +51,33 @@ def doc(id_: str, mnemonic: str, rows: list[tuple[str, str, str]], title: str = 
 
 class ParsingTests(unittest.TestCase):
     def test_parse_handle(self):
-        self.assertEqual(parse_handle("PLN.7"), ("PLN", 7))
-        self.assertEqual(parse_handle("pln.7"), ("PLN", 7), "lookup folds case")
-        self.assertEqual(parse_handle(" AGP.12 "), ("AGP", 12))
+        self.assertEqual(parse_handle("PLN.7"), ("PLN", "", 7))
+        self.assertEqual(parse_handle("pln.7"), ("PLN", "", 7), "lookup folds case")
+        self.assertEqual(parse_handle(" AGP.12 "), ("AGP", "", 12))
+
+    def test_sub_series_tag(self):
+        """A tag splits one mnemonic into several series, so a doc of questions and decisions
+        does not have to claim two mnemonics."""
+        ref = parse_handle("VFB.Q5")
+        self.assertEqual(ref, ("VFB", "Q", 5))
+        self.assertEqual(ref.series, "VFB.Q")
+        self.assertEqual(ref.handle, "VFB.Q5")
+        self.assertEqual(parse_handle("vfb.q5").handle, "VFB.Q5", "one spelling in the index")
+        self.assertEqual(parse_handle("PLN.7").series, "PLN", "an untagged series is its mnemonic")
 
     def test_not_handles(self):
-        for text in ("PLN", "PLN.", ".7", "PLN.7.1", "PLN.07", "a/b.1", "PLN.x"):
+        for text in ("PLN", "PLN.", ".7", "PLN.7.1", "PLN.07", "a/b.1", "PLN.x",
+                     "OS.Design1", "VFB.QQQQ1"):
             self.assertIsNone(parse_handle(text), text)
 
     def test_scoped(self):
-        self.assertEqual(parse_scoped(".7"), 7)
+        self.assertEqual(parse_scoped(".7"), ("", 7))
+        self.assertEqual(parse_scoped(".Q5"), ("Q", 5))
         self.assertIsNone(parse_scoped("PLN.7"))
 
     def test_canonical_form(self):
         self.assertEqual(format_handle("pln", 7), "PLN.7")
+        self.assertEqual(format_handle("vfb", 5, "q"), "VFB.Q5")
         self.assertEqual(canon("tsg"), "TSG")
 
 
@@ -110,6 +123,25 @@ class IndexTests(TempSiteCase):
         self.assertEqual(loaded.errors, [])
         self.assertEqual(loaded.handles.next_number("gap"), 4)
         self.assertEqual(loaded.handles.gaps("GAP"), [2], "append-only: a gap is a missing row")
+
+    def test_sub_series_count_independently(self):
+        """The reason a tag exists: two sub-series of one mnemonic must not gap each other."""
+        self.write_doc("h7b.yaml", doc("h7b", "sub", [
+            ("q1", "sub.Q1", "first question"), ("q2", "sub.Q2", "second question"),
+            ("d1", "sub.D1", "first decision")]))
+        loaded = load_all(self.cfg)
+        self.assertEqual(loaded.errors, [])
+        self.assertEqual(loaded.handles.series_keys("SUB"), ["SUB.D", "SUB.Q"])
+        self.assertEqual(loaded.handles.gaps("SUB.Q"), [], "Q is 1..2 with nothing missing")
+        self.assertEqual(loaded.handles.gaps("SUB.D"), [], "D is 1 with nothing missing")
+        self.assertEqual(loaded.handles.next_number("SUB.D"), 2, "each series mints its own next")
+        self.assertEqual(loaded.handles.next_number("SUB.Q"), 3)
+        self.assertEqual(len(loaded.handles.series("SUB")), 3, "the mnemonic still names them all")
+
+    def test_a_tagged_handle_belongs_to_its_docs_mnemonic(self):
+        self.write_doc("h7c.yaml", doc("h7c", "own2", [("a", "else.Q1", "x")]))
+        loaded = load_all(self.cfg)
+        self.assertTrue(any("does not use this doc's mnemonic" in e for e in loaded.errors), loaded.errors)
 
 
 class ArchiveTests(TempSiteCase):

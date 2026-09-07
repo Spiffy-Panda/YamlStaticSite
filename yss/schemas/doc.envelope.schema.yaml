@@ -218,9 +218,13 @@ $defs:
       evidence: {type: array, items: {$ref: "#/$defs/evidence_item"}}
       handle:
         type: string
-        pattern: '^[A-Za-z0-9][A-Za-z0-9_-]*\.(0|[1-9][0-9]*)$'
+        pattern: '^[A-Za-z0-9][A-Za-z0-9_-]*\.[A-Za-z]{0,3}(0|[1-9][0-9]*)$'
         description: >-
-          This item's persistent handle, `<the doc's mnemonic>.<n>` - a second key on the same index
+          This item's persistent handle, `<the doc's mnemonic>.<n>` - or `<mnemonic>.<tag><n>`,
+          where an optional run of up to three letters splits one mnemonic into sub-series, so a doc
+          whose items are questions and decisions writes `VFB.Q5` and `VFB.D4` rather than claiming
+          two mnemonics. Ordinals count within a *series*, so `VFB.D4` leaves no gap at 4 in
+          `VFB.Q`. It is a second key on the same index
           the item's `id` is in, so `[[PLN.7]]` and `[[plan#m14-audit]]` resolve to the same item and
           `[[.7]]` is the in-scope form. Declared, never derived: a handle computed from list
           position breaks the first time a list is sorted, and one read out of a slug is a

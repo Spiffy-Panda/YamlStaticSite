@@ -402,21 +402,30 @@ def cmd_handles(args) -> int:
 
     if args.series:
         name = canon(args.series)
-        if name not in index.mnemonics:
-            print(f"no mnemonic '{args.series}'", file=sys.stderr)
+        if name not in index.mnemonics and name not in index.series_keys():
+            print(f"no mnemonic or series '{args.series}'", file=sys.stderr)
             return 1
         for entry in index.series(name):
             tier = "" if entry.tier == "live" else f" [{entry.tier}]"
             print(f"  {entry.handle:12s}{tier} {entry.text[:88]}")
         return 0
 
+    # One row per *series*, because that is what an ordinal counts within: a doc with sub-series
+    # mints independently in each, so one mint pointer per mnemonic would hand out a used number.
     for name in sorted(index.mnemonics):
         mnemonic = index.mnemonics[name]
-        series = index.series(name)
-        gaps = index.gaps(name)
-        note = f"  gaps: {', '.join(str(g) for g in gaps)}" if gaps else ""
-        print(f"  {name:8s} {len(series):4d}  next {name}.{index.next_number(name):<5d} {mnemonic.doc_id}{note}")
-    print(f"{len(index.mnemonics)} mnemonics, {len(index)} handles")
+        keys = index.series_keys(name)
+        if not keys:
+            print(f"  {name:10s}    0  {mnemonic.doc_id}")
+            continue
+        for key in keys:
+            entries = [h for h in index.handles.values() if h.series == key]
+            gaps = index.gaps(key)
+            note = f"  gaps: {', '.join(str(g) for g in gaps)}" if gaps else ""
+            # `PLN` -> `PLN.9`; `VFB.Q` -> `VFB.Q6`. The key already carries its own separator.
+            nxt = f"{key}{'' if '.' in key else '.'}{index.next_number(key)}"
+            print(f"  {key:10s} {len(entries):4d}  next {nxt:<12s} {mnemonic.doc_id}{note}")
+    print(f"{len(index.mnemonics)} mnemonics, {len(index.series_keys())} series, {len(index)} handles")
     return 0
 
 

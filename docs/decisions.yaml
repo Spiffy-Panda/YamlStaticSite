@@ -1569,3 +1569,38 @@ entries:
       - "Keep the register as `kind: generic` with a `shape:` field (rejected - validate would prove nothing about the rows that actually go wrong, and the state vocabulary would stay hard-coded)."
       - "Ship no generator code and describe the algorithm in the skill (rejected - fail-never-drop could then only be asked for, never kept)."
       - "Make the build or validate fail on a stale list (rejected - a mid-edit build would fail, and freshness is not what those commands are for)."
+
+  - id: adr-052
+    handle: ADR.52
+    date: 2026-09-07
+    title: A handle may carry a sub-series tag, and ordinals count within a series
+    status: accepted
+    supersedes: adr-046
+    context: |
+      [[decisions#adr-046]] defined a handle as `PREFIX.<n>` with a numeric ordinal. The first repo
+      to adopt it rejected 159 of its own handles on that grammar: it mints `MUA.J1`, `VFB.Q5`,
+      `GTH.B3`, `PNO.D2`, `SCC.M4` and fifteen more shapes - a letter tag before the number, marking
+      the *kind* of item (question, decision, beat, musing) inside one doc's series.
+
+      Two ways out were wrong. Renaming them to separate prefixes (`VFB.Q5` becomes `VFBQ.5`) is
+      exactly what append-only forbids: those handles were minted, are cited in prose, and renaming
+      a minted handle is the one thing the whole instrument promises never to do. Leaving those docs
+      unhandled would strand the docs that had used handles hardest.
+    decision: |
+      The grammar is `PREFIX.<tag><n>`, where the tag is an optional run of up to three letters.
+      Every existing handle survives untouched.
+
+      The distinction the tag introduces is between a **mnemonic** - what a doc declares, and what
+      makes a handle unique across the site - and a **series**, which is what an ordinal counts
+      within. `VFB.Q` and `VFB.D` are two series of one mnemonic, so `VFB.D4` leaves no gap at 4 in
+      `VFB.Q`, each mints its own next number, and the register's gap check runs per series key. A
+      register's `series[].prefix` may name a whole mnemonic or one series key. The in-scope form
+      takes a tag too: `[[.Q5]]`.
+    consequences:
+      - The adopting repository's handles validate as they stand; no minted handle is renamed.
+      - "`yss handles` reports one row per series rather than per mnemonic, because a single mint pointer for a doc with sub-series would hand out a number another series already used."
+      - The tag is capped at three letters so an ordinary word after a dot cannot read as a handle; a longer tag is not a handle and the sweep ignores it.
+    alternatives:
+      - "Rename the tagged handles to their own prefixes (rejected - renaming a minted handle is precisely what append-only forbids, and they are cited in prose across the repo)."
+      - "Leave those docs without mnemonics so their handles stay mentions (rejected - it strands the docs that used handles most, and they are exactly the ones with registers)."
+      - "Allow an unbounded tag (rejected - `OS.Design1` would read as a handle, and the sweep would start reporting prose)."

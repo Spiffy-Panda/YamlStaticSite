@@ -26,6 +26,12 @@ the site-wide index resolves `XYZ.3` to that item. Handles are **append-only** â
 never reused, struck in place rather than rewritten. The ordinal identifies the item and says
 nothing about when it was written.
 
+**Sub-series.** `XYZ.Q5` is the same mnemonic with a tag: up to three letters splitting one
+mnemonic into several series, for a doc whose items fall into kinds (questions, decisions, beats).
+Ordinals count **within a series**, so `XYZ.D4` leaves no gap at 4 in `XYZ.Q`, each series mints its
+own next number, and the gap check runs per series. A register's `series[].prefix` may name a whole
+mnemonic (`XYZ`, covering every sub-series) or one series key (`XYZ.Q`).
+
 Examples below use the fictional prefix `XYZ`. Do not use a *live* prefix in documentation: the
 mention sweep reads markdown, so an example handle in a real series is reported as a handle with no
 register row - which is the sweep working, and noise you have to explain away.
@@ -33,7 +39,7 @@ register row - which is the sweep working, and noise you have to explain away.
 ```bash
 python -m yss handles                    # every mnemonic, its size, its mint pointer, its gaps
 python -m yss handles XYZ.3              # one handle: text, tier, home file
-python -m yss handles --series XYZ       # the whole series
+python -m yss handles --series XYZ       # a whole mnemonic, or one series key like XYZ.Q
 python -m yss handles --mentions         # handles written outside a doc item; exit 1 if any is unregistered
 ```
 

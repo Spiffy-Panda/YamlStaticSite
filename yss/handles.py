@@ -27,18 +27,22 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable, Iterator
+from typing import Any, Iterable, Iterator, NamedTuple
 
 #: A mnemonic is any short unique slug (H.3). `.` and `/` are the two characters it may not
 #: contain, because they are already the handle separator and the collection/doc separator.
 MNEMONIC_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
-#: `PREFIX.<n>` - the whole string, anchored.
-HANDLE_RE = re.compile(r"^([A-Za-z0-9][A-Za-z0-9_-]*)\.(0|[1-9][0-9]*)$")
-#: `.<n>` - the in-scope form, resolved against the enclosing doc's own mnemonic.
-SCOPED_RE = re.compile(r"^\.(0|[1-9][0-9]*)$")
+#: `PREFIX.<tag><n>` - the whole string, anchored. The tag is an optional short run of letters that
+#: splits one mnemonic into **sub-series**: a doc whose items are questions, decisions and beats
+#: writes `VFB.Q5`, `VFB.D4`, `VFB.B1` rather than three mnemonics. It is capped at three letters so
+#: an ordinary word after a dot (`OS.Design1`) cannot read as a handle.
+TAG = r"[A-Za-z]{0,3}"
+HANDLE_RE = re.compile(rf"^([A-Za-z0-9][A-Za-z0-9_-]*)\.({TAG})(0|[1-9][0-9]*)$")
+#: `.<tag><n>` - the in-scope form, resolved against the enclosing doc's own mnemonic.
+SCOPED_RE = re.compile(rf"^\.({TAG})(0|[1-9][0-9]*)$")
 #: The same shape found loose in running text, for the mention sweep. Word-bounded on both sides so
 #: `v1.4`, `Fig.2` and a version string cannot be read as handles unless the prefix is a real one.
-MENTION_RE = re.compile(r"(?<![A-Za-z0-9_.-])([A-Za-z][A-Za-z0-9_-]*)\.(0|[1-9][0-9]*)(?![0-9.])")
+MENTION_RE = re.compile(rf"(?<![A-Za-z0-9_.-])([A-Za-z][A-Za-z0-9_-]*)\.({TAG})(0|[1-9][0-9]*)(?![0-9.])")
 
 #: Files the mention sweep reads by default. Overridable per collection (`register.sweep_ext`).
 DEFAULT_SWEEP_EXT = (".yaml", ".yml", ".md", ".rs", ".py", ".svg", ".toml", ".html", ".txt")
@@ -51,22 +55,49 @@ def canon(text: str) -> str:
     return text.upper()
 
 
-def parse_handle(text: str) -> tuple[str, int] | None:
-    """`'pln.7'` -> `('PLN', 7)`; anything that is not a handle -> None."""
+class Ref(NamedTuple):
+    """A parsed handle. `VFB.Q5` -> mnemonic VFB, tag Q, number 5.
+
+    The distinction that matters: **mnemonic** is what a doc declares and what makes a handle
+    unique across the site; **series** is what an ordinal counts within. A doc with sub-series has
+    one mnemonic and several series, so `VFB.D4` does not leave a gap at 4 in `VFB.Q`.
+    """
+
+    mnemonic: str
+    tag: str
+    number: int
+
+    @property
+    def series(self) -> str:
+        """The key gap checks and mint pointers count within: `VFB.Q`, or `PLN` when untagged."""
+        return f"{self.mnemonic}.{self.tag}" if self.tag else self.mnemonic
+
+    @property
+    def handle(self) -> str:
+        return f"{self.mnemonic}.{self.tag}{self.number}"
+
+
+def parse_handle(text: str) -> Ref | None:
+    """`'pln.7'` -> `Ref('PLN', '', 7)`; `'vfb.q5'` -> `Ref('VFB', 'Q', 5)`; else None."""
     match = HANDLE_RE.match(text.strip())
     if not match:
         return None
-    return canon(match.group(1)), int(match.group(2))
+    return Ref(canon(match.group(1)), canon(match.group(2)), int(match.group(3)))
 
 
-def parse_scoped(text: str) -> int | None:
-    """`'.7'` -> `7`; anything else -> None. The in-scope form, like `[[#item]]`."""
+def parse_scoped(text: str) -> tuple[str, int] | None:
+    """`'.7'` -> `('', 7)`; `'.Q5'` -> `('Q', 5)`; anything else -> None."""
     match = SCOPED_RE.match(text.strip())
-    return int(match.group(1)) if match else None
+    return (canon(match.group(1)), int(match.group(2))) if match else None
 
 
-def format_handle(mnemonic: str, number: int) -> str:
-    return f"{canon(mnemonic)}.{number}"
+def series_of(name: str) -> str:
+    """Canonical form of a series key or mnemonic, as written in config or on a doc."""
+    return canon(str(name).strip())
+
+
+def format_handle(mnemonic: str, number: int, tag: str = "") -> str:
+    return Ref(canon(mnemonic), canon(tag), number).handle
 
 
 @dataclass
@@ -90,9 +121,10 @@ class Mnemonic:
 class Handle:
     """One bound handle: a resolved doc item."""
 
-    handle: str  #: canonical `PLN.7`
+    handle: str  #: canonical `PLN.7` / `VFB.Q5`
     spelled: str  #: as the file wrote it
-    mnemonic: str
+    mnemonic: str  #: the doc's declared prefix - `VFB`
+    tag: str  #: the sub-series letters, `` when there are none - `Q`
     number: int
     doc_id: str
     item_id: str | None
@@ -107,6 +139,11 @@ class Handle:
         return item_text(self.item)
 
     @property
+    def series(self) -> str:
+        """What this handle's ordinal counts within: `VFB.Q`, or `PLN` when untagged."""
+        return f"{self.mnemonic}.{self.tag}" if self.tag else self.mnemonic
+
+    @property
     def archived(self) -> bool:
         return self.tier == "archived"
 
@@ -118,10 +155,15 @@ class Mention:
     handle: str
     spelled: str
     mnemonic: str
+    tag: str
     number: int
     path: str
     line: int
     known: bool = False  #: whether a bound handle of this name exists
+
+    @property
+    def series(self) -> str:
+        return f"{self.mnemonic}.{self.tag}" if self.tag else self.mnemonic
 
 
 #: Fields an item's display text is taken from, most specific first. Same order as the renderer's
@@ -150,37 +192,49 @@ class HandleIndex:
 
     # --- lookup ---------------------------------------------------------
     def get(self, text: str) -> Handle | None:
-        parsed = parse_handle(text)
-        if not parsed:
-            return None
-        return self.handles.get(format_handle(*parsed))
+        ref = parse_handle(text)
+        return self.handles.get(ref.handle) if ref else None
 
     def resolve(self, text: str, doc_id: str | None = None) -> Handle | None:
-        """`PLN.7` anywhere, or `.7` against `doc_id`'s own mnemonic."""
-        number = parse_scoped(text)
-        if number is not None:
+        """`PLN.7` anywhere, or `.7` / `.Q5` against `doc_id`'s own mnemonic."""
+        scoped = parse_scoped(text)
+        if scoped is not None:
+            tag, number = scoped
             mnemonic = self._by_doc.get(doc_id or "")
-            return self.handles.get(format_handle(mnemonic, number)) if mnemonic else None
+            return self.handles.get(format_handle(mnemonic, number, tag)) if mnemonic else None
         return self.get(text)
 
     def mnemonic_of(self, doc_id: str) -> str | None:
         return self._by_doc.get(doc_id)
 
-    def series(self, mnemonic: str) -> list[Handle]:
-        name = canon(mnemonic)
+    def series(self, name: str) -> list[Handle]:
+        """Every handle in a series key (`VFB.Q`) or under a whole mnemonic (`VFB`)."""
+        key = series_of(name)
         return sorted(
-            (h for h in self.handles.values() if h.mnemonic == name),
-            key=lambda h: h.number,
+            (h for h in self.handles.values() if h.series == key or h.mnemonic == key),
+            key=lambda h: (h.tag, h.number),
         )
 
-    def next_number(self, mnemonic: str) -> int:
-        """The mint pointer: one past the highest number the series has reached, live or archived."""
-        existing = self.series(mnemonic)
-        return (existing[-1].number + 1) if existing else 1
+    def series_keys(self, mnemonic: str | None = None) -> list[str]:
+        """Every series key, or the keys belonging to one mnemonic. `PLN` has one; `VFB` may have five."""
+        keys = {h.series for h in self.handles.values()
+                if mnemonic is None or h.mnemonic == series_of(mnemonic)}
+        return sorted(keys)
 
-    def gaps(self, mnemonic: str) -> list[int]:
+    def next_number(self, series_key: str) -> int:
+        """The mint pointer: one past the highest number this *series* has reached, live or archived.
+
+        Takes a series key, not a mnemonic: a doc with sub-series mints independently in each, and
+        answering `VFB` rather than `VFB.Q` would hand out a number the wrong series already used.
+        """
+        key = series_of(series_key)
+        numbers = [h.number for h in self.handles.values() if h.series == key]
+        return (max(numbers) + 1) if numbers else 1
+
+    def gaps(self, series_key: str) -> list[int]:
         """Missing numbers below the high-water mark. Append-only means a gap is a missing row."""
-        numbers = {h.number for h in self.series(mnemonic)}
+        key = series_of(series_key)
+        numbers = {h.number for h in self.handles.values() if h.series == key}
         if not numbers:
             return []
         return [n for n in range(1, max(numbers) + 1) if n not in numbers]
@@ -269,25 +323,26 @@ def build_index(docs: dict[str, dict], archived: Iterable[tuple[str, dict]] = ()
             spelled = item.get("handle")
             if spelled is None:
                 continue
-            if not isinstance(spelled, str) or not (parsed := parse_handle(spelled)):
-                errors.append(f"{source}: at {field_name}: '{spelled}' is not a handle (expected PREFIX.<n>)")
+            if not isinstance(spelled, str) or not (ref := parse_handle(spelled)):
+                errors.append(
+                    f"{source}: at {field_name}: '{spelled}' is not a handle (expected PREFIX.<n>, "
+                    f"or PREFIX.<tag><n> with up to three tag letters)")
                 continue
-            mnemonic, number = parsed
             if own is None:
                 errors.append(
                     f"{source}: at {field_name}: item carries handle '{spelled}' but the doc "
                     f"declares no mnemonic"
                 )
                 continue
-            if mnemonic != own:
+            if ref.mnemonic != own:
                 errors.append(
                     f"{source}: at {field_name}: handle '{spelled}' does not use this doc's "
                     f"mnemonic '{index.mnemonics[own].spelled}'"
                 )
                 continue
             _claim(index, Handle(
-                handle=format_handle(mnemonic, number), spelled=spelled, mnemonic=mnemonic,
-                number=number, doc_id=doc_id, item_id=item.get("id"), item=item,
+                handle=ref.handle, spelled=spelled, mnemonic=ref.mnemonic, tag=ref.tag,
+                number=ref.number, doc_id=doc_id, item_id=item.get("id"), item=item,
                 source=source, tier="live", field=field_name,
             ), errors)
 
@@ -296,21 +351,22 @@ def build_index(docs: dict[str, dict], archived: Iterable[tuple[str, dict]] = ()
             spelled = item.get("handle")
             if not isinstance(spelled, str):
                 continue
-            parsed = parse_handle(spelled)
-            if not parsed:
-                errors.append(f"{source}: at {field_name}: '{spelled}' is not a handle (expected PREFIX.<n>)")
+            ref = parse_handle(spelled)
+            if not ref:
+                errors.append(
+                    f"{source}: at {field_name}: '{spelled}' is not a handle (expected PREFIX.<n>, "
+                    f"or PREFIX.<tag><n> with up to three tag letters)")
                 continue
-            mnemonic, number = parsed
-            owner = index.mnemonics.get(mnemonic)
+            owner = index.mnemonics.get(ref.mnemonic)
             if owner is None:
                 errors.append(
                     f"{source}: at {field_name}: archived handle '{spelled}' uses mnemonic "
-                    f"'{mnemonic}', which no doc declares"
+                    f"'{ref.mnemonic}', which no doc declares"
                 )
                 continue
             _claim(index, Handle(
-                handle=format_handle(mnemonic, number), spelled=spelled, mnemonic=mnemonic,
-                number=number, doc_id=owner.doc_id, item_id=item.get("id"), item=item,
+                handle=ref.handle, spelled=spelled, mnemonic=ref.mnemonic, tag=ref.tag,
+                number=ref.number, doc_id=owner.doc_id, item_id=item.get("id"), item=item,
                 source=source, tier="archived", field=field_name,
             ), errors)
 
@@ -352,11 +408,11 @@ def sweep(root: Path, index: HandleIndex, extensions: Iterable[str] = DEFAULT_SW
                 mnemonic = canon(match.group(1))
                 if mnemonic not in index.mnemonics:
                     continue
-                number = int(match.group(2))
-                handle = format_handle(mnemonic, number)
+                tag, number = canon(match.group(2)), int(match.group(3))
+                handle = format_handle(mnemonic, number, tag)
                 found.append(Mention(
-                    handle=handle, spelled=match.group(0), mnemonic=mnemonic, number=number,
-                    path=rel, line=lineno, known=handle in index.handles,
+                    handle=handle, spelled=match.group(0), mnemonic=mnemonic, tag=tag,
+                    number=number, path=rel, line=lineno, known=handle in index.handles,
                 ))
     return found
 

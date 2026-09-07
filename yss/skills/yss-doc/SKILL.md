@@ -48,6 +48,10 @@ inside the doc that owns the series. A citation renders with the item's own word
 
 - **Declared, never derived.** A handle read out of list position breaks the first time a list is
   sorted; one read out of a slug is a coincidence. Write it on the item.
+- **Sub-series.** `<mnemonic>.<tag><n>` splits one mnemonic into several series: a doc whose items
+  are questions and decisions writes `VFB.Q5` and `VFB.D4` rather than claiming two mnemonics. The
+  tag is up to three letters, and **ordinals count within a series**, so `VFB.D4` leaves no gap at
+  4 in `VFB.Q` and each series mints its own next number. `[[.Q5]]` is the in-scope form.
 - **Append-only.** Never renumber, never reuse, never rewrite an item to match a later ruling -
   strike it in place and mint a successor. `python -m yss handles` prints each series' mint pointer.
 - **One namespace, one spelling.** Lookup folds case; the canonical form is uppercase. Mnemonics are

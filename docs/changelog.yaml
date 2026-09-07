@@ -14,6 +14,8 @@ releases:
     summary: Persistent item handles become a first-class feature, and the contradiction register that consumes them ships as a doc kind, a built-in prefab and a subcommand. Every doc in the site now mints a handle series; a citation carries the cited item's own words as hover text.
     changes:
       - type: added
+        text: "A handle may carry a sub-series tag - `VFB.Q5` and `VFB.D4` are two series of one mnemonic - and ordinals count within a series, so one does not gap the other. The tag is up to three letters (adr-052)."
+      - type: added
         text: "Handles: a doc declares `mnemonic:` and its items declare `handle:`, resolving through the same resolver as a `[[doc#item]]` reference, to the same item. Storage is canonically uppercase with case-folding lookup, and only the explicit reference form links (adr-046)."
       - type: added
         text: "`python -m yss handles` prints the mnemonic map with each series' mint pointer and gaps, looks one handle up, lists a series, or sweeps files for handles written outside any doc item (`--mentions`, exit 1 when one names no item)."

@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import Iterable
 
 from .config import Collection, Config
-from .handles import DEFAULT_SWEEP_EXT, HandleIndex, canon, format_handle, parse_handle, sweep
+from .handles import DEFAULT_SWEEP_EXT, MENTION_RE, HandleIndex, canon, parse_handle, series_of, sweep
 from .loader import dump_yaml
 
 #: The closed row-state vocabulary, and which section of the generated list each state reaches.
@@ -78,9 +78,11 @@ class Spec:
                     out[canon(str(item["handle"]))] = str(item.get("why", ""))
         return out
 
-    def strike_forms(self, mnemonic: str) -> tuple[str, ...]:
+    def strike_forms(self, series_key: str) -> tuple[str, ...]:
+        key = series_of(series_key)
         for entry in self.series:
-            if canon(str(entry.get("prefix", ""))) == canon(mnemonic):
+            declared = series_of(entry.get("prefix", ""))
+            if declared == key or key.startswith(f"{declared}."):
                 forms = entry.get("strike_forms")
                 if forms:
                     return tuple(str(f) for f in forms)
@@ -146,15 +148,14 @@ def _check_rows(register: dict, where: str, spec: Spec, index: HandleIndex,
         if not raw or not state:
             problems.append(f"{at}: a row needs both `subject:` and `state:`")
             continue
-        parsed = parse_handle(str(raw))
-        if not parsed:
-            problems.append(f"{at}: '{raw}' is not a handle (expected PREFIX.<n>)")
+        ref = parse_handle(str(raw))
+        if not ref:
+            problems.append(f"{at}: '{raw}' is not a handle (expected PREFIX.<n> or PREFIX.<tag><n>)")
             continue
-        mnemonic, number = parsed
-        if spec.prefixes and mnemonic not in spec.prefixes:
+        if spec.prefixes and not _covered(ref, spec.prefixes):
             problems.append(f"{at}: '{raw}' is not in a series this register covers ({', '.join(spec.prefixes)})")
             continue
-        handle = format_handle(mnemonic, number)
+        handle = ref.handle
         if handle in rows:
             problems.append(f"{at}: '{raw}' already has a row; two rows may not share a number")
             continue
@@ -184,13 +185,13 @@ def _check_rows(register: dict, where: str, spec: Spec, index: HandleIndex,
 
         text = home.read_text(encoding="utf-8", errors="replace")
         spelled = bound.spelled if bound else str(raw)
-        if not _mentions(text, mnemonic, number):
+        if not _mentions(text, ref):
             problems.append(
                 f"{at}: '{raw}' is not mentioned in {lives_in}; the register has drifted from the "
                 f"file the handle is supposed to live in")
             continue
 
-        struck = _struck(text, spelled, spec.strike_forms(mnemonic))
+        struck = _struck(text, spelled, spec.strike_forms(ref.series))
         if state == "retired" and not struck:
             problems.append(
                 f"{at}: '{raw}' is `retired` here but not struck in place in {lives_in}. Record the "
@@ -202,6 +203,7 @@ def _check_rows(register: dict, where: str, spec: Spec, index: HandleIndex,
                 f"the two is wrong and it is not this program's place to pick which.")
             continue
         row = dict(row)
+        row["_ref"] = ref
         row["_handle"] = handle
         row["_bound"] = bound
         row["_lives_in"] = str(lives_in)
@@ -209,9 +211,17 @@ def _check_rows(register: dict, where: str, spec: Spec, index: HandleIndex,
     return rows
 
 
-def _mentions(text: str, mnemonic: str, number: int) -> bool:
+def _covered(ref, prefixes: Iterable[str]) -> bool:
+    """A register may cover a whole mnemonic (`VFB`) or one sub-series of it (`VFB.Q`)."""
+    wanted = {series_of(p) for p in prefixes}
+    return ref.mnemonic in wanted or ref.series in wanted
+
+
+def _mentions(text: str, ref) -> bool:
     """Case-insensitively, because one handle has two spellings and only one namespace."""
-    pattern = re.compile(rf"(?<![A-Za-z0-9_.-]){re.escape(mnemonic)}\.{number}(?![0-9.])", re.IGNORECASE)
+    pattern = re.compile(
+        rf"(?<![A-Za-z0-9_.-]){re.escape(ref.mnemonic)}\.{re.escape(ref.tag)}{ref.number}(?![0-9.])",
+        re.IGNORECASE)
     return bool(pattern.search(text))
 
 
@@ -229,21 +239,22 @@ def _struck(text: str, spelled: str, forms: Iterable[str]) -> bool:
 def _check_series(rows: dict[str, dict], spec: Spec, index: HandleIndex, root: Path,
                   problems: list[str]) -> None:
     """Gaps in a series, and handles written in the collection with no row (R.10)."""
-    for prefix in spec.prefixes or sorted({parse_handle(h)[0] for h in rows}):
-        numbers = {parse_handle(h)[1] for h in rows if parse_handle(h)[0] == prefix}
-        if not numbers:
-            continue
+    # Gaps are counted per *series key*, not per mnemonic: a doc whose items are questions and
+    # decisions mints `VFB.Q1..` and `VFB.D1..` independently, and `VFB.D4` leaves no gap at 4 in Q.
+    keys = sorted({row["_ref"].series for row in rows.values()})
+    for key in keys:
+        numbers = {row["_ref"].number for row in rows.values() if row["_ref"].series == key}
         missing = [n for n in range(1, max(numbers) + 1) if n not in numbers]
         if missing:
             problems.append(
-                f"{prefix}: gap in the series at {', '.join(str(n) for n in missing)}. Append-only "
+                f"{key}: gap in the series at {', '.join(str(n) for n in missing)}. Append-only "
                 f"means a gap is a missing row, not a free number.")
 
     excused = spec.unminted
     only = spec.collection.root.relative_to(root).as_posix() if spec.collection.root != root else None
     mentions = sweep(root, index, spec.sweep_ext or DEFAULT_SWEEP_EXT, only=only)
     for mention in mentions:
-        if spec.prefixes and mention.mnemonic not in spec.prefixes:
+        if spec.prefixes and not _covered(mention, spec.prefixes):
             continue
         if mention.handle in rows or mention.handle in excused:
             continue
@@ -262,12 +273,12 @@ def _check_pairs(register: dict, where: str, rows: dict[str, dict], index: Handl
         subjects: list[str] = []
         for label, side in zip("ab", sides):
             raw = side.get("subject")
-            parsed = parse_handle(str(raw or ""))
-            if not parsed:
+            ref = parse_handle(str(raw or ""))
+            if not ref:
                 problems.append(f"{at}: side {label} names no handle")
                 ok = False
                 continue
-            handle = format_handle(*parsed)
+            handle = ref.handle
             subjects.append(handle)
             if handle not in rows:
                 problems.append(f"{at}: side {label} names '{raw}', which has no row on the register")
@@ -315,15 +326,15 @@ def _tag_retired(text: str, retired: set[str]) -> str:
     retired handle still binds, which is exactly the poisoning this file exists to stop.
     """
     def mark(match: re.Match) -> str:
-        handle = format_handle(*parse_handle(match.group(0)))
-        if handle not in retired:
+        ref = parse_handle(match.group(0))
+        if ref is None or ref.handle not in retired:
             return match.group(0)
         tail = text[match.end():match.end() + 40].lower()
         if "retired" in tail or RETIRED_TAG in tail:
             return match.group(0)
         return f"{match.group(0)} {RETIRED_TAG}"
 
-    return re.sub(r"(?<![A-Za-z0-9_.-])[A-Za-z][A-Za-z0-9_-]*\.(?:0|[1-9][0-9]*)(?![0-9.])", mark, text)
+    return MENTION_RE.sub(mark, text)
 
 
 def project(register: dict, rows: dict[str, dict], pairs: list[dict], spec: Spec) -> dict:
@@ -331,11 +342,11 @@ def project(register: dict, rows: dict[str, dict], pairs: list[dict], spec: Spec
     retired = {h for h, r in rows.items() if r.get("state") == "retired"}
     in_force, settled, spent = [], [], {}
 
-    for handle in sorted(rows, key=lambda h: (parse_handle(h)[0], parse_handle(h)[1])):
+    for handle in sorted(rows, key=lambda h: (rows[h]["_ref"].series, rows[h]["_ref"].number)):
         row = rows[handle]
-        mnemonic, number = parse_handle(handle)
+        ref = row["_ref"]
         if row["state"] == "retired":
-            spent.setdefault(mnemonic, []).append(number)
+            spent.setdefault(ref.series, []).append(ref.number)
             continue
         entry = {
             # `subject`, not `handle`, for the same reason the register uses it: this list cites a
@@ -352,7 +363,7 @@ def project(register: dict, rows: dict[str, dict], pairs: list[dict], spec: Spec
 
     tensions = []
     for pair in pairs:
-        subjects = [format_handle(*parse_handle(str(side["subject"]))) for side in (pair["a"], pair["b"])]
+        subjects = [parse_handle(str(side["subject"])).handle for side in (pair["a"], pair["b"])]
         if str(pair.get("state") or "").lower().startswith("closed"):
             continue
         if any(h in retired for h in subjects):
