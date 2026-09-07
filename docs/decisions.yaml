@@ -2,14 +2,16 @@
 # Agents: append; never edit an accepted decision - add a new one with `supersedes`.
 kind: decisions
 id: decisions
+mnemonic: ADR
 title: Decision log
 summary: Why the toolchain is shaped the way it is.
 status: active
-updated: 2026-09-06
+updated: 2026-09-07
 related: [design]
 
 entries:
   - id: adr-001
+    handle: ADR.1
     date: 2026-09-01
     title: YAML plus JSON Schema instead of XML plus XSLT
     status: accepted
@@ -30,6 +32,7 @@ entries:
       - JSON (no comments, painful for humans to edit)
 
   - id: adr-002
+    handle: ADR.2
     date: 2026-09-01
     title: Three schema families with a shared doc envelope
     status: accepted
@@ -44,6 +47,7 @@ entries:
       - "`x-` prefixed keys are always allowed for experiments."
 
   - id: adr-003
+    handle: ADR.3
     date: 2026-09-01
     title: Prefabs are Jinja2 templates in YAML with declared params
     status: accepted
@@ -58,6 +62,7 @@ entries:
       - Templates in YAML need discipline; logic belongs in bindings.
 
   - id: adr-004
+    handle: ADR.4
     date: 2026-09-01
     title: Privacy by marking, enforced by an output scan
     status: accepted
@@ -73,6 +78,7 @@ entries:
       - Private-only nav entries and private collections simply do not exist in the public build.
 
   - id: adr-005
+    handle: ADR.5
     date: 2026-09-01
     title: Two named targets, two local ports
     status: accepted
@@ -85,6 +91,7 @@ entries:
       - Additional targets (for example `staging`) are just more entries in site.yaml.
 
   - id: adr-006
+    handle: ADR.6
     date: 2026-09-01
     title: Dynamic data is JSON with a fixed envelope, rendered client-side
     status: accepted
@@ -99,6 +106,7 @@ entries:
       - Providers must avoid absolute paths or the scan fails the public build.
 
   - id: adr-007
+    handle: ADR.7
     date: 2026-09-02
     title: Pretty routes, .nojekyll and exported data next to the HTML
     status: accepted
@@ -109,6 +117,7 @@ entries:
       - The output is a complete, self-describing snapshot for other tools.
 
   - id: adr-008
+    handle: ADR.8
     date: 2026-09-02
     title: Standard library server and polling watcher
     status: accepted
@@ -119,6 +128,7 @@ entries:
       - watchdog support is a planned enhancement (m7-watchdog), not a requirement.
 
   - id: adr-009
+    handle: ADR.9
     date: 2026-09-02
     title: Evidence, not status, says whether a doc is current
     status: accepted
@@ -142,6 +152,7 @@ entries:
       - Only git recency (cheap but cannot tell a moved file from a rewritten one).
 
   - id: adr-010
+    handle: ADR.10
     date: 2026-09-02
     title: Host multi-musing repositories through collections, migrated one musing at a time
     status: accepted
@@ -165,6 +176,7 @@ entries:
       - One yss config per musing (nine configs, nine namespaces, no shared landing page).
 
   - id: adr-011
+    handle: ADR.11
     date: 2026-09-02
     title: Rules are schema annotations resolved from data, not code
     status: accepted
@@ -183,6 +195,7 @@ entries:
       - Scaffolds and validation use the resolved schema, so placeholders are always valid.
 
   - id: adr-012
+    handle: ADR.12
     date: 2026-09-02
     title: The plan holds open work only; archives are never loaded
     status: accepted
@@ -198,6 +211,7 @@ entries:
       - Worksheets are written by agents and answered by humans; the verdict block closes the loop.
 
   - id: adr-013
+    handle: ADR.13
     date: 2026-09-02
     title: The house palette is a theme package, not a shipped preset
     status: accepted
@@ -219,6 +233,7 @@ entries:
       - Emblems must be single glyphs older than Emoji 12; ZWJ sequences render as tofu in Chrome and Firefox on Windows.
 
   - id: adr-014
+    handle: ADR.14
     date: 2026-09-02
     title: Flow policy is config with CLI overrides, not a hard-coded workflow flag
     status: accepted
@@ -241,6 +256,7 @@ entries:
       - Keep the workflow flag as the only switch (no schema churn, but no per-collection policy and no way for an agent to adjust the flow).
 
   - id: adr-015
+    handle: ADR.15
     date: 2026-09-02
     title: Mounts stay private by default; a public playable opts in per mount
     status: accepted
@@ -260,6 +276,7 @@ entries:
       - Public by default with private marked explicitly (less config, but a build in progress can reach Pages).
 
   - id: adr-016
+    handle: ADR.16
     date: 2026-09-02
     title: Prototypes are exported without threads, and Godot hosting is a late milestone
     status: accepted
@@ -281,6 +298,7 @@ entries:
       - Ship coi-serviceworker beside each export (keeps threads, adds a first-load reload, a vendored script, and a CSP dependency).
 
   - id: adr-017
+    handle: ADR.17
     date: 2026-09-02
     title: A collection declares its own card; the parent page renders whatever it finds
     status: accepted
@@ -306,6 +324,7 @@ entries:
       - Contract plus per-sub-site overrides on the parent page (nothing invisible, but the same fact lives in two places).
 
   - id: adr-018
+    handle: ADR.18
     date: 2026-09-03
     title: An applied worksheet keeps the choices but stops offering them
     status: accepted
@@ -335,6 +354,7 @@ entries:
       - Drop applied worksheets from the site entirely (no confusion, but the record of what was asked and rejected goes with them).
 
   - id: adr-019
+    handle: ADR.19
     date: 2026-09-03
     title: An archived worksheet's reference fields may be repointed when their target is archived
     status: accepted
@@ -361,6 +381,7 @@ entries:
       - Leave done milestones in the plan until nothing references them (no rule changes, but the plan stops holding open work only).
 
   - id: adr-020
+    handle: ADR.20
     date: 2026-09-03
     title: One link vocabulary for doc links and collection card links
     status: accepted
@@ -384,6 +405,7 @@ entries:
       - Keep the two lists separate and document the difference in the yss-publish skill (no envelope change, but two similar lists to remember and no `play` on doc links).
 
   - id: adr-021
+    handle: ADR.21
     date: 2026-09-03
     title: A card link to a collection page is checked evidence
     status: accepted
@@ -408,6 +430,7 @@ entries:
       - Fetch external hrefs (finds link rot, at the cost of network access, flakiness and offline failures).
 
   - id: adr-022
+    handle: ADR.22
     date: 2026-09-03
     title: The nav declares a category and derives the rest
     status: accepted
@@ -442,6 +465,7 @@ entries:
       - Leaving the bar flat and shortening labels (no machinery, but eighteen links stay eighteen links).
 
   - id: adr-023
+    handle: ADR.23
     date: 2026-09-03
     title: A reference is dead until the rendered page proves otherwise
     status: accepted
@@ -473,6 +497,7 @@ entries:
 
 
   - id: adr-024
+    handle: ADR.24
     date: 2026-09-03
     title: Code map exports deep-link by parsed line range, pinned to a commit
     status: accepted
@@ -521,6 +546,7 @@ entries:
       - "`importlib` plus `inspect.getsourcelines` (runs module-level code, and answers for neither constants nor dotted members)."
 
   - id: adr-025
+    handle: ADR.25
     date: 2026-09-04
     title: A doc-local `$items` root, and anchors that belong to the item rather than the label
     status: accepted
@@ -568,6 +594,7 @@ entries:
       - Anchoring on the group's label and accepting the collisions (the state being fixed; a renamed heading also breaks every inbound reference).
 
   - id: adr-026
+    handle: ADR.26
     date: 2026-09-04
     title: A design component's status is a claim, not a unit of work
     status: accepted
@@ -595,6 +622,7 @@ entries:
       - Add `live` to `work_status` (rejected - it lets every plan milestone and codemap module be `live` to fix one kind's problem, and leaves the two meanings fused).
 
   - id: adr-027
+    handle: ADR.27
     date: 2026-09-04
     title: A collection's files are addressed by its route, and a page's local links are checked
     status: accepted
@@ -635,6 +663,7 @@ entries:
       - Running the gate before the manifest (rejected - build.json is a real output every footer links to, and it reported eighteen false positives per target).
 
   - id: adr-028
+    handle: ADR.28
     date: 2026-09-04
     title: Collections are a nav group like any other, under a reserved id
     status: accepted
@@ -676,6 +705,7 @@ entries:
       - Leaving the hard-coded span and capping the pill count (treats the symptom and keeps the group unconfigurable).
 
   - id: adr-029
+    handle: ADR.29
     date: 2026-09-04
     title: An advisory lock and an output check make concurrent builds loud
     status: accepted
@@ -708,6 +738,7 @@ entries:
       - Per-target output directories per process (rejected - the server and the CLI are meant to share one preview tree).
 
   - id: adr-030
+    handle: ADR.30
     date: 2026-09-04
     title: A collection's two theme colours are a generated stylesheet rule, not an inline style
     status: accepted
@@ -747,6 +778,7 @@ entries:
       - "Drop the two keys and require a theme.css (rejected - two colours is the right amount of ceremony for a collection that only wants a tint)."
 
   - id: adr-031
+    handle: ADR.31
     date: 2026-09-04
     title: Text on an accent surface takes an on-accent token, defaulted at the point of use
     status: accepted
@@ -786,6 +818,7 @@ entries:
       - "Hard-code a contrast-safe colour per bar (rejected - a theme author must be able to choose, and no formula survives every palette)."
 
   - id: adr-032
+    handle: ADR.32
     date: 2026-09-04
     title: A mount source may leave its collection and may not leave the site
     status: accepted
@@ -826,6 +859,7 @@ entries:
       - "Warn on every escaping mount (rejected - see above; the affordance is documented instead)."
 
   - id: adr-033
+    handle: ADR.33
     date: 2026-09-04
     title: A region says where it came from in a title attribute and an opt-in caption, not a hover pill
     status: accepted
@@ -868,6 +902,7 @@ entries:
       - "Per-item attribution on every card (deferred - gh-30 reserves `_src`/`_doc` so prefabs written meanwhile stay compatible; the eleven-prefab emission waits until a $docs-fed grid needs it)."
 
   - id: adr-034
+    handle: ADR.34
     date: 2026-09-04
     title: Only a leak deletes the output; every other strict failure leaves the tree
     status: accepted
@@ -901,6 +936,7 @@ entries:
       - "Gating the deletion on the target rather than the failure (rejected - it keeps the local loop's worst case for no gain; the failure kind is what determines whether anything is hazardous)."
 
   - id: adr-035
+    handle: ADR.35
     date: 2026-09-04
     title: The orchestration untangle is one dedicated pure-refactor pass, not a background habit
     status: accepted
@@ -944,6 +980,7 @@ entries:
       - "Leave both as they are and record them in the design as deliberately monolithic (rejected - the slow suite is then the standing price of every future gate, and ambient state blocks any parallel build)."
 
   - id: adr-036
+    handle: ADR.36
     date: 2026-09-04
     title: Symbol evidence may import a module, but only where the site says so
     status: accepted
@@ -985,6 +1022,7 @@ entries:
       - "Reuse `evidence.run_commands` as the gate (rejected - running a doc's declared command is a different consent from importing a module the doc only names)."
 
   - id: adr-037
+    handle: ADR.37
     date: 2026-09-06
     title: A language is a parser module and one registry line, and Rust's is a scanner
     status: accepted
@@ -1039,6 +1077,7 @@ entries:
       - Leave Rust unparsed and link whole files (rejected - it is the limit adr-024 wrote down as a limit, and the first real musing hit it immediately).
 
   - id: adr-038
+    handle: ADR.38
     date: 2026-09-06
     title: The source pane highlights and seeks in the browser, from an index the build publishes
     status: accepted
@@ -1086,6 +1125,7 @@ entries:
       - "Publish whole files on both targets (rejected - adr-024's declined source mirror in a different hat: every source line through the redaction scan)."
 
   - id: adr-039
+    handle: ADR.39
     date: 2026-09-06
     title: The editor is asked for what a published page cannot know, over a four-message bridge
     status: accepted
@@ -1126,6 +1166,7 @@ entries:
       - A language server in the page over a WebSocket (rejected - it is the editor, rebuilt, for a site whose main content is static HTML).
       - "Nothing, and let the reader copy `file:line` (rejected only once the bridge turned out to be four messages; the copy is still the fallback in any browser)."
   - id: adr-040
+    handle: ADR.40
     date: 2026-09-07
     title: The build lock checks liveness properly, and callers may wait for it
     status: accepted
@@ -1160,6 +1201,7 @@ entries:
       - A lock timeout after which any lock is stale (rejected - it either steals a slow build's lock or leaves a dead one held; liveness answers the actual question).
       - Waiting forever by default (rejected - a build that never returns is worse than one that says why it will not start).
   - id: adr-041
+    handle: ADR.41
     date: 2026-09-07
     title: The prefab asset bundle is per target, not per registry
     status: accepted
@@ -1181,6 +1223,7 @@ entries:
       - Declaring used prefabs per page in the page YAML (rejected - a second list to keep in sync with the templates that actually call them).
       - Static analysis of the templates (rejected - `prefab()` is called with computed names, so only the render knows).
   - id: adr-042
+    handle: ADR.42
     date: 2026-09-07
     title: An evidence claim may be negative, and may anchor into a document instead of its bytes
     status: accepted
@@ -1229,6 +1272,7 @@ entries:
       - "A separate `absent` claim kind rather than a modifier on `at:` (rejected - it is the same walk with the leaf count compared against zero)."
       - "Leaving `contains` alone and documenting the trap in the skill (rejected - the trap was found in a doc that had been green for weeks; documentation checks nothing)."
   - id: adr-043
+    handle: ADR.43
     date: 2026-09-07
     title: A reference inside a code span is a warning, never an error
     status: accepted
@@ -1261,6 +1305,7 @@ entries:
       - An opt-out marker on the string (rejected - a second syntax to learn, for a problem a resolvability test already separates).
       - "Leaving it to review (rejected - the failure is silent by construction; that is why it was filed)."
   - id: adr-044
+    handle: ADR.44
     date: 2026-09-07
     title: On-accent contrast is measured at build time, not defaulted or derived
     status: accepted
@@ -1303,6 +1348,7 @@ entries:
       - "Derive in CSS with `color-contrast()` or `light-dark()` (rejected on browser support, and it would still be unmeasurable by any checker)."
       - "Documentation only (rejected as insufficient - the failure is silent, which is the whole complaint; the docs ship alongside the gate, not instead of it)."
   - id: adr-045
+    handle: ADR.45
     date: 2026-09-07
     title: A worksheet archives itself by deriving its visibility and publishing a projection
     status: accepted
@@ -1347,3 +1393,179 @@ entries:
       - Whole-object redaction plus a hand-written public copy of the sheet (rejected - two documents that disagree the moment one is edited).
       - "Per-item `on_resolution` (rejected - a document with holes in its numbering, and safety by per-item judgement)."
       - "Publishing `resolution.summary` too (rejected as the default - it is unreviewed prose, and `chose[]` already carries the answer; a sheet that wants prose published can put it in `intro`)."
+
+  - id: adr-046
+    handle: ADR.46
+    date: 2026-09-07
+    title: Handles are a second key on the existing index, not a parallel namespace
+    status: accepted
+    context: |
+      Enumerated items in another repository carry stable handles - `TSG.9`, `MSL.1` - and yss had
+      nothing like them. Except that it nearly did: `[[plan#m14-audit]]` is already a stable,
+      validated, site-resolvable reference, item ids are unique per doc and never renamed, and
+      `yss refs` already answers who points at one. So the honest question was not "add handles"
+      but "why is `doc#item` not enough?"
+
+      It is not enough for one reason, and the reason scopes the feature: **a handle has to survive
+      outside the yss corpus.** The reference resolver only reaches docs and pages, while a handle
+      gets written in a Rust comment, an SVG label, a commit message, a chat. A `[[doc#item]]`
+      reference in a `.rs` file is just text. That, plus being short enough to say aloud, is the
+      whole case.
+    decision: |
+      A handle is a **second key on the index that already exists**, never a second system. A doc
+      declares a mnemonic in its envelope; each item declares its own handle; a handle citation and
+      a `[[doc#item]]` reference enter the same resolver and return the same item, and the in-scope
+      form is the existing bare-item form under another spelling. Storage is canonically uppercase
+      with case-folding lookup, so the corpus never carries two spellings of one handle. Handles are
+      **declared on the item, never derived** - from list position, which breaks the first time a
+      list is sorted, or from a slug, which is a coincidence. Only the explicit reference form
+      links; a bare handle in prose stays inert text and is the mention sweep's business.
+    consequences:
+      - One resolver, one error vocabulary, one thing to maintain; a citation and a reference are the same mechanism.
+      - Mnemonics are unique across the whole site - a constraint yss did not have, since item ids are only unique per doc.
+      - Every existing doc was backfilled, so the numbering is assigned rather than earned; see adr-047.
+    alternatives:
+      - "Reuse doc-item ids as handles (rejected - they are not append-only, carry no per-doc prefix, and are not swept for outside docs; all three would have had to be added anyway)."
+      - "Let the register skill define its own handle convention (rejected - the register would own a rule the whole toolchain needs, and a repo with no register would get no answer)."
+      - "Auto-link bare handles in prose (rejected - version numbers, figure labels and a deliberately quoted retired handle all false-positive)."
+
+  - id: adr-047
+    handle: ADR.47
+    date: 2026-09-07
+    title: Every doc mints a mnemonic, and a handle's ordinal identifies an item without dating it
+    status: accepted
+    context: |
+      Making handles first-class meant deciding how much of this repository had to change. Docs
+      here already hold items with semantic slugs; numbering them today invents an order that never
+      existed, and the danger is that a later agent reads a low number as older than a high one and
+      infers a history the backfill never had. Not backfilling was worse: the register's own
+      generator treats a gap in a series as a missing row, so a partially numbered series fails by
+      design.
+    decision: |
+      Every doc in the site declares a mnemonic and every item that carries an `id` carries a
+      handle, backfilled in **file order** - 352 handles across 18 series. And it is written down,
+      here and in [[codemap#cv-handles-append-only]], that **an ordinal identifies an item and dates
+      nothing**. What the number does guarantee is the append-only contract: never renumbered, never
+      reused, struck in place rather than rewritten, and the mint pointer for a successor is one
+      past the highest the series has reached, which `python -m yss handles` prints.
+    consequences:
+      - Anything is citable without a second migration, and no series starts life with a gap.
+      - Backfilled numbers carry no information; a reader who assumes chronology is wrong, so it is stated in the code map and the skills.
+      - "A changelog release carries no `id`, so it carries no handle either: the mnemonic exists and the series is empty."
+    alternatives:
+      - "Only rule-bearing docs (rejected - it needs a judgement per doc, and a doc that later wants handles has to be backfilled anyway)."
+      - "Backfill in git-first-appearance order (rejected - an archaeology pass over every doc for a property nothing depends on, and items that moved between files would date wrongly)."
+      - "Number only items touched from now on (rejected - it produces exactly the gapped series the generator refuses)."
+
+  - id: adr-048
+    handle: ADR.48
+    date: 2026-09-07
+    title: Bound handles resolve to text; mentions resolve to a location
+    status: accepted
+    context: |
+      A register quotes both sides of every contradiction verbatim, and a citation tooltip shows the
+      cited item's own words. Both need a *boundary*: somewhere the quoted text provably stops. A
+      doc item has one - it is an object. A handle written in page prose, a Rust comment or a commit
+      message does not: is the item the sentence, the list item, the paragraph? Every answer is a
+      heuristic, and heuristics fail silently exactly where the quote matters most.
+
+      Page prose is the interesting case, because a page section's `id` is documented as an anchor
+      that defaults to `section-N` - positional and disposable, which is the opposite of what
+      permanent identity needs.
+    decision: |
+      Two classes, named differently and promising different things. A **bound handle** lives on a
+      doc item, resolves to exact text, and alone powers tooltips, citations and register quotes. A
+      **mention** is a handle written anywhere else: the sweep must find it and a register must have
+      a row for it, but it resolves to a **location, never a quote**, and can never be a
+      contradiction pair subject.
+
+      The register's founding rule then does the enforcement with no new policy: a contradiction
+      that cannot be quoted is one an agent invented, and a mention is unquotable by construction.
+      Migration is demand-driven - a prose handle becomes a doc item at the moment something needs
+      to quote it, not on a schedule.
+    consequences:
+      - Indexing page items stays available as a strict superset later; nothing here has to be undone to get it.
+      - A handle-bearing list in page prose is not first-class - it needs a doc and a binding, which is real friction on the most creative part of the workflow.
+      - "A doc that cites rather than mints spells the field `subject:`; `handle:` declares. The two must not be confusable."
+    alternatives:
+      - "Index page items now (rejected - pages have never had id discipline, a section id is deliberately disposable, and every quote would be a boundary heuristic)."
+      - "Doc-only handles with no sweep (rejected - a handle in a Rust comment then exists in prose and nowhere in the instrument, which is the failure the register exists to catch)."
+
+  - id: adr-049
+    handle: ADR.49
+    date: 2026-09-07
+    title: The live-rules list is generated as YAML and a page, with no markdown export
+    status: accepted
+    context: |
+      The instrument's first implementation committed a markdown live-rules file at the collection
+      root, precisely because a file you must run a generator to read is a file a fresh agent will
+      not read. It is not a violation of rule zero in spirit - it is a generated export of a doc
+      that also exists as YAML - but an agent meeting that file while holding rule zero will either
+      delete it or copy the pattern for something that is not generated.
+    decision: |
+      Generate the YAML doc and render it as a page; emit no markdown file. Rule zero keeps no
+      exception, and there is one fewer generated artefact to keep in step.
+    consequences:
+      - "The paste-into-a-prompt form is gone: an agent reads the doc or the built page instead."
+      - Rule zero stays absolute, so nothing has to be explained away when the next agent reads it.
+      - The origin repository's committed markdown output has no shipped equivalent, which its migration has to account for.
+    alternatives:
+      - "Keep the markdown at the collection root as a named exception (rejected here - findability was its whole case, and a markdown file at a collection root invites imitation for things that are not generated)."
+      - "Emit it into a clearly generated directory (rejected - findability was the point, and a fresh agent looks at the root first)."
+
+  - id: adr-050
+    handle: ADR.50
+    date: 2026-09-07
+    title: A public page may cite a private handle; the citation resolves to nothing
+    status: accepted
+    context: |
+      A citation's tooltip resolves a handle to text at build time, so a public page citing a handle
+      from a private doc could inline private wording into the public build - a leak the
+      forbidden-string scan cannot catch, because it looks for identity strings and this is ordinary
+      prose. Binding a private doc from a public page is already a build error, which argued for
+      making this one too.
+    decision: |
+      Allow it. The handle index is built from each target's **already filtered** docs, so in the
+      public build the private doc is simply absent: the citation resolves to nothing and renders as
+      inert text carrying the number and no wording. No build fails for a number, and no wording
+      crosses the line.
+    consequences:
+      - A public page can acknowledge that a private decision exists by number, which is often exactly what a correction needs to do.
+      - The two builds differ silently at that spot - a reviewer reading the private build sees a live citation where the public one shows plain text.
+      - Responsibility moves to the surrounding prose, which is where the recorded near-miss happened - a public page naming private files by name, with the scan silent.
+    alternatives:
+      - "Make it a build error, matching the private-doc binding rule (rejected - it forbids naming a private decision by number at all)."
+      - "Set no policy (rejected - unset means public, and the failure mode is a silent leak)."
+
+  - id: adr-051
+    handle: ADR.51
+    date: 2026-09-07
+    title: The register ships as a doc kind, a built-in prefab and a yss subcommand
+    status: accepted
+    context: |
+      The contradiction register and its live-rules list were invented for one musing, generalised
+      to a second, then written up as a skill inside that repository describing that musing as
+      though it were the instrument. The shape is general. The question was how much of it yss
+      should own: the doc shape alone, or the page and the generator too.
+
+      The generator's value is two properties - rule text verbatim from its source, and failing
+      rather than dropping a rule it cannot account for. Neither is a promise a written-down
+      algorithm can keep; a copy per repository diverges the first time somebody is in a hurry.
+    decision: |
+      All of it. `doc.register` is a real kind with the `register_state` vocabulary in site.yaml;
+      `contradiction-register` is a built-in prefab, so the instruction builder behaves the same
+      everywhere and a site can still override it; `python -m yss live-rules <collection> [--check]`
+      is the generator, with its eleven refusals covered by tests. Per-collection particulars -
+      series prefixes, per-series strike forms, unminted handles, swept extensions - live in a
+      `register:` block in that collection's own collection.yaml (site.yaml for the root collection,
+      which is the root's config file). The mention sweep is core rather than the register's,
+      because a site can want to know where its handles are mentioned without running a register at
+      all.
+    consequences:
+      - yss now owns an instrument it did not invent, including ten-plus failure modes and a config surface.
+      - "The staleness gate stays a `command:` evidence claim shipped on the generated doc: `yss check --run-commands` reports a stale list. Detectable, not prevented - nothing runs the generator for you."
+      - "The demo collection carries the worked example the `yss-register` skill points at; the origin repository migrates in a separate pass."
+    alternatives:
+      - "Keep the register as `kind: generic` with a `shape:` field (rejected - validate would prove nothing about the rows that actually go wrong, and the state vocabulary would stay hard-coded)."
+      - "Ship no generator code and describe the algorithm in the skill (rejected - fail-never-drop could then only be asked for, never kept)."
+      - "Make the build or validate fail on a stale list (rejected - a mid-edit build would fail, and freshness is not what those commands are for)."

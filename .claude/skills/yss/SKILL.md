@@ -15,6 +15,7 @@ ARCHITECTURE.md or decision-log markdown; edit `docs/*.yaml` instead, then valid
 | Layer | Where | Schema | Who edits |
 |---|---|---|---|
 | Structured docs (facts) | `docs/*.yaml` | `doc.<kind>` (envelope + kind) | agents, constantly |
+| Handles (citable items) | `mnemonic:` on a doc, `handle:` on its items | envelope | whenever an item is minted |
 | Pages (human framing) | `site/pages/*.yaml` | `page` | agents when a new view is needed |
 | Prefabs (UI pieces) | `yss/prefabs/` built-in, `site/prefabs/` site-local | `prefab` | rarely; reuse first |
 | Collections (a musing) | `<root>/<name>/{collection.yaml,hooks.py,docs,pages,prefabs,assets}` | `collection` | per topic |
@@ -36,6 +37,8 @@ and length limits are data in site.yaml (overridable per collection), not hard-c
 python -m yss validate                       # schema, vocabulary, limit and reference checks; do this after every edit
 python -m yss check [-v] [--run-commands|--no-run-commands] [--git|--no-git]   # evidence; exit 1 on stale
 python -m yss refs plan#m3-pilot             # who references a doc or item
+python -m yss handles [PLN.7] [--series PLN] [--mentions]   # the handle map, one handle's text, or the mention sweep
+python -m yss live-rules <collection> [--check]             # project a contradiction register into the rules that still bind
 python -m yss ls [docs|pages|prefabs|kinds|dynamic|collections]
 python -m yss schema doc.plan --yaml         # print any schema (doc.<kind>, page, prefab, collection, site)
 python -m yss query plan.milestones --where status=active --fields id,title   # read data like a page does
@@ -66,12 +69,14 @@ python -m unittest discover -s tests -v
 - `yss-page` - pages, sections, the binding language, collection-local ids, evidence and collection prefabs.
 - `yss-prefab` - writing or overriding prefabs (params, Jinja template, CSS, examples).
 - `yss-publish` - targets, redaction, collections and hooks, mounts, dynamic sources, the server and GitHub Pages.
+- `yss-register` - the contradiction register and its generated live-rules list: handle series, retirement, verdict batches.
 
 ## Things that bite
 
 - A doc field bound by a page must exist; a missing field is a build error naming the page and section.
 - Binding a private doc from a public page fails; mark the section `visibility: private`.
 - Inside a collection, `plan` means the collection's own plan; write `/plan` to reach the root doc.
+- `[[PLN.7]]` is a handle citation and goes through the same resolver as `[[doc#item]]`, to the same item; `[[.7]]` is the in-scope form. Only the `[[...]]` form links - a bare `PLN.7` in prose stays inert text, and the mention sweep is what finds those.
 - Text like `[[doc#item]]` is a reference and is validated; wrap it in backticks when you only mean the syntax. A backticked reference whose doc *and* item both exist is warned about (never an error, never strict-fatal) - it renders literally, so that is usually a live link you forgot to unquote.
 - No absolute paths in anything that reaches `dist/` (the public build forbids the checkout path).
 - A code map export is proved by parsing, never by importing or building. Python and Rust have parsers (`yss/langs/`); anything else is a valid module with no line range and no source pane.

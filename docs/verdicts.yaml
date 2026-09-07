@@ -2,6 +2,7 @@
 # The rendered page (site/pages/verdicts.yaml) builds a paste-ready instruction from the answers.
 kind: worksheet
 id: verdicts
+mnemonic: VRD
 title: Verdicts for the yss pilot
 summary: The calls only Panda can make after the Musings review - adoption path, vocabularies, strictness, archiving and the first migration.
 status: archived
@@ -19,6 +20,7 @@ warn: |
 
 questions:
   - id: v-adoption
+    handle: VRD.1
     resolution:
       applied: 2026-09-02
       by: Panda
@@ -48,6 +50,7 @@ questions:
         prompt: "Reject adr-010 in favour of one site.yaml per musing; note the missing landing page as an accepted cost."
 
   - id: v-first-musing
+    handle: VRD.2
     resolution:
       applied: 2026-09-02
       by: Panda
@@ -64,6 +67,7 @@ questions:
     applies_to: "plan m12-first title"
 
   - id: v-risk-vocab
+    handle: VRD.3
     resolution:
       applied: 2026-09-02
       by: Panda
@@ -89,6 +93,7 @@ questions:
         prompt: "Set the default risk vocabulary to work_status and migrate the risks in docs/plan.yaml."
 
   - id: v-strictness
+    handle: VRD.4
     resolution:
       applied: 2026-09-02
       by: Panda
@@ -114,6 +119,7 @@ questions:
         prompt: "Keep stale evidence as warnings in CI; badges and the evidence page surface it."
 
   - id: v-git-recency
+    handle: VRD.5
     resolution:
       applied: 2026-09-02
       by: Panda
@@ -139,6 +145,7 @@ questions:
         prompt: "Disable evidence.git_recency in site.yaml and note why in decisions."
 
   - id: v-archive
+    handle: VRD.6
     resolution:
       applied: 2026-09-02
       by: Panda
@@ -165,6 +172,7 @@ questions:
         prompt: "Archive done milestones only when a changelog release is cut."
 
   - id: v-readme
+    handle: VRD.7
     resolution:
       applied: 2026-09-02
       by: Panda
@@ -189,6 +197,7 @@ questions:
         prompt: "Answer q-md-bridge: migrate README content into docs and shrink README to a pointer."
 
   - id: v-install
+    handle: VRD.8
     resolution:
       applied: 2026-09-02
       by: Panda

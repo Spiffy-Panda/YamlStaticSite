@@ -2,36 +2,310 @@
 # Agents: do not answer these. Panda answers on the rendered page and hands the built instruction to an agent.
 kind: worksheet
 id: register-skill
-title: Shipping the register skill
-summary: How the contradiction register and live-rules instrument becomes a skill shipped with yss rather than one musing's private note - the skill's boundary, whether a doc kind, prefab and generator ship with it, where per-collection config lives, and what the generated markdown does about rule zero.
-status: active
-updated: 2026-09-06
+mnemonic: RSK
+title: Handles and the register skill
+summary: Two joined decisions - making persistent item handles a first-class yss feature with a lookup index, and shipping the contradiction register and live-rules instrument as a skill packaged with yss rather than one musing's private note.
+status: archived
+updated: 2026-09-07
 owners: [agent]
 related: [plan, decisions, design, codemap]
 intro: |
-  The contradiction register and the live-rules list were invented for one musing, generalised to a
-  second the next day, and then written up as a skill **inside that musing's repository**, describing
-  that musing as though it were the instrument. It is not: the shape is general and belongs to any yss
-  collection that gives its enumerated items stable handles. That write-up already carries a `TODO:
-  abstract to any yss site` at the top.
+  Two things, in dependency order. **H** is a new yss feature: persistent item handles - `PLN.7`,
+  `TSG.9` - with a site-wide index behind them, so a handle resolves to the exact text of the item it
+  names, from anywhere. **R** is the instrument that consumes it: the contradiction register and its
+  generated live-rules list, which were invented for one musing, generalised to a second the next
+  day, then written up as a skill *inside that musing's repository* describing that musing as though
+  it were the instrument. It is not. The shape is general, and this worksheet is the correction.
 
-  This worksheet is the correction, made once and in writing so the same misreading cannot happen
-  twice. The product is **a skill shipped with yss** - `yss/skills/<name>/SKILL.md`, installed by
-  `python -m yss skills --install`, listed beside `yss-doc`, `yss-page`, `yss-prefab` and
-  `yss-publish` - and the questions below are the parts nobody has decided yet: what else ships with
-  the skill (a doc kind, a prefab, a generator), where a collection declares its own particulars, and
-  what the two generated files do about rule zero.
+  **What is already decided, in chat on 2026-09-07, and is not open below.** Handles are a second key
+  on the index yss already has, not a parallel system: `[[PLN.7]]` and `[[plan#m14-audit]]` resolve
+  through the same resolver to the same item, and `[[.7]]` is the existing in-scope form. A doc
+  declares `mnemonic: PLN` as a real envelope field, never as prose in `agent_notes`. Handles are
+  **declared** on the item, never derived from list position or slug. Storage is canonically
+  uppercase and lookup folds case, so the corpus never carries two spellings of one handle. Only the
+  explicit `[[...]]` form links; a bare `PLN.7` in prose stays inert text. And there are **two
+  classes**: *bound handles* live on a doc item and resolve to exact text, so they alone power
+  tooltips, citations and register quotes; *mentions* are handles written anywhere else - page prose,
+  Rust comments, commit messages - which the sweep must find and the register must have a row for,
+  but which resolve to a location rather than a quote and therefore can never be a contradiction pair
+  subject. Indexing page items is the superset this can grow into later; it is deliberately not in
+  scope now.
 
-  Recommended defaults are pre-selected. Open **pros and cons** under an option before changing one,
-  press **Build the instruction**, and hand the text to an agent in a fresh session.
+  Archived docs stay **resolvable**. The archive rule means not loaded into a working agent's
+  context, not absent from the index, so a handle whose item was archived still quotes correctly and
+  reads as spent rather than missing.
+
+  **Applied 2026-09-07.** Every question below carries what its verdict became; the options as they
+  were offered are kept in the foldout under each one. What is still open after applying it is a new
+  sheet, [[handles-next]].
 warn: |
-  🐼❗ R.4 is the expensive one and everything downstream leans on it. If the generator ships as yss
-  code, R.6's config block, R.8's gate and R.10's failure list are all describing real code an agent
-  must write and test; if it does not, they are describing a script the skill only tells each repo how
-  to write, and the shipped skill can never promise "fail, never drop" - it can only ask for it.
+  🐼❗ Kept as the record. The warning it carried while open - answer H before R, because H.1 and R.4
+  set the size of everything else - turned out to be right: both were answered at their widest, and
+  the result is 352 handles across every doc plus a shipped generator whose eleven refusals each
+  have a test.
 
 questions:
+  - id: h-scope
+    resolution:
+      applied: 2026-09-07
+      by: Panda
+      chose: [every-doc]
+      recorded_in: [decisions/adr-047, codemap/cv-handles]
+      summary: |
+        Every doc in the site declares a mnemonic and every item carrying an `id` carries a handle -
+        352 across 18 series, so nothing needs a second migration to become citable. A changelog
+        release has no `id` and so has no handle: the mnemonic exists and its series is empty.
+    handle: RSK.1
+    call: H.1
+    lead: Which docs in this repository mint mnemonics and get handles?
+    help: |
+      Handles are opt-in: a doc without a `mnemonic` mints none. The question is which docs opt in
+      here, because that is the whole cost of compliance. The docs worth handles are the ones that
+      accumulate rules and get argued about later - a rule nobody can cite is a rule that gets
+      quietly contradicted. The docs that probably are not are the ones nobody cites an *item* of:
+      a glossary term is already looked up by its word, a changelog line by its version.
+    applies_to: "the mnemonic field on each doc in docs/, and a convention in docs/codemap.yaml"
+    compare: |
+      Mnemonics are a scarce namespace - three letters, unique site-wide, uppercase in prose. Spending
+      one on a doc whose items nobody will ever cite costs a code and buys nothing, and every handle
+      minted is a handle the append-only rule then binds forever.
+    options:
+      - value: rule-bearing
+        text: Only docs whose items get cited and argued about - decisions, design, plan, conventions, registers, musing docs
+        recommended: true
+        why: Handles exist so a claim can be quoted and contradicted; a doc nobody cites an item of gains a code and no reader.
+        prompt: "Mint mnemonics only on docs whose items are cited and argued about - decisions, design, plan, conventions, registers and musing docs - and leave glossary, changelog and codemap without one."
+        pros: [Small backfill, Keeps the three-letter namespace for docs that need it, Every handle minted has a reader]
+        cons: [A doc that turns out to need handles has to be backfilled later, Two classes of doc to explain]
+      - value: every-doc
+        text: Every doc in the site mints a mnemonic, so any item anywhere is citable
+        why: One rule with no exceptions, at the cost of a large backfill and a code spent on docs nobody cites items of.
+        prompt: "Mint a mnemonic on every doc in the site so that every item everywhere carries a handle."
+        pros: [No judgement call per doc, Anything is citable without a migration, The rule is one sentence]
+        cons: [Large backfill across every existing doc, Burns the namespace, Numbers items nobody will ever reference]
+      - value: register-only
+        text: Only docs a register actually covers
+        why: The smallest possible change and the one that makes handles an implementation detail of the register instead of a yss feature.
+        prompt: "Mint mnemonics only on docs that a contradiction register covers, treating handles as a register feature rather than a site-wide one."
+        pros: [Minimal migration, Nothing changes for docs nobody registers]
+        cons: [Handles stay a register detail not a first-class feature, Citations and tooltips work almost nowhere, A second migration when the next doc wants them]
+
+  - id: h-ordinal
+    resolution:
+      applied: 2026-09-07
+      by: Panda
+      chose: [identifier]
+      recorded_in: [decisions/adr-047, codemap/cv-handles-append-only]
+      summary: |
+        Backfilled in file order, and it is now written down in the code map and in both skills that
+        an ordinal identifies an item and dates nothing. What the number does guarantee is the
+        append-only contract; `python -m yss handles` prints each series' mint pointer.
+    handle: RSK.2
+    call: H.2
+    lead: When existing docs are backfilled, what does a handle's number mean?
+    help: |
+      `docs/plan.yaml` already holds items with semantic slugs. Numbering them today invents an order
+      that never existed, and the danger is that a later agent reads `PLN.3` as older than `PLN.19`
+      and infers a history from it. The register's maintenance loop separately relies on the highest
+      number a series has reached as the mint pointer for successors - which keeps working under any
+      answer here, as long as the answer is written down.
+    applies_to: "the handle backfill, and the skill's statement of what an ordinal does and does not mean"
+    options:
+      - value: identifier
+        text: Backfill in file order and state plainly that the ordinal is an identifier, not a timestamp
+        recommended: true
+        why: Honest about a number that was assigned rather than earned, and it stops an agent inferring chronology that the backfill did not have.
+        prompt: "Backfill handles in file order and state in the skill and the code map that a handle ordinal is an identifier and never evidence of when an item was written."
+        pros: [Cheap and deterministic, No fictional history, New handles minted after the backfill are genuinely sequential]
+        cons: [Backfilled numbers carry no information, A reader must be told before assuming]
+      - value: chronological
+        text: Backfill in the order the items first appeared in git, so the ordinal approximates history
+        why: Makes the number mean something for the whole series, at the cost of a git archaeology pass that can still get it wrong.
+        prompt: "Backfill handles in the order items first appeared in git history so that ordinals approximate chronology."
+        pros: [The ordinal carries real information, Old and new handles mean the same thing]
+        cons: [An archaeology pass over every doc, Items that moved between files date wrongly, Expensive for a property nothing depends on]
+      - value: fresh-only
+        text: Do not backfill - only items touched from now on get handles
+        why: Avoids inventing anything, and produces exactly the gapped series the register's own generator treats as a missing row.
+        prompt: "Do not backfill existing items; mint handles only on items created or edited from now on."
+        pros: [Nothing invented, No migration at all]
+        cons: [Series start full of gaps which the generator hard-fails on, Most existing items stay uncitable, The feature works almost nowhere for months]
+
+  - id: h-mnemonic-format
+    resolution:
+      applied: 2026-09-07
+      by: Panda
+      chose: [free-form]
+      recorded_in: [decisions/adr-046]
+      summary: |
+        Any short slug, unique across the site case-insensitively, with a collision reported as a
+        validate error naming both docs. Only `.` and `/` are excluded, because they are already the
+        handle separator and the collection/doc separator - a mnemonic containing either could not
+        be parsed back out of a handle.
+    handle: RSK.3
+    call: H.3
+    lead: What shape is a mnemonic, and what happens when two docs want the same one?
+    help: |
+      A mnemonic has to be unique site-wide or handle lookup collapses - that is a global uniqueness
+      constraint yss does not have today, since item ids are only unique within their doc. It also has
+      to be sayable and typeable, and short enough that citing it in prose is not a burden. Collections
+      complicate it: one collection already owns six series, and a second collection could plausibly
+      want a prefix another has taken.
+    applies_to: "the mnemonic field's schema pattern and the validate error for a collision"
+    options:
+      - value: three-upper
+        text: Two to four uppercase letters, unique site-wide, collision is a validate error the author resolves
+        recommended: true
+        why: Matches every series in use, keeps citations short, and makes the collision loud at the moment it is created rather than at lookup.
+        prompt: "Define a mnemonic as two to four uppercase letters, unique across the site, with a collision reported as a validate error naming both docs."
+        pros: [Short enough to cite in prose, Loud early failure, Fits every series already in use]
+        cons: [A small namespace that a large site could exhaust, Renaming a mnemonic later breaks every handle written in prose]
+      - value: collection-scoped
+        text: Mnemonics unique within a collection, qualified by collection when crossing scopes
+        why: Removes the global constraint at the cost of making a bare handle ambiguous, which is the property the whole feature is for.
+        prompt: "Scope mnemonic uniqueness to a collection and require a collection qualifier when a handle crosses scopes."
+        pros: [Two collections can both use a natural prefix, No global namespace to manage]
+        cons: [A bare handle is ambiguous site-wide, Sweeps and prose citations need a qualifier, The lookup promise gets an asterisk]
+      - value: free-form
+        text: Any short slug, uniqueness enforced but no shape rule
+        why: Most flexible and least predictable; nothing stops a mnemonic that reads as a word and collides with prose.
+        prompt: "Allow any short unique slug as a mnemonic with no shape rule beyond uniqueness."
+        pros: [Expressive prefixes, No exhaustion]
+        cons: [Sweeps false-positive on mnemonics that look like ordinary words, No visual signal that a token is a handle, Inconsistent citations]
+
+  - id: h-handle-url
+    resolution:
+      applied: 2026-09-07
+      by: Panda
+      chose: [first-public]
+      recorded_in: [design/c-handles]
+      summary: |
+        Implemented on the index a page already builds of which docs it presents, so a citation
+        links to the first page presenting the handle's doc and renders as a span - tooltip, no link
+        - when no such page exists in that target.
+    handle: RSK.4
+    call: H.4
+    lead: Where does a citation link to, given a doc item may render on several pages or none?
+    help: |
+      A bound handle should link to where a human reads the item, not to raw YAML - and pages already
+      declare which docs they present, so the join exists. But the mapping is not one-to-one: an item
+      can be rendered by two pages, or by none at all, and in a public build the page that presents it
+      may be private. The tooltip text is unaffected either way; this is only about whether the
+      citation is a link.
+    applies_to: "the citation renderer and the skill's section on writing citations"
+    options:
+      - value: first-public
+        text: The first public page that presents the doc; if none, no link and tooltip only
+        recommended: true
+        why: Sends a reader to the human view when one exists and silently degrades rather than linking somewhere they cannot open.
+        prompt: "Link a citation to the first public page presenting the handle's doc, and render tooltip-only with no link when no such page exists."
+        pros: [Reader lands on the human framing, Never links to a page they cannot open, Degrades quietly instead of failing]
+        cons: [First is arbitrary when two pages present the doc, A link can appear or vanish when a page changes visibility]
+      - value: data-url
+        text: Always link to the doc's exported data, which exists for every doc in the target
+        why: Perfectly predictable and sends a human reader to JSON, which is the wrong artefact for the audience the site is built for.
+        prompt: "Link every citation to the handle's doc data export rather than to a page."
+        pros: [Always resolvable, One rule with no cases, Same target in both builds]
+        cons: [Sends a human to JSON, Ignores the page that exists to frame it, Undermines the human-first half of the toolchain]
+      - value: never-link
+        text: Citations are never links - the tooltip is the whole feature
+        why: Simplest to build and explain, and gives up the navigation that makes a citation worth following.
+        prompt: "Render citations as tooltips only, never as links."
+        pros: [No page-mapping rules, Identical in both targets, Nothing to break when pages move]
+        cons: [No way to read the item in context, Loses the obvious next step from a citation, Wastes the page mapping that already exists]
+
+  - id: h-private-handle
+    resolution:
+      applied: 2026-09-07
+      by: Panda
+      chose: [allow]
+      recorded_in: [decisions/adr-050]
+      summary: |
+        Allowed, and it needed no new code: the handle index is built from each target's already
+        filtered docs, so in the public build a private doc is simply absent and the citation
+        renders as inert text carrying the number and no wording. No build fails for a number.
+    handle: RSK.5
+    call: H.5
+    lead: What happens when a public page cites a handle whose doc is private?
+    help: |
+      A tooltip resolves handle to text at build time, so a public page citing `SEC.3` would inline
+      private wording into the public build. The forbidden-string scan will not catch it - that scan
+      looks for identity strings, and this is ordinary prose. There is precedent both ways: binding a
+      private doc from a public page is already a build error, and there is a recorded near-miss where
+      a public page named private files by name and the scan said nothing.
+    applies_to: "the build's visibility rules and the skill's redaction warning"
+    options:
+      - value: build-error
+        text: A build error, the same as binding a private doc from a public page
+        recommended: true
+        why: Same leak, same class, same error - and a leak that fails loudly at build time is one nobody ships by accident.
+        prompt: "Make a public page citing a private handle a build error, matching how binding a private doc from a public page already behaves."
+        pros: [Consistent with the rule that already exists, Fails before anything is published, No silent difference between the two builds]
+        cons: [A public page cannot even mention a private handle number, Authors hit the error before they understand why]
+      - value: degrade
+        text: Render as a bare number in the public build with no tooltip and no link
+        why: Lets a public page acknowledge that a private rule exists without quoting it, and makes the two builds silently different.
+        prompt: "Render a citation to a private handle as a bare inert number in public builds, with the tooltip and link present only in the private build."
+        pros: [A public page can refer to a private decision by number, No build failure]
+        cons: [The two builds differ silently, A reviewer reading the private build never sees what the public one shows, Invites citing private handles freely]
+      - value: allow
+        text: Allow it - the citation is a number and the author is responsible for the surrounding prose
+        why: Least friction and the only option whose failure mode is a published leak.
+        prompt: "Allow public pages to cite private handles and rely on the author to avoid quoting private wording."
+        pros: [No new rule, No build failures]
+        cons: [The tooltip inlines private text into the public build, The scan cannot catch it, Depends entirely on author discipline]
+
+  - id: h-sweep-home
+    resolution:
+      applied: 2026-09-07
+      by: Panda
+      chose: [yss-core]
+      recorded_in: [codemap/handles, design/c-handles]
+      summary: |
+        `yss/handles.py` owns the sweep and `python -m yss handles --mentions` reports it, exiting 1
+        when a mention names no doc item. The register generator consumes the result rather than
+        scanning files itself.
+    handle: RSK.6
+    call: H.6
+    lead: Does the mention sweep belong to yss, or to the register's generator?
+    help: |
+      Bound handles resolve through the index and need no sweep. Mentions do: a handle in a Rust
+      comment, an SVG label or page prose is found only by scanning files, and finding an unregistered
+      one is a genuine error - it means a rule exists in prose and nowhere in the instrument. The
+      question is whether that scan is a yss capability any site can run, or a check the register owns
+      because it is the only thing that acts on the result.
+    applies_to: "which module the sweep lives in, and whether it gets its own CLI verb"
+    options:
+      - value: yss-core
+        text: yss owns the sweep and reports unresolved and unregistered mentions; the register consumes the result
+        recommended: true
+        why: A site can want to know where its handles are mentioned without running a register at all, and one sweep beats every consumer growing its own.
+        prompt: "Put the mention sweep in yss core with its own reporting, and have the register generator consume its results rather than scanning files itself."
+        pros: [Useful without a register, One implementation of the file scan, Sweep extensions configured in one place]
+        cons: [yss scans non-doc files which it otherwise does not, A new surface to configure per collection]
+      - value: register-owns
+        text: The register's generator owns the sweep, since it is the only thing that acts on a mention
+        why: Keeps yss out of arbitrary source files at the cost of leaving mention lookup unavailable to anything else.
+        prompt: "Keep the mention sweep inside the register generator, as the only consumer of its results."
+        pros: [yss core stays focused on docs and pages, No new configuration for sites without a register]
+        cons: [No mention lookup without a register, A second consumer would reimplement it, Sweep config lives away from handle config]
+      - value: both
+        text: yss exposes the primitive; the register configures and runs it with its own rules
+        why: The clean split on paper, and one more seam to keep in step for a feature with one consumer today.
+        prompt: "Expose the sweep as a yss primitive that the register generator configures and invokes with its own patterns."
+        pros: [Reusable primitive, Register keeps its own strictness]
+        cons: [Two layers to document for one consumer, Unclear which layer reports an error, Premature abstraction]
+
   - id: r-skill-name
+    resolution:
+      applied: 2026-09-07
+      by: Panda
+      chose: [one-skill]
+      summary: |
+        Shipped as `yss-register`, covering the register, the generated live-rules list and the
+        maintenance loop that connects them - so the rule that must never be lost, which of the two
+        a working agent loads, is stated once and cannot drift out of sync with itself.
+    handle: RSK.7
     call: R.1
     lead: What is the shipped skill called, and does it cover both instruments or only the register?
     help: |
@@ -68,6 +342,18 @@ questions:
         cons: [Two long skills get longer, The instrument has no name to load, Hard for an agent to find when it does not know the word register]
 
   - id: r-doc-kind
+    resolution:
+      applied: 2026-09-07
+      by: Panda
+      chose: [promote]
+      recorded_in: [decisions/adr-051]
+      summary: |
+        `doc.register` ships with `entries`, `pairs`, `dismissed` and a `prompt` block, and
+        `register_state` is a site.yaml vocabulary like every other. One deviation from the verdict
+        as worded: a row cites its handle as `subject:`, not `handle:`, because `handle:` is how an
+        item *declares* its own and a register declares nothing. Spelling both the same made a
+        register row look like a handle-minting item to the index.
+    handle: RSK.8
     call: R.2
     lead: Does a register get a real doc kind, or stay kind generic with a shape field?
     help: |
@@ -105,6 +391,16 @@ questions:
         cons: [Two shapes the generator must both read, The skill has to explain both, Neither becomes the obvious default]
 
   - id: r-prefab
+    resolution:
+      applied: 2026-09-07
+      by: Panda
+      chose: [ship-builtin]
+      recorded_in: [decisions/adr-051]
+      summary: |
+        `contradiction-register` is a built-in prefab: contradictions first, every handle with a
+        retire marker and a comment box, and a Build the instruction button whose output contains
+        only the rows a human touched. Site-local overrides work the usual way.
+    handle: RSK.9
     call: R.3
     lead: Does the register page prefab ship as a built-in yss prefab?
     help: |
@@ -136,6 +432,17 @@ questions:
         cons: [The instruction builder is not shipped, Two prefabs per site, The interesting half is still reimplemented everywhere]
 
   - id: r-generator
+    resolution:
+      applied: 2026-09-07
+      by: Panda
+      chose: [ship-command]
+      recorded_in: [codemap/liverules, design/c-liverules]
+      summary: |
+        `python -m yss live-rules <collection> [--check] [--list]`, in `yss/liverules.py`, with the
+        eleven refusals covered one test each in `tests/test_register.py`. Both properties are
+        pinned by tests: rule text verbatim from its source with no second copy, and failing rather
+        than dropping. The origin repository's two collections port in the separate pass.
+    handle: RSK.10
     call: R.4
     lead: Where does the live-rules generator live once the skill ships?
     help: |
@@ -145,6 +452,10 @@ questions:
       **fails rather than drops** - a rule lost to a missed regex is indistinguishable, to the agent
       reading the output, from a rule that does not exist. Only shipped code can be tested against
       those two properties.
+
+      The handle index takes some of this work off the generator: a bound handle's text comes from the
+      index rather than from re-reading its home file. What is left is the emitting, the state
+      vocabulary, the pair logic and the mention sweep - still enough to fail ten ways.
     applies_to: "a yss module and CLI subcommand (or their absence) and the skill's generator section"
     compare: |
       This is the question that decides whether the skill teaches an algorithm or documents a command.
@@ -173,6 +484,17 @@ questions:
         cons: [Fail-never-drop cannot be promised only asked for, Every repo reimplements ten checks, A silent drop is invisible by construction]
 
   - id: r-handle-rule
+    handle: RSK.11
+    resolution:
+      applied: 2026-09-07
+      by: Panda
+      summary: |
+        Answered in chat with a fourth option none of the three below offered: **yss grows the handle
+        contract as a first-class feature and the register consumes it.** The skill neither defines
+        its own convention nor reuses doc ids as-is - handles become a second key on the index yss
+        already has, declared per item under a doc's `mnemonic`, resolving through the same resolver
+        as `[[doc#item]]`. The H questions above are what that decision left open. The three options
+        below are kept as the record of what was on the table; none of them was chosen.
     call: R.5
     lead: yss has no Rule 8. Where does the shipped skill get "every enumerated item has a stable handle" from?
     help: |
@@ -209,6 +531,16 @@ questions:
         cons: [A new site gets no answer, The skill cannot state retirement rules concretely, Every site's contract needs reviewing separately]
 
   - id: r-config-home
+    resolution:
+      applied: 2026-09-07
+      by: Panda
+      chose: [collection-yaml]
+      recorded_in: [decisions/adr-051]
+      summary: |
+        A `register:` block in collection.yaml carries the series prefixes, per-series strike forms,
+        unminted handles and swept extensions. site.yaml takes the same block for the root
+        collection, since site.yaml is the root collection's config file.
+    handle: RSK.12
     call: R.6
     lead: Where does a collection declare its series prefixes, strike forms and unminted handles?
     help: |
@@ -241,6 +573,16 @@ questions:
         cons: [Two places to look, More schema, Nobody has needed the second register yet]
 
   - id: r-markdown-output
+    resolution:
+      applied: 2026-09-07
+      by: Panda
+      chose: [yaml-only]
+      recorded_in: [decisions/adr-049]
+      summary: |
+        Only the YAML doc and its page are generated. Rule zero keeps no exception - and the origin
+        repository's committed markdown output therefore has no shipped equivalent, which its
+        migration task calls out rather than discovers.
+    handle: RSK.13
     call: R.7
     lead: The live-rules list is a committed markdown file. What does the skill say about rule zero?
     help: |
@@ -273,6 +615,16 @@ questions:
         cons: [Findability was the entire point, One more path to teach, A fresh agent looks at the root first]
 
   - id: r-gate
+    resolution:
+      applied: 2026-09-07
+      by: Panda
+      chose: [check-claim]
+      recorded_in: [decisions/adr-051]
+      summary: |
+        The generator emits its own `command:` evidence claim onto the generated doc, so the gate
+        ships wherever a register does and `yss check --run-commands` reports a stale list.
+        Detectable, not prevented; the re-run is step 6 of the maintenance loop.
+    handle: RSK.14
     call: R.8
     lead: How hard does yss push back when a register has been edited and the generator not re-run?
     help: |
@@ -304,6 +656,16 @@ questions:
         cons: [validate is a schema-and-reference command not a freshness command, Fails constantly mid-edit, Forces the generator to run on every validate]
 
   - id: r-visibility
+    resolution:
+      applied: 2026-09-07
+      by: Panda
+      chose: [private-default]
+      recorded_in: [decisions/adr-050]
+      summary: |
+        The shipped skill and the worked example both carry `visibility: private` explicitly on the
+        doc and the page, with the reason beside it. A public page may still cite a private handle;
+        see the H.5 record above for what that renders as.
+    handle: RSK.15
     call: R.9
     lead: Are register and live-rules docs private by default?
     help: |
@@ -336,6 +698,17 @@ questions:
         cons: [Unset means public, The failure mode is a silent leak, Scaffolds cannot be safe]
 
   - id: r-failures
+    resolution:
+      applied: 2026-09-07
+      by: Panda
+      chose: [shape, row-fields, bad-state, empty-says, lives-in, not-mentioned, strike-mismatch, series-gap, unregistered, pair-integrity, unquoted-pair]
+      recorded_in: [codemap/liverules]
+      summary: |
+        All eleven are hard errors, each with a test. Two took their shape from the handle index
+        rather than from pattern-matching: a row with no `says:` is only refused when the bound item
+        has no words to quote either, and `unquoted-pair` also refuses a pair naming a mention,
+        since a mention is unquotable by construction.
+    handle: RSK.16
     call: R.10
     kind: check
     lead: Which generator failures must be hard errors in the shipped instrument rather than warnings?
@@ -345,6 +718,10 @@ questions:
       that never existed. Anything left unticked becomes a warning an agent can walk past, so tick
       generously: the cost of a hard error is a failed run, and the cost of a warning is a working
       agent obeying rules that were struck last week.
+
+      Several of these change character once the handle index exists: a bound handle is checked by
+      resolution rather than by matching a pattern in a file, which is where they stop being fragile.
+      The ones that still need the sweep are the mention cases.
     applies_to: "the generator's error list and the skill's failure section"
     options:
       - value: shape
@@ -398,12 +775,22 @@ questions:
         why: These are the states in which the contradiction list stops describing the handles it lists.
         prompt: "Hard-fail on a pair naming a handle with no row, a closed pair with no retired subject, or an open pair naming a retired subject."
       - value: unquoted-pair
-        text: A pair missing a verbatim quote on either side
+        text: A pair missing a verbatim quote on either side, or naming a mention rather than a bound handle
         recommended: true
-        why: A contradiction that cannot be quoted is one an agent invented, and inventing them is worse than missing them.
-        prompt: "Hard-fail on any pair missing a verbatim quote on either side."
+        why: A contradiction that cannot be quoted is one an agent invented, and a mention is unquotable by construction, so this rule is also what keeps pairs on bound handles.
+        prompt: "Hard-fail on any pair missing a verbatim quote on either side, including any pair naming a mention rather than a bound handle."
 
   - id: r-migration
+    resolution:
+      applied: 2026-09-07
+      by: Panda
+      chose: [ship-then-migrate]
+      recorded_in: [plan/m16-register-adoption]
+      summary: |
+        Shipped here; the origin repository migrates in `m16-register-adoption`, whose first task is
+        deleting the site-local skill - the copy an agent would otherwise load first. The window in
+        which two copies exist is the known cost of splitting the two passes.
+    handle: RSK.17
     call: R.11
     lead: What happens to the musing that already has a site-local copy of this skill?
     help: |
@@ -412,6 +799,10 @@ questions:
       several places, including a `command:` evidence claim. Whatever ships here has to land there
       without those outputs changing for the wrong reason, and the site-local skill has to stop being
       the copy an agent finds first.
+
+      That repo also has handles living in page prose, which under the bound-versus-mention split are
+      mentions: findable, registrable, not quotable. Each one becomes a doc item at the moment
+      something needs to quote it, which makes the migration demand-driven rather than a sweep.
     applies_to: "the migration plan for the origin repository and the skill's adoption section"
     compare: |
       The honest caveat from the second collection also lands here: one of the two has no retired
@@ -440,8 +831,20 @@ questions:
         cons: [Two versions drift, The original misreading survives in the repo it started in, The shipped skill has no real instance]
 
 prompt:
-  task: Write the contradiction register and live-rules instrument as a skill shipped with yss
+  task: Add first-class item handles to yss, then ship the register instrument as a packaged skill
   background: |
+    Two joined pieces of work, in dependency order. **Handles** are a new yss feature: a doc declares
+    `mnemonic: PLN` as an envelope field, its items declare `handle: PLN.7` explicitly, and a
+    site-wide index resolves a handle to that item. Handles are a second key on the index yss already
+    has - `[[PLN.7]]` and `[[plan#m14-audit]]` go through the same resolver to the same item, `[[.7]]`
+    is the in-scope form, storage is canonically uppercase with case-folding lookup, and only the
+    explicit `[[...]]` form links. Two classes: a **bound handle** lives on a doc item and resolves to
+    exact text, powering tooltips, citations and register quotes; a **mention** is a handle written in
+    page prose or any non-doc file, which the sweep must find and a register must have a row for, but
+    which resolves to a location rather than a quote and can never be a contradiction pair subject.
+    Indexing page items is a later superset and is out of scope. Archived docs stay resolvable -
+    archived means not loaded into a working agent's context, not absent from the index.
+
     Repository YamlStaticSite - the yss toolchain and its own pilot site. Shipped skills live in
     `yss/skills/<name>/SKILL.md`, are installed into a repo's `.claude/skills/` by
     `python -m yss skills --install --force`, and `python -m yss skills` checks the two copies match.
@@ -457,6 +860,9 @@ prompt:
     yss collection.
   steps:
     - Load the yss skill first, then yss-doc, yss-page and yss-prefab for whichever parts the verdicts below put in scope.
+    - Build the handle layer before the skill - mnemonic field, declared handles, the index, resolution and citations - and cover it with tests.
+    - Backfill handles onto the docs H.1 puts in scope, in the order H.2 sets, and record what an ordinal does not mean.
+    - Update the yss and yss-doc skills so handles, mnemonics and citations are documented where an agent authoring a doc will meet them.
     - Write the skill under yss/skills/, then run python -m yss skills --install --force so .claude/skills/ matches.
     - Keep the two properties that make the instrument worth having - rule text verbatim from the register, and fail rather than drop.
     - Keep the two instruments distinct throughout - the register is for auditing history, the live-rules list is what a working agent loads.
@@ -472,6 +878,7 @@ prompt:
     - The other repository's committed register or generated outputs, unless a verdict above puts that migration in scope.
   flag_only:
     - Any change to how ids, references or the archive rule work for existing doc kinds.
+    - Anything that would need page items indexed as handle targets - that is the deferred superset, not this work.
     - Anything that would make an existing public build private or the reverse.
     - Schema or CLI changes beyond what these verdicts approve.
   rules:

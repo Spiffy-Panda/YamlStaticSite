@@ -2,10 +2,11 @@
 # This is the spec. Component `code` paths are evidence: `yss check` fails when they vanish.
 kind: design
 id: design
+mnemonic: DSG
 title: YamlStaticSite design
 summary: Three schema families (structured docs, UI prefabs, un-inflated pages) feed a build that validates, checks evidence, renders a site per target and exports the same data as JSON; collections make folder-per-topic repos first-class.
 status: active
-updated: 2026-09-06
+updated: 2026-09-07
 owners: [agent]
 related: [plan, codemap, decisions]
 
@@ -34,6 +35,7 @@ overview: |
 # it is about. Every principle, component and constraint in this document names one.
 groups:
   - id: g-sources
+    handle: DSG.1
     title: Sources of truth
     blurb: |
       What the toolchain reads before it does anything: `site.yaml`, each collection's own
@@ -41,18 +43,21 @@ groups:
       Everything further down is derived from these files, which is why they are the only ones an
       agent edits by hand.
   - id: g-trust
+    handle: DSG.2
     title: Proof and redaction
     blurb: |
       Two gates decide whether a build is honest and whether it is safe to publish: evidence claims
       that a missing path or a failing command can break, and visibility markings backed by a scan
       of the finished output. Neither gate takes a status word's opinion for an answer.
   - id: g-presentation
+    handle: DSG.3
     title: Data to page
     blurb: |
       The half of the toolchain a human sees. A binding selects and shapes doc data, a prefab
       renders it, and the page contributes framing only. Selection lives in the binding so the same
       prefab serves any doc kind, and the result has to read without JavaScript.
   - id: g-pipeline
+    handle: DSG.4
     title: Pipeline and surfaces
     blurb: |
       Orchestration and the ways the toolchain is driven: one build pipeline per target, runtime
@@ -61,40 +66,95 @@ groups:
 
 principles:
   - id: p-agent-first
+    handle: DSG.5
     group: g-sources
     title: Structured files are the source of truth; HTML is derived
     rationale: Agents should never edit rendered output, and humans should never need to read YAML to understand the project.
   - id: p-validate-early
+    handle: DSG.6
     group: g-trust
     title: Validate before rendering, with file and path in every error
     rationale: An agent fixing a doc needs the exact location and the allowed values, not a stack trace.
   - id: p-evidence
+    handle: DSG.7
     group: g-trust
     title: A doc is current when its claims pass, never because a status says so
     rationale: Status words rot; a path check or a command cannot. `draft` does not exist.
   - id: p-data-driven-rules
+    handle: DSG.8
     group: g-sources
     title: Vocabularies and limits are data, scoped per collection
     rationale: One schema serves many musings with different working vocabularies; nothing about a musing's process is hard-coded.
   - id: p-private-by-marking
+    handle: DSG.9
     group: g-trust
     title: Privacy is declared on the data, enforced on the output
     rationale: Marking an item private is cheap and local; the output scan catches anything the marking missed.
   - id: p-no-logic-in-templates
+    handle: DSG.10
     group: g-presentation
     title: Selection and shaping happen in bindings, presentation in prefabs
     rationale: Keeps Jinja small enough to live in YAML and keeps the same prefab reusable across doc kinds.
   - id: p-static-first
+    handle: DSG.11
     group: g-presentation
     title: Pages read without JavaScript; dynamic sections and worksheets degrade to a note
     rationale: GitHub Pages is a file host. Runtime data is a bonus, not a dependency.
   - id: p-few-deps
+    handle: DSG.12
     group: g-pipeline
     title: Four dependencies, standard library for everything else
     rationale: PyYAML, Jinja2, jsonschema and markdown-it-py. The server is http.server; watching is mtime polling.
 
 components:
+  - id: c-handles
+    handle: DSG.59
+    group: g-sources
+    name: Handle index
+    kind: module
+    responsibility: >-
+      Resolve a handle to the doc item that declares it, from anywhere in the site. A second key on
+      the index item ids already live in, not a parallel namespace: a handle citation and a
+      `doc#item` reference go through one resolver to one item.
+    inputs: ["mnemonic: on a doc", "handle: on its items", docs/_archive fragments]
+    outputs: [HandleIndex, mnemonic map, mention list]
+    depends_on: [c-schemas]
+    code: [yss/handles.py]
+    status: live
+    notes: |
+      Archived fragments are indexed at tier `archived`: the archive rule means *not loaded into a
+      working agent's context*, not absent from the index, so a citation to an archived item still
+      resolves and reads as spent rather than dangling.
+
+      Two classes, and the difference is what each can promise. A **bound handle** lives on a doc
+      item and resolves to exact text, so it can be quoted - that is what powers a citation tooltip
+      and a register's quote rule. A **mention** is a handle written in page prose or any non-doc
+      file: the sweep finds it, but it has no boundary, so there is no honest answer to where the
+      item's text stops and it resolves to a location instead. Indexing page items is the superset
+      this can grow into; it is deliberately out of scope, and the two classes are what make that
+      growth additive rather than a rewrite.
+  - id: c-liverules
+    handle: DSG.60
+    group: g-trust
+    name: Live-rules generator
+    kind: module
+    responsibility: >-
+      Project a contradiction register into the rules that still bind, so a working agent is never
+      handed retired rules in their original confident wording. Verbatim from the source, failing
+      rather than dropping any row it cannot account for.
+    inputs: [a doc.register, the handle index, "collection.yaml register: block"]
+    outputs: ["the generated docs/live-rules.yaml", "exit 1 with every refusal"]
+    depends_on: [c-handles, c-config]
+    code: [yss/liverules.py]
+    status: live
+    notes: |
+      Deterministic: nothing reads the clock, `updated:` is copied from the register and provenance
+      carries a sha256 digest, so a no-op run is byte-identical and `--check` still means something
+      the next day. It generates only the YAML doc and its page - no markdown export, so rule zero
+      keeps no exception ([[decisions#adr-041]]).
+
   - id: c-config
+    handle: DSG.13
     group: g-sources
     name: Config and collections
     kind: module
@@ -104,6 +164,7 @@ components:
     code: [yss/config.py]
     status: live
   - id: c-hooks
+    handle: DSG.14
     group: g-sources
     name: Hook scripts
     kind: module
@@ -112,6 +173,7 @@ components:
     code: [yss/hooks.py]
     status: live
   - id: c-schemas
+    handle: DSG.15
     group: g-sources
     name: Schema registry and loaders
     kind: schema
@@ -122,6 +184,7 @@ components:
     code: [yss/loader.py, yss/schemas/]
     status: live
   - id: c-refs
+    handle: DSG.16
     group: g-trust
     name: Reference checker
     kind: module
@@ -130,6 +193,7 @@ components:
     code: [yss/loader.py]
     status: live
   - id: c-evidence
+    handle: DSG.17
     group: g-trust
     name: Evidence checker
     kind: module
@@ -139,6 +203,7 @@ components:
     code: [yss/evidence.py, yss/providers/evidence.py]
     status: live
   - id: c-symbols
+    handle: DSG.18
     group: g-trust
     name: Symbol resolver
     kind: module
@@ -154,6 +219,7 @@ components:
       reached two ways stores two different sets of file paths. `supported()` is what the rest of
       the toolchain asks before assuming a module can carry a line range at all.
   - id: c-langs
+    handle: DSG.19
     group: g-trust
     name: Language indexers
     kind: module
@@ -169,6 +235,7 @@ components:
       toolchain as on the machine that wrote it. Adding a language is a module and a registry line;
       `m15-more-languages` is the standing question of whether a third one is worth it.
   - id: c-source-reader
+    handle: DSG.20
     group: g-presentation
     name: Source reader
     kind: module
@@ -187,6 +254,7 @@ components:
       decoration over line numbers that were proved elsewhere - being wrong about a token costs a
       colour, never a link.
   - id: c-visibility
+    handle: DSG.21
     group: g-trust
     name: Visibility and redaction
     kind: module
@@ -195,6 +263,7 @@ components:
     code: [yss/visibility.py]
     status: live
   - id: c-binding
+    handle: DSG.22
     group: g-presentation
     name: Binding resolver
     kind: module
@@ -204,6 +273,7 @@ components:
     code: [yss/binding.py]
     status: live
   - id: c-render
+    handle: DSG.23
     group: g-presentation
     name: Renderer
     kind: module
@@ -212,6 +282,7 @@ components:
     code: [yss/render.py, yss/templates/default.html]
     status: live
   - id: c-prefabs
+    handle: DSG.24
     group: g-presentation
     name: Prefab library
     kind: ui
@@ -219,6 +290,7 @@ components:
     code: [yss/prefabs/, site/prefabs/]
     status: live
   - id: c-worksheet
+    handle: DSG.25
     group: g-presentation
     name: Worksheet
     kind: ui
@@ -227,6 +299,7 @@ components:
     code: [yss/prefabs/worksheet.yaml, yss/schemas/doc.worksheet.schema.yaml]
     status: live
   - id: c-build
+    handle: DSG.26
     group: g-pipeline
     name: Build pipeline
     kind: process
@@ -236,6 +309,7 @@ components:
     code: [yss/build.py]
     status: live
   - id: c-dynamic
+    handle: DSG.27
     group: g-pipeline
     name: Dynamic sources
     kind: data
@@ -245,6 +319,7 @@ components:
     code: [yss/dynamic.py, yss/providers/]
     status: live
   - id: c-server
+    handle: DSG.28
     group: g-pipeline
     name: Two-port server
     kind: service
@@ -253,6 +328,7 @@ components:
     code: [yss/server.py]
     status: live
   - id: c-client
+    handle: DSG.29
     group: g-presentation
     name: Client runtime
     kind: ui
@@ -260,6 +336,7 @@ components:
     code: [yss/assets/yss.js, yss/assets/yss.css]
     status: live
   - id: c-cli
+    handle: DSG.30
     group: g-pipeline
     name: CLI
     kind: module
@@ -268,6 +345,7 @@ components:
     code: [yss/cli.py, yss/scaffold.py, yss/skillpack.py, yss/ghpages.py]
     status: live
   - id: c-skills
+    handle: DSG.31
     group: g-pipeline
     name: Agent skills
     kind: process
@@ -276,6 +354,7 @@ components:
     status: live
 
   - id: c-attribution
+    handle: DSG.32
     group: g-presentation
     name: Source attribution
     kind: module
@@ -292,60 +371,70 @@ components:
       reached `dist/`.
 interfaces:
   - id: i-cli
+    handle: DSG.33
     name: python -m yss
     kind: cli
-    signature: "yss [--root DIR] {validate|check|refs|build|serve|dynamic|scan|ls|query|schema|new|init|skills|pages-setup} ..."
+    signature: "yss [--root DIR] {validate|check|refs|handles|live-rules|build|serve|dynamic|scan|ls|query|schema|new|init|skills|pages-setup} ..."
     description: Exit code 0 on success, 1 on validation, evidence or build failure - including a target whose build.json is missing after a reported success - 2 on configuration errors.
     component: c-cli
   - id: i-annotations
+    handle: DSG.34
     name: Schema annotations
     kind: yaml
     signature: "x-vocab: <name> | x-limit: <name> | x-ref: item|doc | x-evidence: path|glob|command|symbol"
     description: Resolved from site.yaml / collection.yaml (vocabularies, limits) or checked by the loader and evidence checker. `x-` keys are always allowed on docs.
     component: c-schemas
   - id: i-binding
+    handle: DSG.35
     name: Binding spec
     kind: yaml
     signature: "{from: <doc>.<path> | <doc>.$items | /<doc>.<path> | $docs | $pages | $site | $prefabs | $collections | $evidence, where, sort, limit, map, fields, group_by}"
     description: "Used for prefab args and markdown sections. `<doc>.$items` is every item of every type array in that doc, each tagged `_type` (adr-025). Ops run in the order where, sort, limit, map, fields, group_by - `fields:` before `group_by`, which the build warns about."
     component: c-binding
   - id: i-refs
+    handle: DSG.36
     name: Inline references
     kind: yaml
     signature: "`[[doc]]` `[[doc#item]]` `[[#item]]` `[[/doc#item]]` `[[doc#item|label]]`"
     description: Validated at load; rendered as links to the page that presents the doc. Field references use `item` or `doc/item`.
     component: c-refs
   - id: i-evidence
+    handle: DSG.37
     name: Evidence claim
     kind: yaml
     signature: "{path, contains?} | {glob, min?} | {symbol: module:attr} | {command, expect?, timeout?}"
     description: On any doc or item under `evidence:`. Statuses ok, stale, warn, unknown, skipped. Commands run only with `yss check --run-commands` or the evidence provider.
     component: c-evidence
   - id: i-collection
+    handle: DSG.38
     name: collection.yaml
     kind: yaml
     signature: "title, summary, emblem, order, hero, links[{label,href,kind}], visibility, status, tags, theme{css,accent,background}, vocabularies, limits, evidence{git_recency,run_commands,import_symbols}, dynamic.sources, mounts[{path,at,targets}]"
     description: Discovered from collections[].root globs in site.yaml; everything is optional. A mount with no `targets` is private only. `hero` and `links` are the card contract a parent page renders (adr-017); a relative link href resolves under the collection route.
     component: c-config
   - id: i-hooks
+    handle: DSG.39
     name: hooks.py
     kind: python
     signature: "configure(collection, cfg) | load_docs(collection, cfg) | load_pages(collection, cfg) | markdown(text) | before_render(cfg, target, collection) | after_build(cfg, target, out_dir, collection) | providers = {name: fn(cfg, spec)}"
     description: Per site (site.yaml hooks) or per collection; every function optional; runs in-process with the repo root on sys.path.
     component: c-hooks
   - id: i-data-json
+    handle: DSG.40
     name: Exported data
     kind: json
     signature: "data/docs.json, data/docs/<id>.json, data/pages.json, data/collections.json, data/evidence.json, data/site.json, schemas/<name>.json, build.json"
     description: Same filtering as the HTML; agents and client scripts can read the site as data.
     component: c-build
   - id: i-dynamic
+    handle: DSG.41
     name: Dynamic envelope
     kind: json
     signature: "{source, collected_at, ok, seconds, data} | {source, collected_at, ok: false, error}"
     description: Every dynamic source, regardless of collector, is wrapped this way so the client can render errors uniformly.
     component: c-dynamic
   - id: i-worksheet-output
+    handle: DSG.42
     name: Worksheet instruction
     kind: file
     signature: "TASK - ... | BACKGROUND YOU NEED | DECISION n - call: lead + chosen prompt + Record in | WHAT TO ACTUALLY DO | DO NOT TOUCH | FLAG ONLY, DO NOT FIX | ADDITIONAL CONTEXT FROM ME | VERDICTS (yaml) | RULES FOR THE AGENT DOING THIS WORK"
@@ -354,6 +443,7 @@ interfaces:
 
 flows:
   - id: f-build
+    handle: DSG.43
     title: Build one target
     trigger: "`python -m yss build --target public`"
     steps:
@@ -383,6 +473,7 @@ flows:
         action: Scan every text file in the output for forbidden and flagged strings
         produces: BuildError and deleted output on a forbidden hit; warnings for flags; strict mode also fails on stale evidence
   - id: f-check
+    handle: DSG.44
     title: Check evidence
     trigger: "`python -m yss check [--run-commands]`"
     steps:
@@ -392,6 +483,7 @@ flows:
         action: Evaluate each claim; run commands only when asked; compare git history with `updated`
         produces: report per doc and claim, exit 1 on any stale claim
   - id: f-verdict
+    handle: DSG.45
     title: Human verdict through a worksheet
     trigger: An agent needs a decision only the human can make
     steps:
@@ -406,6 +498,7 @@ flows:
         action: Write a `resolution` on each answered question - what addressed it, what was taken, where it landed
         produces: the worksheet page turns into its own record; the choices stay in a foldout
   - id: f-author
+    handle: DSG.46
     title: Agent adds a milestone and shows it
     trigger: A task is planned
     steps:
@@ -420,28 +513,34 @@ flows:
 
 constraints:
   - id: k-gh-pages
+    handle: DSG.47
     group: g-presentation
     text: GitHub Pages serves files only - no custom headers, no server logic, project sites live under /<repo>/.
     source: platform
     status: live
   - id: k-no-leak
+    handle: DSG.48
     group: g-trust
     text: The public build must never contain the maintainer's legal name, the absolute checkout path, or anything marked private.
     source: policy
   - id: k-agent-readable
+    handle: DSG.49
     group: g-sources
     text: Every artefact an agent needs (docs, schemas, prefabs, pages, collection config) is YAML with a schema the CLI can print.
     source: user
   - id: k-per-musing
+    handle: DSG.50
     group: g-sources
     text: Anything unique to one musing must be expressible in its own collection.yaml or hooks.py without touching yss.
     source: user
   - id: k-windows
+    handle: DSG.51
     group: g-pipeline
     text: Development happens on Windows with Git Bash and PowerShell; no shell-specific tooling in the pipeline.
     source: platform
     status: live
   - id: k-on-accent
+    handle: DSG.52
     group: g-presentation
     text: Text drawn on a coloured surface takes a token defined against that surface, never one defined against the page.
     source: user
@@ -472,20 +571,26 @@ constraints:
 
 alternatives:
   - id: a-xslt
+    handle: DSG.53
     option: XML documents transformed with XSLT
     rejected_because: Verbose for agents to author, brittle to validate, poor tooling for data selection and no sane way to embed markdown or runtime data.
   - id: a-mkdocs
+    handle: DSG.54
     option: MkDocs / Sphinx with markdown sources
     rejected_because: Markdown is the thing being replaced; the structured data would have to be embedded in front matter or plugins.
   - id: a-hugo
+    handle: DSG.55
     option: Hugo or Jekyll data files
     rejected_because: Extra runtime outside Python, template languages agents rarely get right, and no built-in public/private redaction.
   - id: a-spa
+    handle: DSG.56
     option: Single page app rendering JSON client-side
     rejected_because: Unreadable without JavaScript, harder to diff, and GitHub Pages previews would not match local builds.
   - id: a-status-draft
+    handle: DSG.57
     option: A `draft` or `unverified` status on docs
     rejected_because: It is the uninterpretable state that rotted the markdown; evidence claims say whether a doc is current.
   - id: a-per-musing-config
+    handle: DSG.58
     option: One site.yaml per musing
     rejected_because: Nine configs and namespaces with no shared landing page; collections give the same isolation from one config.

@@ -2,6 +2,7 @@
 # Agents: new questions go in docs/later.yaml, never here.
 kind: worksheet
 id: next
+mnemonic: NXT
 title: Next decisions
 summary: The worksheet that archived the closed pilot milestone, merged the two link vocabularies into one, and made a card link to a collection page into checked evidence. Applied 2026-09-03; kept as the record.
 status: archived
@@ -21,6 +22,7 @@ intro: |
 
 questions:
   - id: n-archive-pilot
+    handle: NXT.1
     resolution:
       applied: 2026-09-03
       by: Panda
@@ -75,6 +77,7 @@ questions:
         cons: [The plan stops holding open work only, A done milestone can linger indefinitely]
 
   - id: n-link-kinds
+    handle: NXT.2
     resolution:
       applied: 2026-09-03
       by: Panda
@@ -110,6 +113,7 @@ questions:
         cons: [Two similar lists to remember, "`play` unavailable to doc links"]
 
   - id: n-link-evidence
+    handle: NXT.3
     resolution:
       applied: 2026-09-03
       by: Panda

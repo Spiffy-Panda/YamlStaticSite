@@ -3,6 +3,7 @@
 # is resolved by parsing the file (yss/langs/rust.py) and not by building the crate.
 kind: codemap
 id: codemap
+mnemonic: RMC
 title: lifelike code map
 summary: A cellular automaton in three files, mapped so the Rust side of the symbol resolver has something real to answer for.
 status: active
@@ -21,6 +22,7 @@ roots:
 
 modules:
   - id: bin
+    handle: RMC.1
     path: prototype/lifelike/src/main.rs
     purpose: The binary - argument parsing and the generation loop. Its `mod` declarations are what make the other two files modules.
     language: rust
@@ -33,6 +35,7 @@ modules:
       - {name: DEFAULT_GENERATIONS, kind: constant, description: How many generations to run when nobody says.}
       - {name: SEED, kind: constant, description: "An R-pentomino, written as a line-continued string literal."}
   - id: board
+    handle: RMC.2
     path: prototype/lifelike/src/board.rs
     purpose: The grid, the edge policy and the neighbourhood arithmetic. A generation is a whole new board, never an in-place update.
     language: rust
@@ -53,6 +56,7 @@ modules:
       - {name: MOORE, kind: constant, description: "The eight neighbour offsets, a `static` rather than a `const`."}
       - {name: OUTSIDE, kind: constant, description: What a non-wrapping board finds past its edge.}
   - id: rules
+    handle: RMC.3
     path: prototype/lifelike/src/rules.rs
     purpose: "A rule is data - two bitmasks over neighbour counts - so B3/S23 and B36/S23 need no code of their own."
     language: rust
@@ -70,6 +74,7 @@ modules:
       - {name: tests, kind: type, signature: "#[cfg(test)] mod tests", description: An inline module; its tests are indexed as members of it.}
       - {name: "tests::seeds_never_survives", kind: function, description: Reached only because the index goes one level inside an inline mod.}
   - id: crate-src
+    handle: RMC.4
     path: prototype/lifelike/src/
     purpose: "The same three files cited as a directory: `main.rs` contributes bare names and the others are prefixed with their own stem."
     language: rust
@@ -81,11 +86,13 @@ modules:
 
 entrypoints:
   - id: run
+    handle: RMC.5
     name: Run the automaton
     command: cargo run --manifest-path examples/rust-musing/prototype/lifelike/Cargo.toml -- --rule B36/S23
     module: bin
     description: Prints each generation. Nothing in the yss build runs this.
   - id: test
+    handle: RMC.6
     name: Test the rule parser
     command: cargo test --manifest-path examples/rust-musing/prototype/lifelike/Cargo.toml
     module: rules
@@ -93,10 +100,12 @@ entrypoints:
 
 conventions:
   - id: cite-as-rust-spells-it
+    handle: RMC.7
     rule: Cite a Rust member as `Type::member`, not `Type.member`.
     rationale: Both resolve, so the checker cannot enforce this one - it is about the code map reading like the language it describes.
     enforced_by: none
   - id: no-build-to-map
+    handle: RMC.8
     rule: The symbol index parses source text and never invokes cargo.
     rationale: A code map that needed a toolchain to render would go stale on any machine without one, and on every CI runner that does not install Rust.
     enforced_by: test

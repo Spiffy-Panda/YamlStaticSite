@@ -13,6 +13,8 @@ from .config import Config, ConfigError
 from .dynamic import write_all
 from .evidence import check as evidence_check, format_report
 from .ghpages import GhError, setup as pages_setup
+from .handles import DEFAULT_SWEEP_EXT, canon, sweep, unregistered
+from .liverules import LiveRulesError, find_spec, generate, is_stale, specs, write as write_live_rules
 from .loader import LoadError, SchemaRegistry, dump_yaml
 from .scaffold import ScaffoldError, init_site, new_collection, new_doc, new_page, new_prefab
 from .skillpack import check as skills_check, install as skills_install
@@ -353,6 +355,112 @@ def cmd_pages_setup(args) -> int:
     return 0
 
 
+def cmd_handles(args) -> int:
+    """The handle map, one handle's text, or the mention sweep.
+
+    The sweep is core rather than the register's own, because a site can want to know where its
+    handles are mentioned without running a register at all - and one implementation of the file
+    scan beats every consumer growing its own.
+    """
+    cfg = _cfg(args)
+    loaded = load_all(cfg)
+    if loaded.errors:
+        print("validation failed:")
+        for err in loaded.errors:
+            print("  - " + err)
+        return 1
+    index = loaded.handles
+
+    if args.mentions:
+        excused = [
+            entry.get("handle", "")
+            for collection in cfg.collections()
+            for series in (collection.register.get("series") or [])
+            for entry in (series.get("unminted") or [])
+        ]
+        extensions = set()
+        for collection in cfg.collections():
+            extensions.update(collection.register.get("sweep_ext") or [])
+        found = sweep(cfg.root, index, extensions or DEFAULT_SWEEP_EXT, only=args.collection)
+        loose = unregistered(found, excused)
+        for mention in found if args.verbose else loose:
+            mark = "bound" if mention.known else "UNREGISTERED"
+            print(f"  {mention.handle:12s} {mark:13s} {mention.path}:{mention.line}")
+        print(f"{len(found)} mentions, {len(loose)} naming no doc item")
+        return 1 if loose else 0
+
+    if args.handle:
+        entry = index.resolve(args.handle)
+        if entry is None:
+            print(f"no handle '{args.handle}'", file=sys.stderr)
+            return 1
+        print(f"{entry.handle}  ({entry.tier})")
+        print(f"  doc     {entry.doc_id}  {entry.source}")
+        print(f"  item    {entry.item_id or '-'}  ({entry.field})")
+        print(f"  says    {entry.text or '-'}")
+        return 0
+
+    if args.series:
+        name = canon(args.series)
+        if name not in index.mnemonics:
+            print(f"no mnemonic '{args.series}'", file=sys.stderr)
+            return 1
+        for entry in index.series(name):
+            tier = "" if entry.tier == "live" else f" [{entry.tier}]"
+            print(f"  {entry.handle:12s}{tier} {entry.text[:88]}")
+        return 0
+
+    for name in sorted(index.mnemonics):
+        mnemonic = index.mnemonics[name]
+        series = index.series(name)
+        gaps = index.gaps(name)
+        note = f"  gaps: {', '.join(str(g) for g in gaps)}" if gaps else ""
+        print(f"  {name:8s} {len(series):4d}  next {name}.{index.next_number(name):<5d} {mnemonic.doc_id}{note}")
+    print(f"{len(index.mnemonics)} mnemonics, {len(index)} handles")
+    return 0
+
+
+def cmd_live_rules(args) -> int:
+    """Project a contradiction register into the list of rules that still bind.
+
+    Nothing runs this for you. It is declared as a `command:` evidence claim on the generated doc,
+    so `yss check --run-commands` reports a stale output - detectable, not prevented, which is the
+    same contract every other yss claim has.
+    """
+    cfg = _cfg(args)
+    if args.list:
+        found = specs(cfg)
+        for spec in found:
+            print(f"  {spec.collection.id or '<root>':20s} {spec.doc_id} -> {spec.out_id}"
+                  f"  series: {', '.join(spec.prefixes) or '-'}")
+        if not found:
+            print("no collection declares a register: block")
+        return 0
+    loaded = load_all(cfg)
+    if loaded.errors:
+        print("validation failed:")
+        for err in loaded.errors:
+            print("  - " + err)
+        return 1
+    try:
+        spec = find_spec(cfg, args.collection)
+        path, text = generate(cfg, loaded.docs, loaded.handles, spec)
+    except LiveRulesError as exc:
+        print(f"live-rules refused ({len(exc.problems)}):", file=sys.stderr)
+        for problem in exc.problems:
+            print("  - " + problem, file=sys.stderr)
+        return 1
+    rel = path.relative_to(cfg.root).as_posix()
+    if args.check:
+        if is_stale(path, text):
+            print(f"stale: {rel} does not match the register; re-run `python -m yss live-rules`", file=sys.stderr)
+            return 1
+        print(f"current: {rel}")
+        return 0
+    print(f"{'wrote' if write_live_rules(path, text) else 'unchanged'} {rel}")
+    return 0
+
+
 def cmd_skills(args) -> int:
     root = Path(args.root).resolve() if args.root else Path.cwd()
     try:
@@ -479,6 +587,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-pages", action="store_true")
     p.add_argument("--run", action="store_true", help="trigger the pages workflow afterwards")
     p.set_defaults(func=cmd_pages_setup)
+
+    p = sub.add_parser("handles", help="the handle map, one handle's text, or the mention sweep")
+    p.add_argument("handle", nargs="?", help="a handle to look up, e.g. PLN.7")
+    p.add_argument("--series", "-s", help="list every handle in one series")
+    p.add_argument("--mentions", "-m", action="store_true", help="sweep files for handles written outside a doc item; exit 1 if any names no item")
+    p.add_argument("--collection", "-c", help="restrict the sweep to one folder")
+    p.add_argument("--verbose", "-v", action="store_true", help="with --mentions: list every mention, not only the unregistered ones")
+    p.set_defaults(func=cmd_handles)
+
+    p = sub.add_parser("live-rules", help="project a contradiction register into the rules that still bind")
+    p.add_argument("collection", nargs="?", help="collection whose register to project (omit when there is only one)")
+    p.add_argument("--check", action="store_true", help="regenerate in memory and exit 1 if the committed output is stale")
+    p.add_argument("--list", action="store_true", help="list the collections that declare a register")
+    p.set_defaults(func=cmd_live_rules)
 
     p = sub.add_parser("skills", help="check or install the agent skill suite into .claude/skills/ of a repo")
     p.add_argument("--install", action="store_true", help="copy the packaged skills into the repo")

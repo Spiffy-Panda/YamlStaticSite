@@ -21,6 +21,7 @@ import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 
 from .config import Collection, Config
+from .handles import HandleIndex, parse_handle, parse_scoped
 from .hooks import HookError, call, load_hooks
 
 SCHEMA_SUFFIX = ".schema.yaml"
@@ -273,7 +274,26 @@ def _check_one_ref(value: str, ref_type: str, doc: dict, index: dict, docs: dict
     return f"no item '{value}' in this doc (use doc/item for other docs)"
 
 
-def check_refs(docs: dict[str, dict], reg: SchemaRegistry, pages: list[dict] | None = None) -> list[str]:
+def handle_ref(text: str, handles: HandleIndex | None, docs: dict) -> str | None:
+    """Canonical handle for a `[[...]]` body that names one, else None.
+
+    A real doc always wins: only a handle-shaped body that names no doc is read as a handle, so a
+    doc called `pln.7` would still resolve as a doc. `.7` has no doc spelling and is always the
+    in-scope form.
+    """
+    if handles is None:
+        return None
+    body = text.strip()
+    if parse_scoped(body) is not None:
+        return body
+    parsed = parse_handle(body)
+    if parsed and body not in docs:
+        return body
+    return None
+
+
+def check_refs(docs: dict[str, dict], reg: SchemaRegistry, pages: list[dict] | None = None,
+               handles: HandleIndex | None = None) -> list[str]:
     errors: list[str] = []
     indexes: dict[str, dict] = {}
     for doc_id, doc in docs.items():
@@ -305,18 +325,32 @@ def check_refs(docs: dict[str, dict], reg: SchemaRegistry, pages: list[dict] | N
                     walk(item, f"{path}/{i}")
 
         walk(doc, "")
-        errors += _check_inline(doc, doc["_source"], doc_id, doc.get("_collection"), docs, indexes)
+        errors += _check_inline(doc, doc["_source"], doc_id, doc.get("_collection"), docs, indexes, handles, doc_id)
     for page in pages or []:
-        errors += _check_inline(page, page["_source"], None, page.get("_collection"), docs, indexes)
+        # A page has no mnemonic of its own; `[[.7]]` on one is scoped to the doc it presents.
+        primary = (page.get("docs") or [None])[0]
+        scope = resolve_doc_id(primary, page.get("_collection"), docs) if primary else None
+        errors += _check_inline(page, page["_source"], None, page.get("_collection"), docs, indexes, handles, scope)
     return errors
 
 
-def _check_inline(obj: dict, where: str, own_doc: str | None, cid: str | None, docs: dict, indexes: dict) -> list[str]:
+def _check_inline(obj: dict, where: str, own_doc: str | None, cid: str | None, docs: dict,
+                  indexes: dict, handles: HandleIndex | None = None, scope: str | None = None) -> list[str]:
     errors = []
     for path, text in iter_strings(obj):
         if "[[" not in text:
             continue
         for match in INLINE_REF_RE.finditer(strip_code(text)):
+            handle = handle_ref(match.group(1), handles, docs)
+            if handle is not None:
+                if handles.resolve(handle, scope) is None:
+                    scoped = parse_scoped(handle) is not None
+                    why = ("names no handle any doc item carries" if not scoped
+                           else ("no mnemonic is in scope here - the in-scope form needs a doc that declares one"
+                                 if not (scope and handles.mnemonic_of(scope))
+                                 else "names no handle in this doc's series"))
+                    errors.append(f"{where}: at {path}: inline reference [[{match.group(1)}]] {why}")
+                continue
             doc_ref, item = parse_ref(match.group(1))
             target = own_doc if doc_ref is None else resolve_doc_id(doc_ref, cid, docs)
             if target is None:
@@ -449,6 +483,32 @@ def load_docs(cfg: Config, reg: SchemaRegistry) -> tuple[dict[str, dict], list[s
             data["_source"] = where
             docs[doc_id] = data
     return docs, errors
+
+
+def load_archived(cfg: Config) -> list[tuple[str, dict]]:
+    """(where, data) for every YAML fragment under an archive folder.
+
+    These are never docs: they are not schema-validated, they carry no `kind`, and nothing binds
+    them. They are read for one reason - a handle whose item was archived must still resolve, so a
+    citation reads as *spent* rather than dangling. That is what the archive rule actually says:
+    not loaded into a working agent's context, not absent from the index.
+    """
+    out: list[tuple[str, dict]] = []
+    for collection in cfg.collections():
+        archive = collection.docs_dir / "_archive"
+        if not archive.is_dir():
+            continue
+        for path in sorted(archive.rglob("*")):
+            if path.suffix not in (".yaml", ".yml") or not path.is_file():
+                continue
+            where = _rel(cfg, path)
+            try:
+                data = load_yaml(path, where)
+            except LoadError:
+                continue  # an archive file is not validated; a broken one is not a build failure
+            if isinstance(data, dict):
+                out.append((where, data))
+    return out
 
 
 def _prefix_route(collection: Collection, route: str) -> str:

@@ -1,0 +1,151 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: yss:doc.register
+title: Contradiction register
+description: |
+  A **view over handles that live in other files**: every handle in a series listed in one place,
+  with the pairs that contradict each other quoted on both sides.
+
+  It has no authority over anything it lists. It answers nothing, resolves nothing, and carries no
+  `resolution:` field - a verdict is the human's and it lands where the handle lives, struck in
+  place or corrected in its own file; the register reflects it second. **This doc never carries a
+  verdict alone.**
+
+  The load-bearing rule is quoting: every claimed contradiction quotes both sides verbatim, from
+  the item the handle names. A contradiction that cannot be quoted is one an agent invented, and
+  inventing them is worse than missing them. That is also why a pair may only name **bound**
+  handles - a mention has no boundary, so there is nothing honest to quote - and why a candidate
+  that fails the test goes in `dismissed` with its reasoning rather than being deleted silently.
+
+  **A register is never archived.** `doc.plan`'s archive rule exists because a plan that keeps
+  finished work stops distinguishing shipped from current. A register has the opposite property: it
+  is a view over handles, a handle does not stop existing when its question is answered, and a
+  contradiction is usually between one live item and one settled one - archiving the settled rows
+  would delete exactly the rows that make the live ones legible.
+type: object
+required: [kind, title, entries]
+additionalProperties: false
+properties:
+  kind: {const: register}
+  covers:
+    type: array
+    items: {type: string}
+    description: >-
+      The handle series this register is responsible for, by mnemonic. A collection may own several.
+      Defaults to every series named by the collection's `register.series` block.
+  intro:
+    type: string
+    x-limit: markdown
+    description: "In plain words: what this register is for and who reads it."
+  entries:
+    type: array
+    description: One row per handle, in numeric order. The register lists; it never rules.
+    items:
+      type: object
+      allOf: [{$ref: "#/$defs/item_base"}]
+      required: [subject, state]
+      properties:
+        id: {$ref: "#/$defs/slug"}
+        subject:
+          type: string
+          pattern: '^[A-Za-z0-9][A-Za-z0-9_-]*\.(0|[1-9][0-9]*)$'
+          description: >-
+            The handle this row is about. Deliberately **not** spelled `handle:`, which is the field
+            an item uses to *declare* its own handle: a register declares nothing. It is a view over
+            handles that live in other files, so its rows cite rather than mint, and the two words
+            must not be confusable in a file an agent is editing at speed.
+        says:
+          type: string
+          x-limit: line
+          description: >-
+            A short faithful restatement - never a re-wording into something the item does not say.
+            Left out, the generated list quotes the item itself, which cannot drift.
+        state:
+          type: string
+          x-vocab: register_state
+          description: >-
+            live (still binds), met (a stated deliverable that was delivered), answered (a question
+            that got a verdict, which stands), recorded (a fact about the build that was written
+            down, not a rule), retired (struck; binds nothing). The last reaches the generated list
+            as a bare number with no text, so a spent number reads as spent rather than missing
+            without teaching a reader what it said.
+        lives_in:
+          type: string
+          x-evidence: path
+          description: The file the handle lives in. Checked - a row pointing at a moved file is a stale claim.
+        pairs:
+          type: array
+          items: {$ref: "#/$defs/slug"}
+          description: Ids of the pairs this handle is a subject of.
+        note:
+          type: string
+          x-limit: markdown
+          description: >-
+            Why it is in that state, whose verdict it was, and what the state does **not** license.
+            Where no reason was given, say that no reason was given; never infer one.
+      unevaluatedProperties: false
+  pairs:
+    type: array
+    description: The contradictions. Both sides quoted, always, or the pair does not go in.
+    items:
+      type: object
+      allOf: [{$ref: "#/$defs/item_base"}]
+      required: [id, kind, a, b]
+      properties:
+        id: {$ref: "#/$defs/slug"}
+        kind:
+          type: string
+          enum: [hard, soft]
+          description: >-
+            hard - both items cannot be true or acted on at once. soft - tension, drift, or an item
+            a later ruling has quietly made misleading without formally superseding it.
+        state:
+          type: string
+          x-limit: line
+          description: >-
+            Prose, not a vocabulary, because what settled a contradiction is rarely a word. Only the
+            first word is machine-read: a state beginning `closed` is closed, anything else is open.
+        a: {$ref: "#/$defs/side"}
+        b: {$ref: "#/$defs/side"}
+        resolves:
+          type: string
+          x-limit: markdown
+          description: What it would take to settle this - or, once closed, what actually ended it.
+      unevaluatedProperties: false
+  dismissed:
+    type: array
+    description: >-
+      Candidates that turned out not to be contradictions. They are not deleted: a later agent that
+      cannot see the reasoning will propose them again.
+    items:
+      type: object
+      allOf: [{$ref: "#/$defs/item_base"}]
+      required: [pair, why]
+      properties:
+        id: {$ref: "#/$defs/slug"}
+        pair: {type: string, x-limit: line, description: The candidate, as it was proposed.}
+        why: {type: string, x-limit: markdown, description: The reasoning, so it is not re-proposed.}
+      unevaluatedProperties: false
+  prompt:
+    type: object
+    description: Skeleton of the instruction the register page builds from the rows a human marks.
+    properties:
+      task: {type: string, x-limit: line}
+      background: {type: string, x-limit: markdown}
+      rules: {type: array, items: {type: string, x-limit: line}}
+    additionalProperties: false
+$defs:
+  side:
+    type: object
+    required: [subject, quote]
+    description: One half of a contradiction. Both halves are required; there is no one-sided pair.
+    properties:
+      subject:
+        type: string
+        pattern: '^[A-Za-z0-9][A-Za-z0-9_-]*\.(0|[1-9][0-9]*)$'
+      quote:
+        type: string
+        x-limit: markdown
+        description: >-
+          Verbatim text from the item the handle names. Not a summary, not a rewording. If you
+          cannot produce it, the pair does not go in.
+    additionalProperties: false

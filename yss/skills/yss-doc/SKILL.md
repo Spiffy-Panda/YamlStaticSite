@@ -20,6 +20,7 @@ python -m yss new doc plan roadmap       # scaffold with required fields (placeh
 ```yaml
 kind: plan                 # selects the schema
 id: plan                   # slug, stable
+mnemonic: PLN              # this doc's handle series; items become citable as PLN.7 from anywhere
 title: Plan                # <= limits.title chars (120)
 summary: One paragraph, plain text.   # <= limits.summary (300)
 visibility: public         # or private -> whole doc dropped from public builds
@@ -36,7 +37,32 @@ agent_notes: Conventions for editing this doc.
 x-anything: allowed        # experimental fields must start with x-
 ```
 
-Any list item may also carry `visibility`, `private_notes`, `tags`, `links`, `notes`, `evidence`.
+Any list item may also carry `handle`, `visibility`, `private_notes`, `tags`, `links`, `notes`, `evidence`.
+
+## Handles (citing an item from anywhere)
+
+A doc declares `mnemonic: PLN`; each of its items declares `handle: PLN.7`. That makes the item
+citable as `[[PLN.7]]` - through the *same* resolver as `[[plan#m14-audit]]`, to the same item - and
+citable from files yss does not read, which `[[doc#item]]` never was. `[[.7]]` is the in-scope form
+inside the doc that owns the series. A citation renders with the item's own words as hover text.
+
+- **Declared, never derived.** A handle read out of list position breaks the first time a list is
+  sorted; one read out of a slug is a coincidence. Write it on the item.
+- **Append-only.** Never renumber, never reuse, never rewrite an item to match a later ruling -
+  strike it in place and mint a successor. `python -m yss handles` prints each series' mint pointer.
+- **One namespace, one spelling.** Lookup folds case; the canonical form is uppercase. Mnemonics are
+  any short slug, unique across the site - a collision is a validate error naming both docs.
+- **An ordinal identifies an item and dates nothing.** Existing docs were backfilled in file order,
+  so a lower number is not older.
+- **Bound handles vs mentions.** A handle on a doc item is *bound*: it resolves to exact text and can
+  be quoted. A handle written in page prose or a code comment is a *mention*: `yss handles
+  --mentions` finds it, but it resolves to a location, never a quote. Only the explicit `[[...]]`
+  form links; a bare `PLN.7` stays inert text.
+- Archived docs stay in the index at tier `archived`, so a citation to an archived item still
+  resolves and reads as spent. Archived means not loaded into a working agent's context, not absent
+  from the index.
+- A doc that *cites* handles rather than minting them - a register, a generated list - spells the
+  field `subject:`, never `handle:`. See `yss-register`.
 
 ## Evidence (what makes a doc trustworthy)
 
@@ -84,6 +110,7 @@ doc; `-v` lists passing claims; a stale claim means fix the doc or the code, the
 - **changelog**: `releases[] {version, date, status, summary, changes[] {type, text, refs[]}}`, newest first. This is the record of shipped work.
 - **worksheet**: `intro`, `warn`, `questions[] {id, call, lead, help, kind radio|check|text, required, options[] {value, text, why, recommended, prompt, pros[], cons[]}, applies_to, blocks[] (doc/item ids waiting on the answer), compare}`, `prompt {task, background, steps[], do_not_touch[], flag_only[], rules[]}`. Agents write them; only humans answer them (on the rendered page, which builds a paste-ready instruction with a VERDICTS block).
 - **worksheet, once it is answered**: a question's `resolution {summary, chose[] (must name option `value`s - validated), answered (kind: text only), applied, by, recorded_in[]}` turns it into a record. A sheet may then archive itself: `visibility: on_resolution` at the top of the doc is derived, not authored - private while any question that requires an answer lacks a `resolution`, public the moment the last one lands. What publishes is a **projection**, not the doc you wrote: `resolution.summary`, `agent_notes` and `private_notes` are elided, and a `kind: text` answer publishes only as the `answered` marker (`<filled>` / `<empty>`), so record the marker when you apply a text verdict or validation fails. Write one sheet per deliberation, not one accumulating sheet: a sheet with a live question in it can never flip.
+- **register**: `covers[]`, `entries[] {subject, says, state (register_state), lives_in (evidence), pairs[], note}`, `pairs[] {id, kind hard|soft, state (prose; only the first word is read), a/b {subject, quote}, resolves}`, `dismissed[] {pair, why}`, `prompt`. A **view over handles that live in other files**; it answers nothing and carries no `resolution:`. Every pair quotes both sides verbatim or it does not go in. **Never archived** - the settled rows are what make the live ones legible. Load `yss-register` before touching one.
 - **generic**: `shape` and `data` (any object/array). Escape hatch; promote to a real kind when it repeats.
 
 ## Vocabularies and limits are data
@@ -99,6 +126,12 @@ The plan holds open work only. When a milestone is done and committed, move it t
 `docs/_archive/<name>.yaml` (anything starting with `_` is never loaded) in the same commit, add a
 changelog line, and drop `depends_on` entries that pointed at it. Old plan revisions never stay in
 `docs/plan.yaml`; that is how agents conflate shipped and current work.
+
+*Never loaded* means never loaded **into a working agent's context** - not absent from every index.
+An archived item keeps its `handle:` and stays resolvable at tier `archived`, so a page that cites it
+still resolves and reads as spent rather than dangling. And the rule is about `doc.plan`: a
+`doc.register` is a view over handles and is **never archived**, because its settled rows are what
+make its live ones legible.
 
 ## Rules
 

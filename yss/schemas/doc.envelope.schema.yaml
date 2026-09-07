@@ -22,6 +22,15 @@ properties:
   id:
     $ref: "#/$defs/slug"
     description: Stable id used in page bindings (`<id>.<field>`). Defaults to the file stem; collections prefix it with `<collection>/`.
+  mnemonic:
+    type: string
+    pattern: "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+    description: >-
+      This doc's handle series: `mnemonic: PLN` makes its items citable as `PLN.7` from anywhere,
+      including files yss does not read. Any short slug, unique across the site case-insensitively
+      (a collision is a validate error naming both docs); `.` and `/` are excluded because they are
+      already the handle and doc-id separators. Declaring one mints nothing on its own - each item
+      still declares its own `handle`.
   title:
     type: string
     x-limit: title
@@ -207,6 +216,17 @@ $defs:
       links: {type: array, items: {$ref: "#/$defs/link"}}
       notes: {type: string, x-limit: markdown, description: Markdown notes shown to humans.}
       evidence: {type: array, items: {$ref: "#/$defs/evidence_item"}}
+      handle:
+        type: string
+        pattern: '^[A-Za-z0-9][A-Za-z0-9_-]*\.(0|[1-9][0-9]*)$'
+        description: >-
+          This item's persistent handle, `<the doc's mnemonic>.<n>` - a second key on the same index
+          the item's `id` is in, so `[[PLN.7]]` and `[[plan#m14-audit]]` resolve to the same item and
+          `[[.7]]` is the in-scope form. Declared, never derived: a handle computed from list
+          position breaks the first time a list is sorted, and one read out of a slug is a
+          coincidence. Append-only - never renumbered, never reused, and struck in place rather than
+          rewritten when it is retired. A handle's ordinal identifies the item and says nothing about
+          when it was written, because a backfilled series was numbered in file order.
       group:
         $ref: "#/$defs/slug"
         x-ref: item

@@ -20,10 +20,12 @@ from .config import PKG_DIR, Config
 from .dynamic import write_all
 from .evidence import EvidenceReport, check as evidence_check, inject as evidence_inject
 from .hooks import HookError, call, load_hooks
+from .handles import HandleIndex, build_index
 from .loader import (
     SchemaRegistry,
     check_code_span_refs,
     check_refs,
+    load_archived,
     load_collection_configs,
     load_docs,
     load_pages,
@@ -73,6 +75,11 @@ class Loaded:
     # `report.warnings` but keeps them out of `strict_failures`, because a resolving reference
     # inside backticks is sometimes exactly what the author meant.
     warnings: list = field(default_factory=list)
+    #: Site-wide handle index (`PLN.7` -> the doc item that declares it), including archived
+    #: fragments at tier `archived`. Empty when the load failed before it could be built.
+    handles: HandleIndex = field(default_factory=HandleIndex)
+    #: (where, data) for every archive fragment, kept so a target build can filter and re-index it.
+    archived: list = field(default_factory=list)
 
 
 @dataclass
@@ -106,11 +113,16 @@ def load_all(cfg: Config) -> Loaded:
     prefabs, e3 = load_prefabs(cfg, registry)
     errors += e1 + e2 + e3
     warnings: list[str] = []
+    archived: list = []
+    index = HandleIndex()
     if not errors:
-        errors += check_refs(docs, registry, pages)
+        archived = load_archived(cfg)
+        index, handle_errors = build_index(docs, archived)
+        errors += handle_errors
+        errors += check_refs(docs, registry, pages, index)
         warnings += check_code_span_refs(docs, pages)
         errors += cross_checks(cfg, docs, pages, prefabs)
-    return Loaded(registry, docs, pages, prefabs, errors, warnings)
+    return Loaded(registry, docs, pages, prefabs, errors, warnings, index, archived)
 
 
 def cross_checks(cfg: Config, docs: dict, pages: list, prefabs: dict) -> list[str]:
@@ -582,7 +594,9 @@ def build(
             "repo": cfg.site.get("repo"),
             **git_commit(cfg.root),
         }
-        renderer = Renderer(cfg, target, docs_t, pages_t, loaded.prefabs, list(loaded.docs), build_info, evidence_rows)
+        archived_t = [(where, filter_for_target(data, target)) for where, data in loaded.archived]
+        renderer = Renderer(cfg, target, docs_t, pages_t, loaded.prefabs, list(loaded.docs), build_info,
+                            evidence_rows, [(w, d) for w, d in archived_t if d])
 
         # hooks: before_render
         for collection in cfg.collections():

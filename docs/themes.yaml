@@ -2,6 +2,7 @@
 # The rendered page (site/pages/themes.yaml) pairs it with a live palette playground.
 kind: worksheet
 id: themes
+mnemonic: THM
 title: Colour palette and site theme
 summary: Which palette the site defaults to, how dark mode behaves, how loud the identity signalling is, and where theme tokens live.
 status: active
@@ -29,6 +30,7 @@ warn: |
 
 questions:
   - id: t-default
+    handle: THM.1
     call: T.1
     lead: Which palette is the public default?
     help: The private build's default is settled in [[decisions#adr-013]]. This question is only about what a stranger sees on GitHub Pages, so only the shipped presets are listed.
@@ -53,6 +55,7 @@ questions:
         prompt: "Set the site default palette to high-contrast from docs/palettes.yaml."
 
   - id: t-dark
+    handle: THM.2
     call: T.2
     lead: How does dark mode work?
     help: "Today `yss.css` has a single `prefers-color-scheme: dark` block and no way to override it. A switcher means a `data-theme` attribute, a small script and a stored preference."
@@ -73,6 +76,7 @@ questions:
         prompt: "Drop the dark token block; the site is light only. Record the accessibility cost in the decision."
 
   - id: t-switcher
+    handle: THM.3
     call: T.3
     lead: Does the site ship the palette switcher itself, or only the playground page?
     help: The playground already switches palettes at runtime. Making it site-wide means the choice persists across pages for a reader, which is a feature and a maintenance promise.
@@ -89,6 +93,7 @@ questions:
         prompt: "Promote the palette switcher to the site header and persist the choice in localStorage across pages; every palette in docs/palettes.yaml becomes supported surface."
 
   - id: t-identity
+    handle: THM.4
     call: T.4
     lead: How visible is identity signalling on the public site?
     help: This governs the public target specifically - the GitHub Pages build that anyone can reach. The private build can differ.
@@ -112,6 +117,7 @@ questions:
         prompt: "Keep the public target neutral. Any identity palette applies to the private target only; note this in site.yaml targets.public."
 
   - id: t-floor
+    handle: THM.5
     call: T.5
     lead: What is the contrast floor a palette has to clear?
     help: Whatever you pick becomes a check an agent runs before adding a palette, and the reason a pastel gets deepened. It is also what rejected m4's first accent at 4.3:1.
@@ -132,6 +138,7 @@ questions:
         prompt: "State that palettes are judged by eye with no numeric floor, and record the risk."
 
   - id: t-tokens
+    handle: THM.6
     call: T.6
     lead: Where do palette tokens live once one is chosen?
     help: The tokens exist in [[palettes]] as data; the browser needs them as CSS. Something has to bridge that - and a default that applies to the private build only needs that bridge to be target-aware, which nothing here is yet.
@@ -152,6 +159,7 @@ questions:
         prompt: "Generate the token CSS from docs/palettes.yaml at build time, keyed by the chosen palette id. Flag the coupling between docs and presentation."
 
   - id: t-collections
+    handle: THM.7
     call: T.7
     lead: May a collection override the site palette?
     help: "`collection.yaml` already has a `theme` block with `accent`, `background` and extra `css`, applied by the renderer."
@@ -172,6 +180,7 @@ questions:
         prompt: "Remove collection theming; every collection renders in the site palette."
 
   - id: t-loved
+    handle: THM.8
     call: T.8
     lead: Any colour you want to see or never see again?
     kind: text

@@ -2,6 +2,7 @@
 # Agents: new questions go in docs/next.yaml, never here.
 kind: worksheet
 id: open
+mnemonic: OPN
 title: Open decisions
 summary: What is still waiting on Panda after the 2026-09-02 verdicts - the sub-site card contract, when a Godot export may go public, and which hardening item follows search.
 status: archived
@@ -15,6 +16,7 @@ intro: |
 
 questions:
   - id: o-subsite-cards
+    handle: OPN.1
     call: O.1
     lead: How does a parent site present the sub-sites it links to, and which sit in the hero panel?
     help: |
@@ -63,6 +65,7 @@ questions:
         cons: [Two places hold the same fact, More to explain in the skills]
 
   - id: o-godot-public
+    handle: OPN.2
     call: O.2
     lead: When may a Godot export carry the public target on its mount?
     help: |
@@ -103,6 +106,7 @@ questions:
         cons: [Nobody else can play it, The public site advertises something it cannot show]
 
   - id: o-hardening-next
+    handle: OPN.3
     call: O.3
     lead: Which hardening item follows client-side search?
     kind: check

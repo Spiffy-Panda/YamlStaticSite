@@ -2,6 +2,7 @@
 # Agents: new questions go in docs/open.yaml, never here.
 kind: worksheet
 id: pending
+mnemonic: PND
 title: Pending decisions and blockers
 summary: Everything currently waiting on Panda - schema-change approvals, hosting choices, the Musings renderer, the release cut and the site review - with pros and cons per option.
 status: archived
@@ -17,6 +18,7 @@ intro: |
 
 questions:
   - id: p-flow-overrides
+    handle: PND.1
     resolution:
       applied: 2026-09-02
       by: Panda
@@ -48,6 +50,7 @@ questions:
         cons: [Agents cannot adjust the flow themselves, Per-musing policy impossible]
 
   - id: p-worksheet-visibility
+    handle: PND.2
     resolution:
       applied: 2026-09-02
       by: Panda
@@ -77,6 +80,7 @@ questions:
         cons: [Every future worksheet must be written for a public reader]
 
   - id: p-headers
+    handle: PND.3
     resolution:
       applied: 2026-09-02
       by: Panda
@@ -109,6 +113,7 @@ questions:
         cons: [First visit reloads once, Vendored script to update, Breaks if a CSP forbids service workers]
 
   - id: p-playable-public
+    handle: PND.4
     resolution:
       applied: 2026-09-02
       by: Panda
@@ -139,6 +144,7 @@ questions:
         cons: [Half-finished builds can reach the public site, Contradicts the privacy-by-marking principle]
 
   - id: p-renderer
+    handle: PND.5
     resolution:
       applied: 2026-09-02
       by: Panda
@@ -169,6 +175,7 @@ questions:
         cons: [Rendering differences to review page by page, Lint rule to write]
 
   - id: p-release
+    handle: PND.6
     resolution:
       applied: 2026-09-02
       by: Panda
@@ -197,6 +204,7 @@ questions:
         cons: [No stable pin meanwhile, Changelog keeps growing under one version]
 
   - id: p-hardening
+    handle: PND.7
     resolution:
       applied: 2026-09-02
       by: Panda
@@ -235,6 +243,7 @@ questions:
         cons: [Slower CI, Commands must be safe unattended]
 
   - id: p-evidence-noise
+    handle: PND.8
     resolution:
       applied: 2026-09-02
       by: Panda
@@ -264,6 +273,7 @@ questions:
         cons: [Easy to rubber-stamp, More CLI surface]
 
   - id: p-site-review
+    handle: PND.9
     resolution:
       applied: 2026-09-02
       by: Panda

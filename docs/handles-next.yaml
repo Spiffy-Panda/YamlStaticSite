@@ -1,0 +1,227 @@
+# Worksheet - schema: doc.worksheet. Opened 2026-09-07 by applying the register-skill sheet.
+# Agents: do not answer these. Panda answers on the rendered page and hands the instruction to an agent.
+kind: worksheet
+id: handles-next
+mnemonic: HND
+title: After handles
+summary: What building the handle layer and the register left for Panda - how far the gap check reaches, whether a citation tooltip is too crowded by default, items that carry identity but no id, the bootstrap wrinkle a register hits, and whether the worked example should be visible.
+status: active
+updated: 2026-09-07
+owners: [agent]
+related: [register-skill, plan, decisions, codemap]
+intro: |
+  [[register-skill]] has been applied: handles are first-class, every doc mints a series, and the
+  contradiction register ships as a kind, a prefab and a subcommand. These five came out of building
+  it. None of them blocks anything that is already moving, and none is a bug - each is a place where
+  the implementation had to pick a behaviour and the pick is reversible.
+
+  Recommended defaults are pre-selected. Open **pros and cons** under an option before changing one,
+  press **Build the instruction**, and hand the text to an agent in a fresh session.
+warn: |
+  🐼❗ H.4 is the one with a real leak surface. The demo register is `visibility: private`, which is
+  the shipped default and the safe one - but it means the worked example the `yss-register` skill
+  points at never renders on the public site, so nobody evaluating yss can see the instrument that
+  the skill spends two thousand words on.
+
+questions:
+  - id: n-gap-check
+    handle: HND.1
+    call: N.1
+    lead: Should a gap in a handle series be reported outside a register?
+    help: |
+      Append-only means a gap is a missing row, not a free number - and the live-rules generator
+      hard-fails on one. But that check only runs for a series a *register* covers. Every other
+      series in the site can develop a gap in silence: `python -m yss handles` prints them, and
+      nothing asks it to. A gap is how a whole item goes missing without anything else looking
+      wrong.
+    applies_to: "whether validate reports a gap, and what the code map convention cv-handles-append-only says is enforced_by"
+    compare: |
+      A gap is not always an error. A doc that deletes an item outright leaves one, and deleting is
+      legal today - it is only *renumbering* that append-only forbids. So the honest question is
+      whether yss should push authors toward striking in place everywhere, or only where a register
+      has already asked for that discipline.
+    options:
+      - value: warn
+        text: A warning from validate, never an error - it prints the gap and exits 0
+        recommended: true
+        why: A gap in an unregistered series is usually a deleted item rather than a lost one, so it deserves to be visible without failing a build nobody has asked to be strict.
+        prompt: "Report a gap in any handle series as a validate warning that prints the series and the missing numbers, and never as an error."
+        pros: [Visible everywhere without new discipline, No build fails for a legal deletion, Matches how the code-span reference check already behaves]
+        cons: [A warning is a thing agents learn to scroll past, Two strictness levels for one rule depending on whether a register covers the series]
+      - value: error
+        text: A validate error everywhere - striking in place becomes the rule for every series
+        why: One rule with no exceptions, at the price of making every existing deletion illegal and every doc harder to edit.
+        prompt: "Make a gap in any handle series a validate error, so an item is struck in place rather than deleted anywhere in the site."
+        pros: [One rule, No series can lose an item quietly, The register's discipline becomes the site's]
+        cons: [Deleting an item becomes illegal repo-wide, Every existing doc has to strike rather than delete, Heavy for docs nobody audits]
+      - value: register-only
+        text: Leave it where it is - only a register's own generator checks its own series
+        why: Least change and the most honest about where the discipline was actually asked for; every other series keeps gaps silently.
+        prompt: "Leave gap checking inside the live-rules generator; do not report gaps for series no register covers."
+        pros: [No new failure mode, The check stays where the discipline was agreed]
+        cons: [Most series are unchecked, yss handles prints gaps nothing acts on, A lost item looks like a deleted one]
+
+  - id: n-tooltip-default
+    handle: HND.2
+    call: N.2
+    lead: Is the default citation tooltip carrying one line too many?
+    help: |
+      You named three lines - the series, the handle, and the source - and said to drop any line that
+      has nothing in it. The implementation ships four: those three plus the cited item's own words,
+      because the words are the reason the tooltip exists at all and the register's quote rule leans
+      on them. `full` is the default; `meta` is exactly your three; `compact` is the handle and the
+      words; `text` is the words alone. This asks whether the default is the right one.
+    applies_to: "site.yaml handles.tooltip, and the default in the renderer"
+    options:
+      - value: full
+        text: Keep `full` - series, handle, source, then the item's words
+        recommended: true
+        why: The words are what makes a citation worth hovering; the three provenance lines are short and a missing one already drops itself.
+        prompt: "Keep the citation tooltip default at full - series, handle, source and the cited item's own words."
+        pros: [The quote is present where it is most useful, Any empty part still drops its own line, Other modes are one config line away]
+        cons: [Four lines is a lot of hover text on a page that cites often, One line more than was asked for]
+      - value: meta
+        text: Default to `meta` - exactly the three lines named, with no quoted text
+        why: Matches the instruction literally and makes every tooltip short, at the cost of a citation that cannot be read without following it.
+        prompt: "Default the citation tooltip to meta - series, handle and source, with no quoted text."
+        pros: [Exactly what was asked for, Short and predictable, No item wording in a hover anywhere]
+        cons: [A citation stops carrying the thing it cites, The register's quote rule loses its cheapest surface, Most pages would set full anyway]
+      - value: compact
+        text: Default to `compact` - the handle and the item's words, hiding provenance
+        why: The two things a reader wants and neither of the two they can look up; hides where the item lives, which is sometimes the point of hovering.
+        prompt: "Default the citation tooltip to compact - the handle and the cited item's words, with no series or source line."
+        pros: [Short and still quotes, Provenance is one click away on the link]
+        cons: [A reader cannot see which file the claim lives in, Loses the series label a register configures]
+
+  - id: n-idless-items
+    handle: HND.3
+    call: N.3
+    lead: Should an item that carries identity but no `id` be able to carry a handle?
+    help: |
+      Handles were backfilled onto every item that has an `id`, because an id is what an anchor and a
+      reference already resolve to. Some items carry identity another way: a changelog release is
+      identified by its `version`, and it now sits under a mnemonic whose series is empty. A handle
+      there would resolve to the item and quote it, but it could not link to an anchor, because there
+      is no anchor to link to.
+    applies_to: "whether releases and similar items gain ids, handles, or neither"
+    options:
+      - value: leave
+        text: Leave them - an item with no id carries no handle, and the empty series is honest
+        recommended: true
+        why: Nothing has ever needed to cite a release by handle; its version already names it, and adding ids to make handles possible is a migration in search of a reader.
+        prompt: "Leave items without an id unhandled; a doc whose items have no ids keeps a mnemonic with an empty series."
+        pros: [No migration, A version already identifies a release, Nothing currently wants to cite one]
+        cons: [A mnemonic with no handles looks like an oversight, "The rule every item carries a handle is not quite true"]
+      - value: give-ids
+        text: Give those items ids, then handles, so the rule holds with no exception
+        why: Makes the rule exactly true and gives every item an anchor, at the cost of ids invented for items nobody addresses.
+        prompt: "Add ids to items that carry identity another way - changelog releases first - then backfill handles so every item in the site carries one."
+        pros: [The rule holds with no exception, Every item gains an anchor to link to, Releases become citable]
+        cons: [Ids invented for items nobody addresses, A migration with no reader asking for it, More surface in a schema that did not want it]
+      - value: handle-only
+        text: Let them carry a handle with no id - it quotes, but never links
+        why: Cheapest way to make everything citable, and it introduces a citation that silently behaves differently from every other one.
+        prompt: "Allow a handle on an item with no id; the citation resolves and quotes but renders without a link."
+        pros: [Everything becomes quotable, No ids to invent]
+        cons: [A citation that never links looks broken, Two classes of bound handle, The difference is invisible until someone clicks]
+
+  - id: n-bootstrap
+    handle: HND.4
+    call: N.4
+    lead: Should the generator scaffold its output doc so a register can link to it from the start?
+    help: |
+      A register that points a reader at its generated list - which the skill says it should, in as
+      many words - cannot validate until that list exists, because the reference is checked and the
+      file has not been generated yet. The way through is to write the register without the forward
+      link, generate once, add the link, regenerate. It works, it is documented in the skill, and it
+      is the kind of two-step that an agent in a hurry gets wrong once and then works around wrongly.
+    applies_to: "whether yss live-rules writes a placeholder before the register is complete, and the skill's setup section"
+    options:
+      - value: document
+        text: Leave it a documented two-step - write, generate, link, regenerate
+        recommended: true
+        why: A placeholder is a doc that claims to be generated while carrying nothing, and the sequence is four commands that the skill already spells out.
+        prompt: "Keep the register bootstrap as a documented two-step and do not scaffold a placeholder output doc."
+        pros: [No file that lies about what it is, Nothing new in the generator, The skill already carries the sequence]
+        cons: [An agent meets a validation error before it meets the instruction, Easy to work around wrongly by dropping the link]
+      - value: scaffold
+        text: Have `yss new doc register` write both the register and an empty generated doc
+        why: Removes the failure entirely at the cost of a generated file that briefly contains nothing true.
+        prompt: "Make the register scaffold write an empty generated live-rules doc alongside it, so the forward reference resolves from the first validate."
+        pros: [The two-step disappears, A new register validates immediately, The page exists from the start]
+        cons: [A generated file that is not yet a projection of anything, Someone will commit the empty one, More scaffold to keep in step with the generator]
+      - value: no-forward-link
+        text: Change the convention - the register does not link forward; the list links back
+        why: Removes the cycle by removing the pointer, and the pointer is on the page most likely to be opened by the agent who needs redirecting.
+        prompt: "Drop the register's forward link to the generated list; have the generated list link back to the register instead."
+        pros: [No bootstrap problem at all, No scaffolding, One direction of reference only]
+        cons: [The redirect is missing from the page an agent opens by mistake, Weakens the do-not-read-this-one rule, The skill has to explain the asymmetry]
+
+  - id: n-example-visibility
+    handle: HND.5
+    call: N.5
+    lead: Should the demo collection's register be public, as the worked example the skill points at?
+    help: |
+      Register docs default to private, which is right: a register quotes internal disagreement and
+      half-formed rules, and the public tree is uploaded wholesale. The demo collection is different
+      in kind - it exists to show the contract to someone evaluating yss, its plan and pages are
+      public, and its register contains nothing but invented example content about a demo playable.
+      Private means the one rendered example of the instrument is invisible to everyone who has not
+      cloned the repo.
+    applies_to: "visibility on examples/demo-musing/docs/register.yaml, its live-rules doc, and both pages"
+    compare: |
+      Nothing about the default changes either way - this is one collection choosing to opt out of it
+      deliberately, which the skill already documents as possible. The risk is not this register's
+      content; it is that a public example teaches by imitation, and the thing it would be teaching
+      is the exception rather than the rule.
+    options:
+      - value: public
+        text: Make the demo register and its live-rules list public, with the reason written on both
+        recommended: true
+        why: The demo collection exists to be looked at, its content is invented, and an instrument nobody can see is one nobody adopts.
+        prompt: "Make the demo collection's register and generated live-rules docs and pages public, with a comment on each saying why this one is the exception and that a real register stays private."
+        pros: [The instrument is visible to anyone evaluating yss, The prefab renders on the public site, The exception is written down where it is made]
+        cons: [A public register is an example of the exception not the rule, Someone copies the demo and inherits public visibility, One more place the default has to be restated]
+      - value: private
+        text: Keep it private - the default holds everywhere, including the example
+        why: The safest and the most consistent; the instrument is then only visible to someone who clones the repo and builds the private target.
+        prompt: "Keep the demo collection's register and live-rules docs and pages private, matching the shipped default everywhere."
+        pros: [One rule with no exceptions, Nothing to restate, Copying the demo inherits the safe setting]
+        cons: [The worked example is invisible on the public site, The prefab never renders publicly, The skill describes a page nobody outside the repo can see]
+      - value: screenshot
+        text: Keep it private and put a rendered screenshot on a public page instead
+        why: Shows the instrument without publishing a register, and adds an image that goes stale the first time the prefab changes.
+        prompt: "Keep the demo register private and add a public page showing a screenshot of the rendered register instead."
+        pros: [Nothing private is published, The instrument is visible]
+        cons: [A screenshot goes stale silently, No evidence claim can prove it current, The controls cannot be tried]
+
+prompt:
+  task: Apply the after-handles decisions to yss
+  background: |
+    Repository YamlStaticSite. The handle layer and the contradiction register shipped on
+    2026-09-07; [[register-skill]] is the applied worksheet and [[decisions#adr-046]] through
+    [[decisions#adr-051]] are the decisions it produced. Handles live in `yss/handles.py`, the
+    generator in `yss/liverules.py`, the shipped skill in `yss/skills/yss-register/`.
+  steps:
+    - Load the yss skill first, then yss-doc and yss-register for whichever parts the verdicts put in scope.
+    - Where a verdict changes a default or a rule, supersede the decision that set it rather than editing it.
+    - Update the shipped skills and the code map conventions wherever a verdict changes what an agent should do.
+    - Run python -m yss skills --install --force after touching anything under yss/skills/.
+    - Archive this worksheet with a resolution per question and open a new one for anything still open.
+    - Run python -m yss validate, python -m yss check --run-commands, python -m yss build --target all --no-dynamic and the tests.
+  do_not_touch:
+    - .yss/local.yaml and anything under dist/.
+    - Accepted decisions - supersede, never edit.
+    - Archived worksheets and anything under docs/_archive/.
+    - Any handle already minted - never renumber, never reuse, strike in place.
+  flag_only:
+    - Anything that would need page items indexed as handle targets - that is the deferred superset.
+    - Changes to how the archive rule works for existing doc kinds.
+  rules:
+    - Project knowledge goes in docs/*.yaml, never in new markdown files.
+    - Validate and check after every edit; fix every reported file and path.
+    - Mark anything not for the public site as visibility private or private_notes.
+    - No absolute paths in anything that reaches dist/.
+    - Do not answer a worksheet question yourself; if a verdict is missing, stop and add a question.
+decided_by: true
+extra: true

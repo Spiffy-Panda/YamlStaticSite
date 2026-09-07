@@ -2,6 +2,7 @@
 # Agents: do not answer these; Panda answers on the rendered page and hands the instruction to an agent.
 kind: worksheet
 id: audit-calls
+mnemonic: ACL
 title: Audit calls
 summary: The five decisions the engineering audit left to Panda - how to finish the audit, whether to refactor the orchestration layer, two accessibility contracts, and a trust-gate default - with pros and cons per option.
 status: archived
@@ -21,6 +22,7 @@ warn: |
 
 questions:
   - id: q-second-pass
+    handle: ACL.1
     resolution:
       applied: 2026-09-04
       by: Panda
@@ -63,6 +65,7 @@ questions:
         cons: [Security and redaction stay unexamined by anyone but the tests, The scorecard stays seven-tenths blank]
 
   - id: q-orchestration-refactor
+    handle: ACL.2
     resolution:
       applied: 2026-09-04
       by: Panda
@@ -107,6 +110,7 @@ questions:
         cons: [The 573-second suite is the price of every future gate, Ambient state blocks any parallel build]
 
   - id: q-muted-floor
+    handle: ACL.3
     resolution:
       applied: 2026-09-04
       by: Panda
@@ -151,6 +155,7 @@ questions:
         cons: [Fails AA for normal text on the default light palette, The bamboo theme's header comment stays inaccurate]
 
   - id: q-mobile-nav
+    handle: ACL.4
     resolution:
       applied: 2026-09-04
       by: Panda
@@ -194,6 +199,7 @@ questions:
         cons: [Contradicts the principle on the one bar that otherwise honours it, Reader modes and strict blockers lose the site map]
 
   - id: q-evidence-import-gate
+    handle: ACL.5
     resolution:
       applied: 2026-09-04
       by: Panda

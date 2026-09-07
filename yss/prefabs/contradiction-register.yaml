@@ -1,0 +1,172 @@
+name: contradiction-register
+description: "The contradiction register as an instruction builder. Contradictions first - they are why the page exists - each quoting both sides verbatim; then every handle in the series with two controls, a retire/discard marker and a comment box; then a Build the instruction button whose output contains only the rows a human actually touched. An untouched row contributes nothing, not even a placeholder. The page never records a verdict itself: what it produces is text to hand an agent, and the verdict lands where the handle lives. No persistence, no network. Bind from a `register` doc: entries, pairs, dismissed, prompt."
+category: layout
+params:
+  entries: {type: list, required: true, item: {subject: required, says: short faithful restatement, state: "live|met|answered|recorded|retired", lives_in: the file the handle lives in, note: markdown, pairs: "ids of pairs this handle is a subject of"}}
+  pairs: {type: list, description: "list of {id, kind: hard|soft, state, a: {subject, quote}, b: {subject, quote}, resolves}"}
+  dismissed: {type: list, description: "list of {pair, why} - candidates that were not contradictions, kept so they are not re-proposed"}
+  prompt: {type: object, description: "{task, background, rules[]}"}
+  title: {type: string, description: Used in the instruction header.}
+  intro: {type: markdown, description: What this register is for and who reads it.}
+template: |
+  {% set rid = (title or 'register') | slug %}
+  {% set retired = entries | selectattr('state', 'equalto', 'retired') | map(attribute='subject') | list %}
+  <div class="creg" id="creg-{{ rid }}" data-register="{{ rid }}">
+    {% if intro %}<div class="creg-intro prose">{{ intro | md }}</div>{% endif %}
+
+    <h4>Contradictions</h4>
+    {% if pairs %}
+    <p class="creg-lede">Every claim below quotes both sides verbatim from the item the handle names. A contradiction that cannot be quoted is one an agent invented.</p>
+    {% for p in pairs %}
+    {% set closed = ((p.state or '') | lower | trim).startswith('closed') %}
+    <div class="creg-pair creg-{{ p.kind }}{% if closed %} creg-closed{% endif %}" id="pair-{{ p.id }}">
+      <div class="creg-pair-head">
+        <span class="creg-kind">{{ p.kind }}</span>
+        <span class="creg-pair-id">{{ p.id }}</span>
+        {% if p.state %}<span class="creg-state">{{ p.state }}</span>{% endif %}
+      </div>
+      <div class="creg-sides">
+        {% for side in [p.a, p.b] %}
+        <blockquote class="creg-side">
+          <cite>{{ side.subject }}{% if side.subject in retired %} <span class="creg-spent">retired</span>{% endif %}</cite>
+          {{ side.quote | md }}
+        </blockquote>
+        {% endfor %}
+      </div>
+      {% if p.resolves %}<div class="creg-resolves prose">{{ p.resolves | md }}</div>{% endif %}
+    </div>
+    {% endfor %}
+    {% else %}
+    <p class="creg-empty">No contradiction has been recorded yet.</p>
+    {% endif %}
+
+    <h4>Handles</h4>
+    <p class="creg-lede">Mark what you want changed and press <b>Build the instruction</b>. Rows you do not touch produce nothing.</p>
+    <div class="creg-rows">
+    {% for e in entries %}
+    <div class="creg-row creg-state-{{ e.state }}" id="h-{{ e.subject | slug }}"
+         data-handle="{{ e.subject }}" data-state="{{ e.state }}" data-lives-in="{{ e.lives_in or '' }}">
+      <div class="creg-row-head">
+        <code class="creg-handle">{{ e.subject }}</code>
+        <span class="creg-badge creg-badge-{{ e.state }}">{{ e.state }}</span>
+        {% if e.lives_in %}<span class="creg-lives">{{ e.lives_in }}</span>{% endif %}
+        {% for pid in e.pairs or [] %}<a class="creg-pairlink" href="#pair-{{ pid }}">{{ pid }}</a>{% endfor %}
+      </div>
+      {% if e.says %}<div class="creg-says prose">{{ e.says | md_inline }}</div>{% endif %}
+      {% if e.note %}<details class="creg-note"><summary>why it is in that state</summary><div class="prose">{{ e.note | md }}</div></details>{% endif %}
+      <div class="creg-controls">
+        <label><input type="checkbox" class="creg-mark" name="{{ rid }}-{{ e.subject | slug }}-mark"> mark for discard / retire</label>
+        <input type="text" class="creg-comment" name="{{ rid }}-{{ e.subject | slug }}-comment" placeholder="comment (optional)">
+      </div>
+    </div>
+    {% endfor %}
+    </div>
+
+    {% if dismissed %}
+    <details class="creg-dismissed">
+      <summary>Dismissed candidates ({{ dismissed | length }})</summary>
+      <p class="creg-lede">Kept, not deleted: a later agent that cannot see the reasoning will propose them again.</p>
+      <dl>{% for d in dismissed %}<dt>{{ d.pair }}</dt><dd>{{ d.why | md }}</dd>{% endfor %}</dl>
+    </details>
+    {% endif %}
+
+    <div class="creg-build">
+      <button type="button" class="creg-go">Build the instruction</button>
+      <span class="creg-status"></span>
+    </div>
+    <div class="creg-out" hidden>
+      <textarea class="creg-output" readonly rows="18"></textarea>
+      <button type="button" class="creg-copy">Copy to clipboard</button>
+    </div>
+    <script type="application/json" class="creg-config">{{ {'title': title or '', 'prompt': prompt or {}} | tojson }}</script>
+  </div>
+css: |
+  .creg-intro { margin-bottom: 1rem; }
+  .creg-lede { color: var(--fg-2); font-size: .92rem; margin: .2rem 0 .8rem; }
+  .creg-empty { color: var(--fg-2); font-style: italic; }
+  .creg-pair { border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 6px; padding: .7rem .9rem; margin: .7rem 0; }
+  .creg-pair.creg-soft { border-left-style: dashed; }
+  .creg-pair.creg-closed { opacity: .72; }
+  .creg-pair-head { display: flex; gap: .6rem; align-items: baseline; flex-wrap: wrap; font-size: .85rem; }
+  .creg-kind { text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+  .creg-pair-id { font-family: var(--mono, monospace); color: var(--fg-2); }
+  .creg-state { color: var(--fg-2); }
+  .creg-sides { display: grid; gap: .6rem; margin-top: .6rem; }
+  @media (min-width: 720px) { .creg-sides { grid-template-columns: 1fr 1fr; } }
+  .creg-side { margin: 0; border-left: 2px solid var(--line); padding: .1rem .8rem; }
+  .creg-side cite { display: block; font-style: normal; font-family: var(--mono, monospace); font-size: .85rem; color: var(--fg-2); }
+  .creg-spent { font-family: inherit; font-style: italic; }
+  .creg-resolves { margin-top: .5rem; font-size: .92rem; }
+  .creg-row { border-bottom: 1px solid var(--line); padding: .6rem 0; }
+  .creg-row-head { display: flex; gap: .6rem; align-items: baseline; flex-wrap: wrap; }
+  .creg-handle { font-weight: 600; }
+  .creg-badge { font-size: .75rem; border: 1px solid var(--line); border-radius: 999px; padding: 0 .5rem; color: var(--fg-2); }
+  .creg-badge-live { border-color: var(--accent); color: var(--accent); }
+  .creg-badge-retired { text-decoration: line-through; }
+  .creg-state-retired .creg-says { text-decoration: line-through; opacity: .7; }
+  .creg-lives, .creg-pairlink { font-size: .8rem; color: var(--fg-2); }
+  .creg-says { margin: .3rem 0; }
+  .creg-note { font-size: .9rem; }
+  .creg-controls { display: flex; gap: .8rem; align-items: center; flex-wrap: wrap; margin-top: .4rem; font-size: .88rem; }
+  .creg-comment { flex: 1 1 16rem; padding: .25rem .4rem; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--fg); }
+  .creg-build { margin-top: 1rem; display: flex; gap: .8rem; align-items: center; }
+  .creg-out { margin-top: .8rem; }
+  .creg-output { width: 100%; font-family: var(--mono, monospace); font-size: .85rem; }
+js: |
+  (function () {
+    function section(head, items) { return (items && items.length) ? "\n" + head + "\n" + items.map(function (x) { return "- " + x; }).join("\n") : ""; }
+    function build(reg) {
+      var cfg = JSON.parse(reg.querySelector(".creg-config").textContent || "{}");
+      var p = cfg.prompt || {}, out = [], touched = 0;
+      out.push("TASK - " + (p.task || "Apply the register verdicts below"));
+      if (p.background) out.push("\nBACKGROUND YOU NEED\n" + p.background);
+      var lines = [];
+      reg.querySelectorAll(".creg-row").forEach(function (row) {
+        var marked = row.querySelector(".creg-mark").checked;
+        var comment = (row.querySelector(".creg-comment").value || "").trim();
+        /* An untouched row contributes nothing, not even a placeholder. */
+        if (!marked && !comment) return;
+        touched += 1;
+        var handle = row.getAttribute("data-handle");
+        var where = row.getAttribute("data-lives-in");
+        var what = marked ? "RETIRE / DISCARD" : "COMMENT";
+        lines.push(handle + " - " + what + (where ? "  (lives in " + where + ")" : "") + (comment ? "\n  " + comment : ""));
+      });
+      out.push("\nVERDICTS ON HANDLES\n" + (lines.length ? lines.join("\n") : "(none)"));
+      out.push(section("RULES FOR THE AGENT DOING THIS WORK", p.rules));
+      return { text: out.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n", touched: touched };
+    }
+    document.querySelectorAll(".creg").forEach(function (reg) {
+      var go = reg.querySelector(".creg-go"), status = reg.querySelector(".creg-status");
+      var outBox = reg.querySelector(".creg-out"), output = reg.querySelector(".creg-output"), copy = reg.querySelector(".creg-copy");
+      if (!go) return;
+      go.addEventListener("click", function () {
+        var built = build(reg);
+        if (!built.touched) { status.textContent = "Nothing marked - mark a row or leave a comment first."; outBox.hidden = true; return; }
+        status.textContent = built.touched + " row(s)";
+        output.value = built.text;
+        outBox.hidden = false;
+        output.rows = Math.min(40, built.text.split("\n").length + 2);
+        outBox.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      copy.addEventListener("click", function () {
+        var done = function () { copy.textContent = "Copied"; setTimeout(function () { copy.textContent = "Copy to clipboard"; }, 1600); };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(output.value).then(done, function () { output.select(); document.execCommand("copy"); done(); });
+        else { output.select(); document.execCommand("copy"); done(); }
+      });
+    });
+  })();
+examples:
+  - args:
+      title: Example register
+      entries:
+        - {subject: XYZ.1, says: The rule that still binds., state: live, lives_in: docs/conventions.yaml}
+        - {subject: XYZ.2, says: The rule that was struck., state: retired, lives_in: docs/conventions.yaml, note: "Retired by Panda; retiring it removes it and does not supply the opposite.", pairs: [xyz-instruments]}
+      pairs:
+        - id: xyz-instruments
+          kind: hard
+          state: "closed 2026-09-06 - subject retired"
+          a: {subject: XYZ.1, quote: "verbatim text from the item XYZ.1 names"}
+          b: {subject: XYZ.2, quote: "verbatim text from the item XYZ.2 names"}
+          resolves: What actually ended it.
+      prompt: {task: "Apply the register verdicts", rules: ["Record each verdict where the handle lives, first."]}

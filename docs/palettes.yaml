@@ -2,6 +2,7 @@
 # themes worksheet chooses between. Token keys are yss.css custom properties without the `--`.
 kind: generic
 id: palettes
+mnemonic: PAL
 title: Colour palettes
 summary: The colour palettes yss ships as presets, each a full light and dark token set with a contrast note.
 shape: palettes
@@ -79,6 +80,7 @@ data:
   palettes:
     # --- Shipped presets ----------------------------------------------------------------------
     - id: trans-pride
+      handle: PAL.1
       family: preset
       name: Trans Pride
       emblem: "⚧"
@@ -98,6 +100,7 @@ data:
         dark:  {bg: "#12171d", bg-2: "#1a2028", fg: "#e8eef4", fg-2: "#adbccb", line: "#2c3846", accent: "#5bcefa", accent-2: "#16303f", ok: "#6fd39d", warn: "#e0a950", bad: "#f5a9b8", muted: "#7d8b99", code: "#1e2630"}
 
     - id: lavender-warm
+      handle: PAL.2
       family: preset
       name: Lavender & Warm Sand
       emblem: "🌸"
@@ -113,6 +116,7 @@ data:
         dark:  {bg: "#1a161d", bg-2: "#221d26", fg: "#ece7ef", fg-2: "#b8aec0", line: "#383043", accent: "#c4a7e7", accent-2: "#322a3f", ok: "#9dc98d", warn: "#dda45c", bad: "#e6867f", muted: "#857b8d", code: "#272130"}
 
     - id: ink-blue
+      handle: PAL.3
       family: preset
       name: Ink Blue (current default)
       emblem: "🔷"
@@ -128,6 +132,7 @@ data:
         dark:  {bg: "#17181a", bg-2: "#202225", fg: "#e8e8e4", fg-2: "#b4b4ae", line: "#33353a", accent: "#8fb3ff", accent-2: "#26304a", ok: "#7bc47f", warn: "#d9a441", bad: "#ef8a8a", muted: "#7b7b76", code: "#26282c"}
 
     - id: high-contrast
+      handle: PAL.4
       family: preset
       name: High Contrast
       emblem: "◼"

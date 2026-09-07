@@ -180,6 +180,53 @@ properties:
       dynamic_ttl: {type: integer}
       watch: {type: array, items: {type: string}, description: Extra paths to watch for rebuilds.}
     additionalProperties: false
+  register:
+    type: object
+    description: >-
+      The root collection's contradiction register configuration; site.yaml is the root
+      collection's config file, so this is the same block a musing declares in its collection.yaml
+      and carries the same fields (doc, out, series[] with prefix/label/strike_forms/unminted,
+      sweep_ext). See the collection schema for what each one means.
+    properties:
+      doc: {type: string}
+      out: {type: string}
+      series:
+        type: array
+        items:
+          type: object
+          required: [prefix]
+          properties:
+            prefix: {type: string}
+            label: {type: string}
+            strike_forms: {type: array, items: {type: string}}
+            unminted:
+              type: array
+              items:
+                type: object
+                required: [handle, why]
+                properties:
+                  handle: {type: string}
+                  why: {type: string, x-limit: line}
+                additionalProperties: false
+          additionalProperties: false
+      sweep_ext: {type: array, items: {type: string}}
+    additionalProperties: false
+  handles:
+    type: object
+    description: How persistent item handles render when cited.
+    properties:
+      tooltip:
+        description: |
+          What a citation's hover text carries. A named mode, or an explicit list of the parts in
+          the order they should appear. Any part with nothing to say drops its own line, so a
+          handle whose series has no label simply shows one line fewer.
+          `full` = series, handle, source, text; `compact` = handle, text (hides provenance on a
+          page that cites constantly); `meta` = the three provenance lines with no quoted text;
+          `text` = the item's words alone.
+        oneOf:
+          - {type: string, enum: [full, compact, meta, text]}
+          - {type: array, items: {type: string, enum: [series, handle, source, text]}}
+    additionalProperties: false
   redaction:
     type: object
     properties:

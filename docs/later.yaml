@@ -2,6 +2,7 @@
 # Agents: add a question here whenever work stalls on a human call; never answer one.
 kind: worksheet
 id: later
+mnemonic: LTR
 title: Later decisions
 summary: What is waiting on Panda after the next worksheet was applied - where the new card-link route check runs, whether mount hrefs get checked once a real export exists, and how far the archived-doc editing allowance reaches.
 status: active
@@ -22,6 +23,7 @@ warn: |
 
 questions:
   - id: l-route-check-home
+    handle: LTR.1
     call: L.1
     lead: Where does the card-link route check run, given routes only exist after pages load?
     help: |
@@ -59,6 +61,7 @@ questions:
         cons: [Two code paths for one claim, Twice the surface to keep in step]
 
   - id: l-mount-href-check
+    handle: LTR.2
     call: L.2
     lead: Should a card link into a mount be checked once a real export exists?
     help: |
@@ -90,6 +93,7 @@ questions:
         cons: [A renamed export inside a mounted folder is never caught]
 
   - id: l-archived-edit-scope
+    handle: LTR.3
     call: L.3
     lead: Does the archived-doc editing allowance stay worksheet-only?
     help: |

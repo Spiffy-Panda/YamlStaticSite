@@ -1,6 +1,7 @@
 # Plan for the demo musing. Its global id is demo-musing/plan; inside this collection, pages bind it as `plan`.
 kind: plan
 id: plan
+mnemonic: DMP
 title: Demo musing plan
 summary: Prove that a collection can have its own plan, its own risk vocabulary, evidence pointing at files next to it, and references to the root docs.
 status: active
@@ -12,12 +13,18 @@ evidence:
   - {glob: "play/*", min: 1}
 milestones:
   - id: d1-playable
+    handle: DMP.1
     title: Ship the playable
     status: active
     priority: 1
     summary: A static page mounted at play/ in the private build; see [[#d1-mount]] and the root plan's [[/plan#m6-prototypes]].
+    notes: |
+      Handles too: this milestone is [[.1]] in the in-scope form, its mount task is [[DMP.2]] in
+      full, and both resolve through the same resolver the references above use. Hover one to see
+      the item's own words - that is what the register's quote rule stands on.
     tasks:
       - id: d1-mount
+        handle: DMP.2
         title: Mount play/ through collection.yaml
         status: done
         owner: agent
@@ -25,18 +32,22 @@ milestones:
         evidence:
           - {path: collection.yaml, contains: "mounts:"}
       - id: d1-embed
+        handle: DMP.3
         title: Embed the playable on the collection page (private only)
         status: done
         owner: agent
         depends_on: [d1-mount]
       - id: d1-public
+        handle: DMP.4
         title: Decide whether the playable can be public
         status: planned
         owner: panda
 risks:
   - id: dr-headers
+    handle: DMP.5
     title: The playable needs cross-origin isolation on GitHub Pages
     likelihood: medium
     impact: low
     mitigation: Same as the root plan's r-headers risk.
+    notes: Recorded rather than ruled on; the register lists it as `recorded` for that reason, and [[DMP.4]] is the one still open.
     status: watching

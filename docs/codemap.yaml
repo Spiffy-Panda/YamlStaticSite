@@ -2,10 +2,11 @@
 # Agents: when you add or move a module, update `modules` here. Paths are evidence; `yss check` fails if they vanish.
 kind: codemap
 id: codemap
+mnemonic: MAP
 title: YamlStaticSite code map
 summary: Where each part of the toolchain lives, what it exports, and how to run it.
 status: active
-updated: 2026-09-06
+updated: 2026-09-07
 related: [design]
 
 roots:
@@ -44,6 +45,7 @@ roots:
 
 modules:
   - id: config
+    handle: MAP.1
     path: yss/config.py
     purpose: site.yaml over defaults; collections discovered from root globs; targets, base URLs, vocabularies, limits, build and evidence policy, mounts, dynamic sources, redaction lists.
     language: python
@@ -58,6 +60,7 @@ modules:
       - {name: DEFAULTS, kind: constant, description: Includes the default vocabularies and limits.}
     tests: [tests/test_yss.py, tests/test_gh14.py, tests/test_gh18.py]
   - id: hooks
+    handle: MAP.2
     path: yss/hooks.py
     purpose: "Load a hooks.py by path and call optional functions safely; provider lookup for `provider: hooks:<name>`."
     language: python
@@ -68,6 +71,7 @@ modules:
       - {name: provider, kind: function, signature: "(hooks, name) -> callable | None"}
     tests: [tests/test_yss.py]
   - id: loader
+    handle: MAP.3
     path: yss/loader.py
     purpose: YAML loading (dates stay strings, `_` paths skipped), SchemaRegistry with x-vocab / x-limit resolution and annotation discovery, doc/page/prefab/collection loading, id indexes and reference checks.
     language: python
@@ -85,6 +89,7 @@ modules:
       - {name: resolve_doc_id, kind: function, signature: "(ref, collection_id, docs) -> id | None", description: "Collection-local first, then exact; `/doc` forces root."}
     tests: [tests/test_yss.py]
   - id: symbols
+    handle: MAP.4
     path: yss/symbols.py
     purpose: Dispatch and cache for the symbol resolver - turn a (module path, export name) pair into a line range by parsing, never importing and never building (adr-024, adr-037).
     language: python
@@ -100,6 +105,7 @@ modules:
     tests: [tests/test_yss.py, tests/test_rust.py]
 
   - id: langs
+    handle: MAP.5
     path: yss/langs/
     purpose: "One parser per language, registered by file suffix. A language supplies its suffixes, its package-root stems, its member separator and a `file_index`; adding one is a module and a registry line (adr-037)."
     language: python
@@ -116,6 +122,7 @@ modules:
     tests: [tests/test_rust.py]
 
   - id: evidence
+    handle: MAP.6
     path: yss/evidence.py
     purpose: Collect and evaluate evidence claims - path, contains, not_contains, anchored at over parsed YAML, glob, symbol, export, command; git recency; inject `_evidence` freshness; format reports. Policy resolves per doc - CLI flag, then collection.yaml, then site.yaml.
     language: python
@@ -128,6 +135,7 @@ modules:
       - {name: _check_export, kind: function, signature: "(cfg, claim) -> None", description: "`x-evidence: export` - resolves `<path>::<name>` by parsing (adr-024)."}
     tests: [tests/test_yss.py]
   - id: contrast
+    handle: MAP.7
     path: yss/contrast.py
     purpose: "WCAG 2.x contrast arithmetic and a tolerant regex scanner for token declarations in a stylesheet's :root and prefers-color-scheme blocks. Pure - handed CSS text, returns numbers and strings; the file IO lives in build.py (adr-044)."
     language: python
@@ -143,6 +151,7 @@ modules:
       - {name: PAIRS, kind: constant, description: "The three pairings yss.css paints on the collection bar."}
     tests: [tests/test_gh31.py]
   - id: visibility
+    handle: MAP.8
     path: yss/visibility.py
     purpose: filter_for_target, is_visible (literal public/private, derived on_resolution), the worksheet projection and its cross-checks, scan_tree, slugify.
     language: python
@@ -156,6 +165,7 @@ modules:
       - {name: scan_tree, kind: function, signature: "(root, forbidden, flags) -> (hits, flag_hits)"}
     tests: [tests/test_yss.py, tests/test_gh37.py]
   - id: binding
+    handle: MAP.9
     path: yss/binding.py
     purpose: Resolve binding specs against docs; where/sort/limit/map/fields/group_by in that order; collection-local ids; virtual roots, including the doc-local $items that flattens a doc's type arrays and tags each item `_type`.
     language: python
@@ -166,6 +176,7 @@ modules:
       - {name: is_binding, kind: function, signature: "(value) -> bool"}
     tests: [tests/test_yss.py, tests/test_gh12.py, tests/test_gh30.py]
   - id: attribution
+    handle: MAP.10
     path: yss/attribution.py
     purpose: Turn a section spec into a sentence naming the doc, the query and the counts behind a rendered region. Pure - no rendering, no re-resolution - so the phrasing is unit tested on spec dictionaries.
     language: python
@@ -177,6 +188,7 @@ modules:
       - {name: binding_specs, kind: function, signature: "(sec) -> [(arg_name, spec)]"}
     tests: [tests/test_gh29.py]
   - id: render
+    handle: MAP.11
     path: yss/render.py
     purpose: Renderer - Jinja env, prefab(), section handlers, inline reference expansion, pluggable markdown, collection context, render_page.
     language: python
@@ -193,6 +205,7 @@ modules:
       - {name: route_to_path, kind: function, signature: "(out_dir, route) -> Path"}
     tests: [tests/test_yss.py, tests/test_gh14.py, tests/test_gh18.py]
   - id: build
+    handle: MAP.12
     path: yss/build.py
     purpose: load_all (validate, collection configs, refs, cross checks) and build (filter, evidence, hooks, render, export, assets, mounts, dynamic, manifest, dead-link gate, scan), holding an advisory lock on the output directory so two builders cannot race on one dist/.
     language: python
@@ -205,6 +218,7 @@ modules:
       - {name: output_ok, kind: function, signature: "(report) -> bool", description: "Did the build's own build.json survive? The summary is in-memory counts and cannot tell (adr-029)."}
     tests: [tests/test_yss.py, tests/test_gh14.py, tests/test_gh19.py]
   - id: dynamic
+    handle: MAP.13
     path: yss/dynamic.py
     purpose: Collect dynamic sources (provider, hooks provider, command, file) into the JSON envelope.
     language: python
@@ -214,6 +228,7 @@ modules:
       - {name: collect_envelope, kind: function, signature: "(cfg, name, spec) -> dict"}
       - {name: write_all, kind: function, signature: "(cfg, target, out_dir, names=None, only_on_build=False) -> {name: envelope}"}
   - id: providers
+    handle: MAP.14
     path: yss/providers/
     purpose: buildinfo (counts), testruns (unittest in a subprocess), gitlog (recent commits), evidence (claims incl. commands), symbols (code map export line ranges).
     language: python
@@ -227,6 +242,7 @@ modules:
       - {name: symbols.collect_source, kind: function, description: "The same ranges plus the lines; refuses a redacting target."}
       - {name: evidence.collect, kind: function}
   - id: server
+    handle: MAP.15
     path: yss/server.py
     purpose: SiteHandler (prefix stripping, background dynamic refresh, COOP/COEP), make_server, rebuild, serve with watch loop.
     language: python
@@ -237,6 +253,7 @@ modules:
       - {name: make_server, kind: function, signature: "(cfg, target, host, port, live) -> ThreadingHTTPServer"}
     tests: [tests/test_yss.py]
   - id: scaffold
+    handle: MAP.16
     path: yss/scaffold.py
     purpose: Skeleton generation from resolved schemas for `yss new` and `yss init` (which also installs skills and a starter CLAUDE.md).
     language: python
@@ -248,6 +265,7 @@ modules:
       - {name: new_prefab, kind: function}
       - {name: init_site, kind: function}
   - id: skillpack
+    handle: MAP.17
     path: yss/skillpack.py
     purpose: "Canonical agent skills live in yss/skills/; `yss skills` installs or checks the copies in a repo's .claude/skills/."
     language: python
@@ -257,6 +275,7 @@ modules:
       - {name: check, kind: function, signature: "(root) -> [(name, status)]"}
     tests: [tests/test_yss.py]
   - id: ghpages
+    handle: MAP.18
     path: yss/ghpages.py
     purpose: "`pages-setup` - gh CLI wrapper that stores redaction secrets and sets the Pages source to GitHub Actions."
     language: python
@@ -265,6 +284,7 @@ modules:
     exports:
       - {name: setup, kind: function, signature: "(cfg, repo=None, dry_run=False, secrets=True, pages=True, run_workflow=False) -> [messages]"}
   - id: cli
+    handle: MAP.19
     path: yss/cli.py
     purpose: argparse front end for every command; paired flags (--strict/--no-strict, --git/--no-git, --run-commands/--no-run-commands) default to None so config decides; fails a build whose output vanished underneath it.
     language: python
@@ -273,64 +293,120 @@ modules:
     exports:
       - {name: main, kind: function, signature: "(argv=None) -> int"}
   - id: client
+    handle: MAP.20
     path: yss/assets/yss.js
     purpose: Dynamic section rendering and nav toggle; exposes window.yss. The worksheet's script ships with its prefab. Scroll offsetting is CSS-only (--header-offset in yss.css), never scripted.
     language: javascript
     status: active
   - id: layout
+    handle: MAP.21
     path: yss/templates/default.html
     purpose: Default layout - header nav as ordered groups (labelled clusters, optional details menus, waiting counts) including the collections group, de-duplicated title crumbs, collection bar with emblem, theme and sub-nav, page header with freshness badge, sections, toc, footer.
     language: jinja
     status: active
 
+  - id: handles
+    handle: MAP.43
+    path: yss/handles.py
+    purpose: "Persistent item handles: the site-wide index that resolves PLN.7 to the doc item declaring it, plus the sweep that finds handles written outside any item."
+    language: python
+    status: active
+    exports:
+      - {name: HandleIndex, kind: class, description: "Canonical handle -> item; lookup folds case. series(), next_number() (the mint pointer) and gaps() answer the append-only questions."}
+      - {name: build_index, kind: function, signature: "(docs, archived=()) -> (HandleIndex, errors)", description: "Errors are the ones no schema can state: a mnemonic two docs claim, a handle two items carry, a handle whose prefix is not its own doc's."}
+      - {name: sweep, kind: function, signature: "(root, index, extensions, skip_dirs, only) -> [Mention]", description: "Handles written outside a doc item. Only a declared prefix is matched, so v1.4 and Fig.2 stay text."}
+      - {name: unregistered, kind: function, signature: "(mentions, allowed=()) -> [Mention]", description: Mentions naming no item and excused by no unminted declaration.}
+      - {name: parse_handle, kind: function, signature: "(text) -> (mnemonic, number) | None"}
+      - {name: Handle, kind: class, description: "One bound handle: doc, item, source, tier (live|archived) and the item's own text."}
+      - {name: Mention, kind: class, description: "A handle found in a file: it resolves to a location and never to a quote."}
+    tests: [tests/test_handles.py]
+  - id: liverules
+    handle: MAP.44
+    path: yss/liverules.py
+    purpose: Projects a contradiction register into the list of rules that still bind - verbatim from the source, and failing rather than dropping a rule it cannot account for.
+    language: python
+    status: active
+    exports:
+      - {name: generate, kind: function, signature: "(cfg, docs, index, spec) -> (path, text)", description: Raises LiveRulesError carrying every refusal at once.}
+      - {name: LiveRulesError, kind: class, description: "The refusals. A rule lost to a missed pattern is indistinguishable from a rule that never existed, so nothing is skipped."}
+      - {name: Spec, kind: class, description: "One collection's register config: doc and output ids, series prefixes, per-series strike forms and unminted handles."}
+      - {name: specs, kind: function, signature: "(cfg) -> [Spec]", description: Every collection declaring a register block; what `--list` prints.}
+      - {name: find_spec, kind: function, signature: "(cfg, name) -> Spec"}
+      - {name: project, kind: function, signature: "(register, rows, pairs, spec) -> dict", description: "Pure: same inputs, same bytes. Nothing reads the clock."}
+      - {name: is_stale, kind: function, signature: "(path, text) -> bool", description: What `--check` and the shipped command evidence claim ask.}
+      - {name: STATES, kind: constant, description: The closed row-state vocabulary and the section each state reaches.}
+    tests: [tests/test_register.py]
 entrypoints:
   - id: e-validate
+    handle: MAP.22
     name: Validate
     command: python -m yss validate
     module: cli
     description: Schema-check every structured file, collection config and reference. Run after every edit.
+  - id: e-handles
+    handle: MAP.49
+    name: Handles
+    command: python -m yss handles [HANDLE] [--series PREFIX] [--mentions]
+    module: cli
+    description: The mnemonic map with each series' mint pointer and gaps; one handle's text and home; or the sweep for handles written outside a doc item, which exits 1 when one names no item.
+  - id: e-live-rules
+    handle: MAP.50
+    name: Live rules
+    command: python -m yss live-rules [COLLECTION] [--check] [--list]
+    module: cli
+    description: Project a contradiction register into the rules that still bind. Refuses with every problem at once rather than dropping a rule; --check exits 1 when the committed output is stale.
   - id: e-check
+    handle: MAP.23
     name: Check evidence
     command: python -m yss check [--run-commands] [--strict] [-v]
     module: cli
     description: Prove cited paths, symbols and commands; exit 1 on stale claims.
   - id: e-refs
+    handle: MAP.24
     name: References
     command: python -m yss refs plan#m7-search
     module: cli
     description: Inbound references to a doc or item.
   - id: e-build
+    handle: MAP.25
     name: Build
     command: python -m yss build [--target public|private|all] [--no-dynamic] [--strict]
     module: cli
   - id: e-serve
+    handle: MAP.26
     name: Serve
     command: python -m yss serve [--no-watch]
     module: cli
     description: Private on 8800, public preview on 8801 under /YamlStaticSite/.
   - id: e-query
+    handle: MAP.27
     name: Query
     command: python -m yss query plan.milestones --where status=active --fields id,title
     module: cli
     description: Read structured data the way pages do.
   - id: e-ls
+    handle: MAP.28
     name: Inventory
     command: python -m yss ls [docs|pages|prefabs|kinds|dynamic|collections]
     module: cli
   - id: e-tests
+    handle: MAP.29
     name: Tests
     command: python -m unittest discover -s tests -v
     module: cli
   - id: e-new
+    handle: MAP.30
     name: Scaffold
     command: python -m yss new doc <kind> <id> | new page <id> [--doc <id>] | new prefab <name>
     module: scaffold
   - id: e-skills
+    handle: MAP.31
     name: Skills
     command: python -m yss skills [--install] [--force]
     module: skillpack
     description: Check or install the agent skill suite into .claude/skills/.
   - id: e-pages
+    handle: MAP.32
     name: Pages setup
     command: python -m yss pages-setup [--dry-run] [--run]
     module: ghpages
@@ -338,36 +414,66 @@ entrypoints:
 
 conventions:
   - id: cv-ids
+    handle: MAP.33
     rule: Ids are lowercase slugs, stable forever, unique within a doc. Pages, references and evidence all rely on them.
     enforced_by: validate
   - id: cv-private
+    handle: MAP.34
     rule: "Anything not for the public site is either `visibility: private` or under `private_notes`; never rely on the scan alone."
     enforced_by: none
   - id: cv-no-abs-paths
+    handle: MAP.35
     rule: Nothing that ends up in dist/ may contain an absolute path.
     rationale: The checkout path contains personal information; the public build forbids it automatically.
     enforced_by: scan
   - id: cv-verify
+    handle: MAP.36
     rule: "Every plan task carries `verify`; when a path or command can prove it, add an `evidence:` claim too."
     enforced_by: none
   - id: cv-archive
+    handle: MAP.37
     rule: Done-and-committed milestones move to docs/_archive/; the plan holds open work only; the changelog is the history.
     enforced_by: none
   - id: cv-local-first
+    handle: MAP.38
     rule: "Inside a collection, doc ids resolve to the local doc first; use `/doc` to reach a root doc that shares the name."
     enforced_by: validate
   - id: cv-generated
+    handle: MAP.39
     rule: Never cite generated or gitignored paths (dist/) as evidence; a fresh clone must satisfy every claim.
     rationale: CI runs `yss check` on a clean checkout, so claims about build output are always stale there.
     enforced_by: check
   - id: cv-prefab-css
+    handle: MAP.40
     rule: Prefab CSS is scoped under a class named after the prefab and uses the shared tone variables.
     enforced_by: none
   - id: cv-release
+    handle: MAP.41
     rule: "The commit that closes an issue sweep carries the version bump: pyproject.toml, yss/__init__.py and a released changelog entry move together, and the tag is cut on that commit."
     rationale: Two materially different trees reporting the same version give a consumer no signal at all - no tag, no version, no error - which is how nineteen fixes stayed invisible behind v0.2.0.
     enforced_by: test
   - id: cv-release-drift
+    handle: MAP.42
     rule: "When `yss/` has changed since the newest v<x.y.z> tag, the declared version is no longer that tag's version - a bump lands with the drift, even if the tag itself waits."
     rationale: A tag and a local editable checkout reporting one version for two trees is the invisibility cv-release describes, seen from the other side; cutting the tag is a human's call, but being unable to tell the trees apart is not.
     enforced_by: test
+  - id: cv-handles
+    handle: MAP.45
+    rule: "A doc declares `mnemonic:`; every item it owns declares its own `handle:`. Declared, never derived - a handle read out of list position breaks the first time a list is sorted."
+    rationale: Handles are what make an item citable from files yss does not read, which a doc#item reference never was.
+    enforced_by: validate
+  - id: cv-handles-append-only
+    handle: MAP.46
+    rule: Handles are append-only - never renumbered, never reused, struck in place rather than rewritten. An ordinal identifies an item and dates nothing.
+    rationale: Existing docs were backfilled in file order, so a lower number is not older; retirement and successor-minting both stand on the number never moving.
+    enforced_by: none
+  - id: cv-handles-cite
+    handle: MAP.47
+    rule: "A doc that cites handles rather than minting them - a register, a generated live-rules list - spells the field `subject:`, never `handle:`."
+    rationale: One field declares and one cites; spelling them the same makes a view look like a minting item to the index and to a reader.
+    enforced_by: validate
+  - id: cv-register-never-archived
+    handle: MAP.48
+    rule: A contradiction register is never archived, and its generated live-rules list is never hand-edited.
+    rationale: A register's settled rows are what make its live ones legible; the generated file is rewritten on every run.
+    enforced_by: none

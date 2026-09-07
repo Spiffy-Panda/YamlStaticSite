@@ -43,6 +43,10 @@ DEFAULTS: dict[str, Any] = {
         "question_status": ["open", "answered", "deferred"],
         "release_status": ["released", "unreleased", "yanked"],
         "claim_status": ["live", "decided", "open", "superseded"],
+        # A contradiction register's row states. Closed on purpose: an unknown state has no section
+        # to be emitted into, so the rule it names would vanish from the generated live-rules list
+        # rather than fail loudly. `retired` reaches that list as a bare number with no text.
+        "register_state": ["live", "met", "answered", "recorded", "retired"],
         "link_kind": ["repo", "issue", "pr", "doc", "page", "play", "external", "file"],
         "nav_group": ["content", "decide", "meta"],
         "enforcement": ["validate", "check", "build", "scan", "test", "none"],
@@ -183,6 +187,16 @@ class Collection:
         return self.data.get("visibility", "public")
 
     @property
+    def register(self) -> dict:
+        """This collection's `register:` block - handle series, strike forms, unminted handles.
+
+        Anything unique to one collection lives in its own collection.yaml, and the generator needs
+        this before it opens any doc. Empty when the collection runs no register.
+        """
+        block = self.data.get("register")
+        return dict(block) if isinstance(block, dict) else {}
+
+    @property
     def route_prefix(self) -> str:
         if self.is_root:
             return "/"
@@ -288,7 +302,10 @@ class Config:
                 schemas_dir=self.path("schemas"),
                 assets_dir=self.path("assets"),
                 hooks_path=(self.root / self.data["hooks"]) if self.data.get("hooks") else None,
-                data={"title": self.site.get("name", "site"), "order": 0},
+                # site.yaml *is* the root collection's config file, so a `register:` block there
+                # reaches the root collection the same way one in collection.yaml reaches a musing.
+                data={"title": self.site.get("name", "site"), "order": 0,
+                      "register": self.data.get("register") or {}},
             )
         ]
         seen: dict[str, Path] = {}

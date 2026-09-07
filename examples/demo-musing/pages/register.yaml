@@ -1,0 +1,20 @@
+# The contradiction register, rendered as an instruction builder. Private, explicitly and never
+# inherited: sibling pages in this folder are public. Binding a private doc from a public page is a
+# build error, and a register quotes internal disagreement - do not flip this.
+id: register
+title: Demo musing register
+summary: Where this musing disagrees with itself. For an agent auditing history - a working agent loads the live-rules list instead.
+visibility: private
+nav: {label: Register, order: 8}
+docs: [register]
+sections:
+  - id: register
+    type: prefab
+    prefab: contradiction-register
+    args:
+      title: {from: register.title}
+      intro: {from: register.intro}
+      entries: {from: register.entries}
+      pairs: {from: register.pairs}
+      dismissed: {from: register.dismissed}
+      prompt: {from: register.prompt}

@@ -9,6 +9,7 @@ from __future__ import annotations
 import copy
 import importlib
 import json
+import html
 import re
 from pathlib import Path
 from typing import Any, Callable
@@ -21,7 +22,8 @@ from .attribution import attribute
 from .binding import BindError, is_binding, resolve_binding
 from .config import PKG_DIR, Collection, Config
 from .hooks import call, load_hooks
-from .loader import CODE_SPAN_RE, find_inline_refs, index_ids, iter_strings, resolve_doc_id
+from .handles import build_index
+from .loader import CODE_SPAN_RE, find_inline_refs, handle_ref, index_ids, iter_strings, resolve_doc_id
 from .symbols import lookup as symbol_lookup, supported as symbols_supported
 from .visibility import question_requires_answer, slugify
 
@@ -96,6 +98,7 @@ class Renderer:
         all_doc_ids: list[str] | None = None,
         build_info: dict | None = None,
         evidence: list[dict] | None = None,
+        archived: list | None = None,
     ):
         self.cfg = cfg
         self.target = target
@@ -169,6 +172,13 @@ class Renderer:
         )
         self.nav = self._nav()
         self._doc_pages = self._index_doc_pages()
+        # Built from this target's *filtered* docs, which is the whole of the private-handle rule
+        # (H.5): a public page may cite a private handle, and in the public build the doc is simply
+        # not there, so the citation resolves to nothing and renders as inert text. No wording
+        # crosses the line, and no build fails for a number.
+        self.handles, _ = build_index(docs, archived or [])
+        self._series_labels()
+        self.tooltip_lines = self._tooltip_lines()
 
     # --- helpers ---------------------------------------------------------
     def _code_base(self):
@@ -507,6 +517,66 @@ class Renderer:
                 return fn
         return self.site_renderer or default_markdown
 
+    # --- handles ---------------------------------------------------------
+    #: Named tooltip modes. `full` is everything; `compact` hides the source lines, which is the
+    #: mode for a page that cites constantly and would otherwise drown in provenance; `text` is the
+    #: item's words alone. A site may also list the parts explicitly.
+    TOOLTIP_MODES = {
+        "full": ("series", "handle", "source", "text"),
+        "compact": ("handle", "text"),
+        "text": ("text",),
+        "meta": ("series", "handle", "source"),
+    }
+
+    def _series_labels(self) -> None:
+        """Fill each mnemonic's label from the collection register block that names it (R.6)."""
+        for collection in self.collections:
+            for series in (collection.register or {}).get("series") or []:
+                if not isinstance(series, dict):
+                    continue
+                entry = self.handles.mnemonics.get(str(series.get("prefix", "")).upper())
+                if entry is not None and series.get("label"):
+                    entry.label = str(series["label"])
+
+    def _tooltip_lines(self) -> tuple[str, ...]:
+        spec = (self.cfg.data.get("handles") or {}).get("tooltip", "full")
+        if isinstance(spec, str):
+            return self.TOOLTIP_MODES.get(spec, self.TOOLTIP_MODES["full"])
+        if isinstance(spec, list):
+            return tuple(str(part) for part in spec)
+        return self.TOOLTIP_MODES["full"]
+
+    def _tooltip(self, entry) -> list[str]:
+        """The citation's hover lines. Each configured line is dropped when it has nothing to say."""
+        mnemonic = self.handles.mnemonics.get(entry.mnemonic)
+        parts = {
+            "series": mnemonic.shown if mnemonic else "",
+            "handle": entry.handle + (" - archived" if entry.archived else ""),
+            "source": " - ".join(x for x in (entry.source, entry.field) if x),
+            "text": entry.text,
+        }
+        return [line for key in self.tooltip_lines if (line := parts.get(key, "").strip())]
+
+    def handle_url(self, entry) -> str:
+        """Where a citation points: the first public page presenting the doc, else nowhere (H.4)."""
+        route = self._doc_pages.get(entry.doc_id)
+        base = self.url(route) if route else ""
+        if not base:
+            return ""
+        if entry.item_id:
+            self.note_ref(entry.doc_id, entry.item_id, base)
+            return f"{base}#{entry.item_id}"
+        return base
+
+    def _cite(self, entry, label: str | None) -> str:
+        shown = label or entry.handle
+        title = "&#10;".join(html.escape(line, quote=True) for line in self._tooltip(entry))
+        href = self.handle_url(entry)
+        classes = "yss-cite" + (" yss-cite-archived" if entry.archived else "")
+        if not href:
+            return f'<span class="{classes}" title="{title}">{html.escape(shown)}</span>'
+        return f'<a class="{classes}" href="{html.escape(href, quote=True)}" title="{title}">{html.escape(shown)}</a>'
+
     def _item_title(self, doc_id: str, item: str) -> str | None:
         if doc_id not in self._item_index:
             self._item_index[doc_id], _ = index_ids(self.docs[doc_id]) if doc_id in self.docs else ({}, [])
@@ -532,6 +602,14 @@ class Renderer:
     def _expand_plain(self, text: str) -> str:
         cid = self.current_collection.id if self.current_collection else None
         for raw, doc_ref, item, label in find_inline_refs(text):
+            body = (doc_ref or "") + (f"#{item}" if item else "")
+            handle = handle_ref(body, self.handles, self.docs) if not item else None
+            if handle is not None:
+                entry = self.handles.resolve(handle, self.current_doc)
+                # Unresolved here means the doc is not in this target - inert text, never an error
+                # and never a leak (H.5).
+                text = text.replace(raw, self._cite(entry, label) if entry else (label or body))
+                continue
             doc_id = resolve_doc_id(doc_ref, cid, self.docs) if doc_ref else self.current_doc
             if doc_id and doc_id not in self.docs:
                 doc_id = None

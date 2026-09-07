@@ -1,0 +1,32 @@
+# Page - schema: page. Presents docs/handles-next.yaml, the live worksheet after the handle layer shipped.
+id: handles-next
+route: /handles-next/
+title: After handles
+summary: Five calls left by building the handle layer and the register - how far the gap check reaches, how crowded a citation tooltip should be, items with no id, a bootstrap wrinkle, and whether the worked example is visible.
+visibility: public          # worksheets stay on the public site (P.2, 2026-09-02)
+nav: {label: After handles, order: 40, group: decide}
+docs: [handles-next, plan]
+sections:
+  - id: worksheet
+    type: prefab
+    prefab: worksheet
+    args:
+      title: {from: handles-next.title}
+      intro: {from: handles-next.intro}
+      warn: {from: handles-next.warn}
+      questions: {from: handles-next.questions}
+      prompt: {from: handles-next.prompt}
+      decided_by: true
+      extra: true
+
+  - id: other
+    type: markdown
+    heading: Other worksheets
+    markdown: |
+      - [[later]] - the other live worksheet; decisions left over from the issue sweeps.
+      - [[register-skill]] - applied 2026-09-07; the sheet this one came out of.
+      - [[audit-calls]] - applied 2026-09-04; kept as the record.
+      - [[next]] - applied 2026-09-03; kept as the record.
+      - [[open]] - applied 2026-09-02; kept as the record.
+      - [[pending]] - applied 2026-09-02; kept as the record.
+      - [[verdicts]] - applied 2026-09-02; kept as the record.

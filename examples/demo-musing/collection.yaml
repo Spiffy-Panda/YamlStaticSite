@@ -30,4 +30,14 @@ mounts:
     at: play/
     targets: [private, public]                 # mounts default to private; a public playable opts in here (adr-015)
     include: ["*.html"]                        # gh-3: publish only the playable page itself, nothing beside it
+register:                                      # the contradiction register this collection runs
+  doc: register                                # docs/register.yaml
+  out: live-rules                              # the generated docs/live-rules.yaml
+  series:
+    - prefix: DMP
+      label: Demo musing plan handles
+      # A strike is written differently in different collections - in one it retires a handle, in
+      # another it strikes superseded text inside a claim that is still live. Declared per series
+      # so one collection's patterns can never be pointed at another's file.
+      strike_forms: ["~~{handle}", "{handle} - RETIRED"]
 agent_notes: Anything unique to this musing goes in hooks.py; shared behaviour goes upstream into yss.

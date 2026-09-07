@@ -135,6 +135,49 @@ properties:
             folder and drops it whole (`prototype/`, `_*/`); `**` matches any depth
             (`**/README.md` anywhere in the tree).
       additionalProperties: false
+  register:
+    type: object
+    description: |
+      This collection's contradiction register configuration. Everything here is a *per-collection*
+      particular, which is why it is not in site.yaml: a collection may own several handle series,
+      and a strike does not mean the same thing in two collections - in one it marks a retired
+      handle, in another it strikes superseded text inside a claim that is still live. Pointing one
+      collection's patterns at another has already been shown to read live claims as retirements.
+    properties:
+      doc: {type: string, description: "Id of the register doc in this collection (default: register)."}
+      out: {type: string, description: "Id of the generated live-rules doc (default: live-rules)."}
+      series:
+        type: array
+        description: The handle series this register covers. A collection may own several.
+        items:
+          type: object
+          required: [prefix]
+          properties:
+            prefix: {type: string, description: "The mnemonic, e.g. TSG. Matched case-insensitively."}
+            label: {type: string, description: "What this series is about; the first line of a citation tooltip."}
+            strike_forms:
+              type: array
+              items: {type: string}
+              description: |
+                Patterns that mark a handle struck in place in its home file, each anchored on the
+                handle itself. `{handle}` is substituted with the handle. Matched exactly, never
+                fuzzily, so a `~~` appearing earlier in the file cannot read as a retirement.
+            unminted:
+              type: array
+              description: Handles the prose names that no item carries yet. Each needs its reason.
+              items:
+                type: object
+                required: [handle, why]
+                properties:
+                  handle: {type: string}
+                  why: {type: string, x-limit: line}
+                additionalProperties: false
+          additionalProperties: false
+      sweep_ext:
+        type: array
+        items: {type: string}
+        description: "File extensions the mention sweep reads in this collection. Defaults to the built-in list."
+    additionalProperties: false
   agent_notes: {type: string}
 patternProperties:
   "^x-": {}

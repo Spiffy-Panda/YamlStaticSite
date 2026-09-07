@@ -1,12 +1,40 @@
 # Changelog - schema: doc.changelog. Newest release first. This is the record of shipped work.
 kind: changelog
 id: changelog
+mnemonic: CHG
 title: Changelog
 summary: Releases of the yss toolchain.
 status: active
 updated: 2026-09-07
 
 releases:
+  - version: 0.6.0
+    date: 2026-09-07
+    status: released
+    summary: Persistent item handles become a first-class feature, and the contradiction register that consumes them ships as a doc kind, a built-in prefab and a subcommand. Every doc in the site now mints a handle series; a citation carries the cited item's own words as hover text.
+    changes:
+      - type: added
+        text: "Handles: a doc declares `mnemonic:` and its items declare `handle:`, resolving through the same resolver as a `[[doc#item]]` reference, to the same item. Storage is canonically uppercase with case-folding lookup, and only the explicit reference form links (adr-046)."
+      - type: added
+        text: "`python -m yss handles` prints the mnemonic map with each series' mint pointer and gaps, looks one handle up, lists a series, or sweeps files for handles written outside any doc item (`--mentions`, exit 1 when one names no item)."
+      - type: added
+        text: "Citations render with the cited item's own words as hover text, in configurable modes - `site.yaml` `handles.tooltip` takes `full`, `compact`, `meta`, `text` or an explicit list of `series`, `handle`, `source`, `text`. Any part with nothing to say drops its own line."
+      - type: added
+        text: "`doc.register`: the contradiction register as a real kind, with the closed `register_state` vocabulary. A view over handles that live in other files - it answers nothing, carries no `resolution:`, and is never archived (adr-051)."
+      - type: added
+        text: "The `contradiction-register` prefab: contradictions first, then every handle with a retire marker and a comment box, then a Build the instruction button whose output contains only the rows a human touched."
+      - type: added
+        text: "`python -m yss live-rules <collection> [--check]` projects a register into the rules that still bind. Verbatim from its source with no second copy, deterministic, and refusing on eleven failure modes rather than dropping a rule (adr-051)."
+      - type: added
+        text: "A `register:` block in collection.yaml (site.yaml for the root collection) carries the per-collection particulars: series prefixes, per-series strike forms, unminted handles and swept extensions."
+      - type: changed
+        text: "Every doc in this site declares a mnemonic and every item with an `id` carries a handle - 352 across 18 series, backfilled in file order. An ordinal identifies an item and dates nothing (adr-047)."
+      - type: changed
+        text: "Archived fragments are indexed at tier `archived`, so a citation to an archived item still resolves and reads as spent rather than dangling. Archived means not loaded into a working agent's context, not absent from the index."
+      - type: added
+        text: "The `yss-register` skill, and handle sections in `yss` and `yss-doc` where an agent authoring a doc will meet them."
+      - type: added
+        text: "The demo collection carries a worked register, its generated live-rules list and both pages, private and explicitly so."
   - version: 0.5.1
     date: 2026-09-07
     status: released

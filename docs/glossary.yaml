@@ -1,6 +1,7 @@
 # Glossary - schema: doc.glossary
 kind: glossary
 id: glossary
+mnemonic: GLO
 title: Glossary
 summary: The words the toolchain and its skills use.
 status: active
@@ -9,6 +10,7 @@ updated: 2026-09-04
 terms:
   - term: structured doc
     id: structured-doc
+    handle: GLO.1
     aliases: [doc]
     definition: A YAML file under `docs/` with a `kind` and the envelope fields, validated by `doc.<kind>.schema.yaml`. The agent-first source of truth.
     see_also: [kind, envelope]

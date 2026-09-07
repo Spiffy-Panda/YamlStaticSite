@@ -132,6 +132,15 @@ pre code { background: none; padding: 0; }
 .prose th, .table th { background: var(--code); }
 blockquote { border-left: 3px solid var(--accent); margin: 1rem 0; padding: .2rem 1rem; color: var(--fg-2); }
 
+/* Handle citations. `[[PLN.7]]` renders as one of these; the hover text carries the cited item's
+   own words, so the mark itself stays quiet - a citation should read as punctuation in a sentence,
+   not as a button. A citation whose doc has no page in this target is a span rather than a link
+   (H.4), and one whose item was archived keeps its number and is marked spent rather than hidden. */
+.yss-cite { font-variant-numeric: tabular-nums; white-space: nowrap; border-bottom: 1px dotted var(--accent); text-decoration: none; cursor: help; }
+a.yss-cite:hover { border-bottom-style: solid; }
+span.yss-cite { color: var(--fg-2); border-bottom-color: var(--line); }
+.yss-cite-archived { opacity: .72; font-style: italic; }
+
 /* dynamic */
 .dynamic { border: 1px dashed var(--line); border-radius: var(--radius); padding: .75rem 1rem; background: var(--bg-2); }
 .dynamic-status { margin: 0; color: var(--fg-2); font-size: .9rem; }

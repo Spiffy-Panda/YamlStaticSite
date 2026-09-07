@@ -3,10 +3,11 @@
 # the changelog records what shipped. Keep ids stable; pages and references point at them.
 kind: plan
 id: plan
+mnemonic: PLN
 title: YamlStaticSite plan
 summary: Forward plan for the yss toolchain. Shipped work lives in the changelog and docs/_archive/; this file holds only what is open - the source reader and its polyglot half, the prototype mounts, hardening, and the Musings adoption.
 status: active
-updated: 2026-09-06
+updated: 2026-09-07
 owners: [panda, agent]
 tags: [toolchain, docs, static-site]
 related: [design, codemap, decisions, verdicts, pending]
@@ -31,6 +32,7 @@ non_goals:
 
 milestones:
   - id: m9-source-reader
+    handle: PLN.1
     title: Click-to-source in the code map
     status: active
     priority: 2
@@ -44,36 +46,42 @@ milestones:
       mirror duplicates the package into the public build.
     tasks:
       - id: m9-resolver
+        handle: PLN.2
         title: Parse a module to a symbol line range, shared by the checker and the site
         status: done
         owner: agent
         verify: python -m unittest tests.test_yss.SymbolResolverTests -v
         evidence: [{path: yss/symbols.py, contains: "def index_for"}]
       - id: m9-sources
+        handle: PLN.3
         title: Publish the index on both targets and the source text on the private target only
         status: done
         owner: agent
         verify: python -m yss build --target all && ls dist/public/dynamic dist/private/dynamic
         evidence: [{path: yss/providers/symbols.py, contains: "def collect_source"}]
       - id: m9-pinning
+        handle: PLN.4
         title: Give the build its commit so a line anchor is only published when pinned and clean
         status: done
         owner: agent
         verify: python -m unittest tests.test_yss.BuildCommitTests -v
         evidence: [{path: yss/build.py, contains: "def git_commit"}]
       - id: m9-reader
+        handle: PLN.5
         title: Upgrade the export link into an in-page source pane, falling back to the link
         status: done
         owner: agent
         verify: python -m yss build --target public --no-dynamic && grep -c export-link dist/public/codemap/index.html
         evidence: [{path: yss/prefabs/module-list.yaml, contains: "export-link"}]
       - id: m9-export-evidence
+        handle: PLN.6
         title: Prove every code map export with `yss check` rather than leaving a dead link
         status: done
         owner: agent
         verify: python -m yss check -v
         evidence: [{path: yss/evidence.py, contains: "def _check_export"}]
       - id: m9-offline
+        handle: PLN.7
         title: Decide whether a generated source mirror is worth shipping for the offline case
         status: planned
         owner: panda
@@ -83,6 +91,7 @@ milestones:
           [[decisions#adr-024]] declined. No mirror is built until that trade is actually felt.
 
   - id: m15-polyglot-reader
+    handle: PLN.8
     title: The code map reads languages the toolchain is not written in
     status: active
     priority: 2
@@ -99,48 +108,56 @@ milestones:
       without a network is what the public target already had.
     tasks:
       - id: m15-langs
+        handle: PLN.9
         title: One parser module per language behind an unchanged dispatcher
         status: done
         owner: agent
         verify: python -m unittest tests.test_rust.RustLookupTests -v
         evidence: [{path: yss/langs/__init__.py, contains: "REGISTRY"}]
       - id: m15-rust-scanner
+        handle: PLN.10
         title: Index Rust by blanking what is not code and walking the braces
         status: done
         owner: agent
         verify: python -m unittest tests.test_rust.RustScannerTests -v
         evidence: [{path: yss/langs/rust.py, contains: "def file_index"}]
       - id: m15-fixture
+        handle: PLN.11
         title: A crate that compiles, carrying every construct the scanner can get wrong
         status: done
         owner: agent
         verify: cargo test --manifest-path examples/rust-musing/prototype/lifelike/Cargo.toml
         evidence: [{path: examples/rust-musing/docs/codemap.yaml, contains: "language: rust"}]
       - id: m15-collection-exports
+        handle: PLN.12
         title: Prove an export from the collection that cites it, not only from the repo root
         status: done
         owner: agent
         verify: python -m unittest tests.test_rust.CollectionExportEvidenceTests -v
         evidence: [{path: yss/evidence.py, contains: "def _bases"}]
       - id: m15-highlight
+        handle: PLN.13
         title: Colour the pane in the browser, where the source text actually arrives
         status: done
         owner: agent
         verify: python -m yss serve, then open /rust-musing/ and expand a module
         evidence: [{path: yss/prefabs/module-list.yaml, contains: "function tokenize"}]
       - id: m15-seek
+        handle: PLN.14
         title: Publish every name a cited file defines, and make an identifier a jump
         status: done
         owner: agent
         verify: python -m unittest tests.test_rust.RustCodeMapTests -v
         evidence: [{path: yss/providers/symbols.py, contains: "def _defs_for"}]
       - id: m15-bridge
+        handle: PLN.15
         title: Ask an editor for the definitions the index will never hold
         status: done
         owner: agent
         verify: F5 in tools/vscode-yss, then `yss - Open the private preview`
         evidence: [{path: tools/vscode-yss/extension.js, contains: "executeDefinitionProvider"}]
       - id: m15-more-languages
+        handle: PLN.16
         title: Decide which language is worth a parser next, if any
         status: planned
         owner: panda
@@ -150,6 +167,7 @@ milestones:
           The registry makes each one cheap, which is exactly the pressure that turns a toolchain
           into a pile of half-right parsers. No third language until a musing is blocked without it.
       - id: m15-ambiguous-impls
+        handle: PLN.17
         title: Decide what to do when two impl blocks define the same method name
         status: planned
         owner: panda
@@ -160,6 +178,7 @@ milestones:
           Worth an answer before a musing with a generic trait-heavy crate does.
 
   - id: m6-prototypes
+    handle: PLN.18
     title: Prototype hosting
     status: planned
     priority: 5
@@ -171,11 +190,13 @@ milestones:
       Threadless exports are the rule; see [[decisions#adr-016]] and [[#r-headers]].
     tasks:
       - id: m6-godot
+        handle: PLN.19
         title: Add a threadless Godot export as a collection mount and confirm it runs without COOP/COEP
         status: planned
         owner: panda
         notes: Export with threads off; the private server's headers must not be what makes it work.
       - id: m6-bandwidth
+        handle: PLN.20
         title: Decide when a Godot export may carry the public target on its mount, given Pages bandwidth cost
         status: blocked
         owner: panda
@@ -186,15 +207,18 @@ milestones:
           Private-only mounts are unaffected, and mounts stay private by default regardless
           ([[decisions#adr-015]]). [[#m6-godot]] produces the export this call needs.
       - id: m6-serve-mounts
+        handle: PLN.21
         title: Serve-mode mounts (private server maps a URL to a source folder without copying)
         status: planned
         owner: agent
         verify: python -m yss serve --no-watch
       - id: m6-export-import
+        handle: PLN.22
         title: Dynamic sections that download and upload JSON (prototype state)
         status: planned
         owner: agent
       - id: m6-mount-filters
+        handle: PLN.23
         title: include/exclude patterns on a mount so a folder can publish some files and not others
         status: done
         owner: agent
@@ -208,12 +232,14 @@ milestones:
           - {path: tests/test_gh02_03_04.py}
           - {path: yss/schemas/collection.schema.yaml, contains: exclude}
   - id: m7-hardening
+    handle: PLN.24
     title: Hardening and ergonomics
     status: planned
     priority: 4
     summary: Things consciously left out so far, now ranked in the order they get picked up - search, reverify, watchdog, kinds, run-commands.
     tasks:
       - id: m7-search
+        handle: PLN.25
         title: Client-side search index over docs.json
         status: planned
         owner: agent
@@ -221,6 +247,7 @@ milestones:
           First in the m7 order (P.7, 2026-09-02). O.3 then ranked the rest - reverify, watchdog,
           kinds, run-commands - so the whole milestone is wanted and nothing in it was dropped.
       - id: m7-new-collection
+        handle: PLN.26
         title: "`yss new collection <id>` - the one structural unit with no scaffold"
         status: done
         owner: agent
@@ -237,6 +264,7 @@ milestones:
           - {symbol: yss.scaffold:new_collection}
 
       - id: m7-group-ref-mode
+        handle: PLN.27
         title: "`x-ref: group` so an item's `group:` can only name a declared group"
         status: planned
         owner: agent
@@ -246,6 +274,7 @@ milestones:
           the loader. Surfaced by the subject-grouping work (gh-8, 2026-09-03) and left open.
         verify: python -m yss validate
       - id: m7-card-link-routes
+        handle: PLN.28
         title: Check that a relative card link in collection.yaml resolves to a real route
         status: planned
         owner: agent
@@ -259,16 +288,19 @@ milestones:
         evidence:
           - {path: yss/schemas/collection.schema.yaml, contains: "x-evidence: route"}
       - id: m7-watchdog
+        handle: PLN.29
         title: Optional watchdog-based file watching instead of polling
         status: planned
         owner: agent
         notes: Third in the m7 order (O.3, 2026-09-02).
       - id: m7-kinds
+        handle: PLN.30
         title: Promote recurring `generic` shapes into real doc kinds
         status: planned
         owner: agent
         notes: Fourth in the m7 order (O.3, 2026-09-02); still only worth doing once a shape repeats.
       - id: m7-reverify
+        handle: PLN.31
         title: "`yss reverify <doc>` - bump `updated` after the human confirms the doc still holds"
         status: planned
         owner: agent
@@ -277,12 +309,14 @@ milestones:
           until it ships. Second in the m7 order behind [[#m7-search]] (O.3, 2026-09-02).
         verify: python -m yss reverify --help
       - id: m7-verify-evidence
+        handle: PLN.32
         title: Optional CI job that runs `yss check --run-commands` so task verify commands are executed
         status: planned
         owner: agent
         notes: Last in the m7 order (O.3, 2026-09-02); every m7 item is now wanted, none dropped.
         verify: cat .github/workflows/pages.yml
       - id: m7-open-item-checks
+        handle: PLN.33
         title: "`yss check` rules for `options`: an `open` item with none, and options on a `live` one"
         status: planned
         owner: agent
@@ -293,6 +327,7 @@ milestones:
           decision about existing content rather than a pure addition. Wanted, not urgent.
         verify: python -m yss check -v
       - id: m7-on-accent-rest
+        handle: PLN.34
         title: Finish the on-accent token pass - `.nav-count`'s hard-coded #fff, and the pill's own text colour
         status: blocked
         owner: agent
@@ -312,6 +347,7 @@ milestones:
           options are exactly this question - extend the token set everywhere, or add a token only
           where a theme has demonstrably been unable to reach. Answer that first ([[decisions#adr-031]]).
       - id: m7-flow-overrides
+        handle: PLN.35
         title: "Config and CLI overrides for the flow: build.strict in site.yaml, --no-strict, evidence.git_recency per collection"
         status: done
         owner: agent
@@ -325,6 +361,7 @@ milestones:
           - {path: yss/evidence.py, contains: "def _policy"}
 
   - id: m12-musings
+    handle: PLN.36
     title: Adopt yss in the Musings repository
     status: planned
     priority: 2
@@ -332,6 +369,7 @@ milestones:
     done_when: Every musing is a collection, build_site.py is deleted, and the audited Pages workflow builds with yss.
     tasks:
       - id: m12-collection-id
+        handle: PLN.37
         title: Let collection.yaml set the collection id so an existing URL slug survives the move
         status: done
         owner: agent
@@ -345,6 +383,7 @@ milestones:
           - {path: tests/test_gh02_03_04.py}
           - {path: yss/schemas/collection.schema.yaml, contains: "id:"}
       - id: m12-route-prefix
+        handle: PLN.38
         title: A URL prefix for collections so they can sit under /musings/ instead of the site root
         status: done
         owner: agent
@@ -358,12 +397,14 @@ milestones:
           - {path: tests/test_gh02_03_04.py}
           - {path: yss/config.py, contains: route_prefix}
       - id: m12-first
+        handle: PLN.39
         title: Migrate the space cargo cannon musing first and compare the rendered result
         status: planned
         owner: agent
         depends_on: [m12-collection-id, m12-route-prefix]
         notes: The first migration is what proves the two route changes above; it should not start before them.
       - id: m12-renderer
+        handle: PLN.40
         title: Plug the existing Musings renderer in through markdown.renderer or hooks.py markdown()
         status: planned
         owner: agent
@@ -372,11 +413,13 @@ milestones:
           migration so no page changes appearance while it moves; retiring it is [[#m12-retire]]'s
           business, not this task's. Changes inside the Musings repository are out of scope for yss.
       - id: m12-retire
+        handle: PLN.41
         title: Retire build_site.py once every musing renders through yss
         status: planned
         owner: panda
 
   - id: m13-attribution
+    handle: PLN.42
     title: Per-item source attribution
     status: planned
     priority: 4
@@ -397,6 +440,7 @@ milestones:
       two; do it when a region demonstrably needs it, not before.
     tasks:
       - id: m13-reserved
+        handle: PLN.43
         title: Stamp `_src` and `_doc` onto bound items so prefabs can read them
         status: done
         owner: agent
@@ -410,6 +454,7 @@ milestones:
           - {path: tests/test_gh30.py}
           - {path: yss/binding.py, contains: _source_stamp}
       - id: m13-emit
+        handle: PLN.44
         title: "Emit `data-src` from the eleven item prefabs that receive a whole item"
         status: planned
         owner: agent
@@ -422,6 +467,7 @@ milestones:
           prefab rendering groups has to read through to `items`.
         verify: python -m yss build --target all --no-dynamic
       - id: m13-trigger
+        handle: PLN.45
         title: Decide whether a $docs-fed grid or a group-sections region actually needs per-card provenance
         status: planned
         owner: panda
@@ -430,6 +476,7 @@ milestones:
           enough; the answer is worth having from a real page rather than in advance.
 
   - id: m14-audit
+    handle: PLN.46
     title: Act on the engineering audit
     status: active
     priority: 3
@@ -444,6 +491,7 @@ milestones:
       second pass, because the unexamined seven include security and tests.
     tasks:
       - id: m14-second-pass
+        handle: PLN.47
         title: Audit the seven dimensions the first pass could not reach
         status: active
         owner: agent
@@ -456,6 +504,7 @@ milestones:
           the first time. Security goes first.
         verify: docs/audit.yaml scorecard shows a score for all ten dimensions
       - id: m14-serve-reload
+        handle: PLN.48
         title: Make the dev server rebuild against the files on disk
         status: planned
         owner: agent
@@ -466,6 +515,7 @@ milestones:
           `symbols.index_for` does, apply configure() to a copy. `arch-serve-stale-config`.
         verify: A test edits collection.yaml between two rebuild() calls and the second build sees the change
       - id: m14-query-context
+        handle: PLN.49
         title: One binding context for the renderer and `yss query`
         status: planned
         owner: agent
@@ -475,6 +525,7 @@ milestones:
           the context lacks, and a `--collection` flag. `arch-query-context-drift`.
         verify: python -m yss query '$collections' --fields id
       - id: m14-provider-loaded
+        handle: PLN.50
         title: Hand providers the build's filtered load instead of reloading
         status: planned
         owner: agent
@@ -485,6 +536,7 @@ milestones:
           `arch-providers-reload-per-source`.
         verify: A test asserts public dynamic/buildinfo.json doc counts exclude a private doc
       - id: m14-load-facade
+        handle: PLN.51
         title: Move `Loaded`, `load_all` and `cross_checks` into loader.py
         status: planned
         owner: agent
@@ -494,6 +546,7 @@ milestones:
           then reads [loader, evidence, symbols, visibility]. `arch-load-facade-in-build`.
         verify: python -c "from yss.loader import load_all, Loaded, cross_checks"
       - id: m14-visibility-owner
+        handle: PLN.52
         title: Give the public-hides-private and mount-default rules one owner
         status: planned
         owner: agent
@@ -510,6 +563,7 @@ milestones:
           target filter.
         verify: Select-String -Path yss\build.py,yss\render.py -Pattern 'or \["private"\]' returns nothing
       - id: m14-frontend-fixes
+        handle: PLN.53
         title: The front-end fixes that need no decision
         status: planned
         owner: agent
@@ -524,6 +578,7 @@ milestones:
           `frontend-a11y-names-headers-outline`, `frontend-prefab-css-scope-not-enforced`.
         verify: python -m yss build --target all --no-dynamic
       - id: m14-card-consolidation
+        handle: PLN.54
         title: Render every collection card through the `card` prefab
         status: planned
         owner: agent
@@ -534,6 +589,7 @@ milestones:
           `frontend-card-markup-duplicated-three-ways`.
         verify: Select-String -Path yss\prefabs\collection-index.yaml -Pattern '<article' returns nothing
       - id: m14-typed-warnings
+        handle: PLN.55
         title: Typed build warnings and one CLI failure formatter
         status: planned
         owner: agent
@@ -544,6 +600,7 @@ milestones:
           `quality-string-warnings-parallel-lists`, `quality-cli-error-streams`.
         verify: A failing `python -m yss validate` prints nothing to stdout and exits 1
       - id: m14-consolidations
+        handle: PLN.56
         title: The small consolidations
         status: planned
         owner: agent
@@ -563,6 +620,7 @@ milestones:
           Everything else in this task is still open.
         verify: Select-String -Path yss\*.py -Pattern 'ANNOTATION_KEYS|python_executable' returns nothing
       - id: m14-orchestration
+        handle: PLN.57
         title: Stage `build()` and split the nav and collection views out of `Renderer`
         status: planned
         owner: agent
@@ -576,6 +634,7 @@ milestones:
           `arch-build-monolith`, `arch-renderer-god-object`, `arch-refs-logic-in-cli`.
         verify: python -m unittest discover -s tests
       - id: m14-muted-text
+        handle: PLN.58
         title: Settle the `--muted` contrast contract
         status: done
         owner: agent
@@ -588,6 +647,7 @@ milestones:
           its own name. No palette changed. `frontend-muted-small-text-below-aa`.
         verify: The playground contrast table and docs/palettes.yaml agree on the token's role
       - id: m14-mobile-nav
+        handle: PLN.59
         title: Primary navigation reachable on a phone without JavaScript
         status: done
         owner: agent
@@ -601,8 +661,64 @@ milestones:
           `frontend-mobile-nav-unreachable-without-js`.
         verify: With scripting disabled at 375px wide, every nav link is reachable
 
+  - id: m16-register-adoption
+    handle: PLN.72
+    title: Adopt the shipped register instrument where it was invented
+    status: planned
+    priority: 2
+    summary: Migrate the origin repository off its site-local register skill, prefab and generator onto the ones yss now ships.
+    done_when: The origin repository's collections run on the shipped kind, prefab and subcommand; its site-local skill and prefab are deleted; nothing an agent loads first is the stale copy.
+    notes: |
+      Ship-then-migrate ([[decisions#adr-051]]): shipping and migrating were deliberately split so a
+      working instrument keeps working while the shipped one is proven, and so a yss release does
+      not fail for reasons belonging to another repository. The window this opens is the risk -
+      two copies of the skill exist until this lands, and an agent could load the stale site-local
+      one. Deleting that copy is the first task, not the last.
+
+      Two things the migration has to account for rather than discover. Its committed markdown
+      live-rules output has **no shipped equivalent** ([[decisions#adr-049]]), so each collection
+      needs the generated doc and a page instead, and whatever pointed at the markdown has to be
+      repointed. And its handles live partly in page prose, which under [[decisions#adr-048]] are
+      mentions: findable and registrable, not quotable. Each becomes a doc item at the moment
+      something needs to quote it - demand-driven, not a sweep.
+    tasks:
+      - id: m16-mnemonics
+        handle: PLN.73
+        title: Declare mnemonics and backfill handles in the origin repository
+        status: planned
+        owner: agent
+        verify: python -m yss handles
+      - id: m16-registers
+        handle: PLN.74
+        title: Move both registers onto kind register and the built-in prefab
+        status: planned
+        owner: agent
+        depends_on: [m16-mnemonics]
+        verify: python -m yss validate
+      - id: m16-generator
+        handle: PLN.75
+        title: Point both collections at python -m yss live-rules and delete the site-local generator
+        status: planned
+        owner: agent
+        depends_on: [m16-registers]
+        verify: python -m yss live-rules --list
+      - id: m16-skill
+        handle: PLN.76
+        title: Delete the site-local contradiction-register skill and prefab
+        status: planned
+        owner: agent
+        depends_on: [m16-generator]
+        verify: python -m yss skills
+      - id: m16-diff
+        handle: PLN.77
+        title: Confirm every committed output changed only where the change was intended
+        status: planned
+        owner: agent
+        depends_on: [m16-generator]
+        verify: git diff --stat
 risks:
   - id: r-two-renderers
+    handle: PLN.60
     title: A host repo already has a markdown renderer with a documented subset and the two drift
     likelihood: medium
     impact: medium
@@ -612,24 +728,28 @@ risks:
       re-renders differently while both generators are alive; it is retired after the migration.
     status: mitigated
   - id: r-leak
+    handle: PLN.61
     title: Private or personal data leaks into the public build
     likelihood: medium
     impact: high
     mitigation: Private objects are filtered before rendering; the public build scans its output for forbidden strings and deletes itself on a hit; the checkout path is always forbidden.
     status: mitigated
   - id: r-schema-churn
+    handle: PLN.62
     title: Doc schemas change and old docs stop validating
     likelihood: medium
     impact: medium
     mitigation: Kinds are additive, vocabularies and limits are data, `x-` fields are always allowed, `generic` is the escape hatch.
     status: accepted
   - id: r-jinja-in-yaml
+    handle: PLN.63
     title: Prefab templates in YAML become unreadable
     likelihood: medium
     impact: low
     mitigation: Keep templates short, push logic into bindings and CSS, render prefab examples on the reference page so breakage is visible.
     status: open
   - id: r-headers
+    handle: PLN.64
     title: GitHub Pages cannot send COOP/COEP headers, so threaded wasm fails there
     likelihood: high
     impact: low
@@ -640,6 +760,7 @@ risks:
       allowed to depend on it.
     status: mitigated
   - id: r-evidence-noise
+    handle: PLN.65
     title: Git recency warns on every doc after a large refactor, and warnings get ignored
     likelihood: medium
     impact: medium
@@ -651,6 +772,7 @@ risks:
 
 open_questions:
   - id: q-subsite-cards
+    handle: PLN.66
     question: How does a parent site present the sub-sites (per-musing collections) it links to, and which of them sit in the hero panel?
     context: |
       The gap named in the 2026-09-02 site review. A musings landing page draws a card per musing -
@@ -664,6 +786,7 @@ open_questions:
     status: answered
     answer: "Card contract in collection.yaml - links (label, href, kind) and a hero flag - rendered by the parent; adr-017 accepted (Panda, 2026-09-02)."
   - id: q-md-bridge
+    handle: PLN.67
     question: Should README.md content be migrated into docs, or stay as an include section on the Reference page?
     context: The Reference page includes README.md verbatim; the same words then exist in two places.
     options: [Keep the include, Move the content into a generic doc and delete the include, Trim README to a pointer]
@@ -671,6 +794,7 @@ open_questions:
     status: answered
     answer: "Keep README.md and the include section on the Reference page (Panda, 2026-09-02)."
   - id: q-multi-repo
+    handle: PLN.68
     question: Should yss be installed as a package in other repos (pip install) or vendored?
     context: pyproject.toml supports `pip install -e .` and the git URL; vendoring keeps the schemas visible in the repo.
     options: [pip install from the git URL, Vendor the yss folder, Both, decided per repo]
@@ -678,6 +802,7 @@ open_questions:
     status: answered
     answer: "pip install from the git URL is the default; vendoring stays possible (Panda, 2026-09-02)."
   - id: q-musings-collision
+    handle: PLN.69
     question: How does yss enter the Musings repository, which already has build_site.py owning site/?
     context: "Options - library only, full adoption, one config per musing, or collections migrated one musing at a time (adr-010)."
     options: [Collections, one musing at a time, Library only, One yss config per musing]
@@ -685,6 +810,7 @@ open_questions:
     status: answered
     answer: "Collections, one musing at a time, build_site.py retired last; adr-010 accepted. First musing: space cargo cannon (Panda, 2026-09-02)."
   - id: q-work-status-for-risks
+    handle: PLN.70
     question: Should risks share work_status or keep risk_status by default?
     context: Vocabularies are data and can differ per collection; this decides the default in site.yaml.
     options: [Keep risk_status (open, mitigated, accepted, closed), Use work_status everywhere]
@@ -692,6 +818,7 @@ open_questions:
     status: answered
     answer: "Keep risk_status as the shipped default; a collection overrides it in collection.yaml when it wants (Panda, 2026-09-02)."
   - id: q-check-strictness
+    handle: PLN.71
     question: Should stale evidence fail the public build in CI, or only warn?
     context: "`yss build --strict` fails on stale claims; the workflow currently runs `yss check` as a separate step."
     options: [Fail the build (strict), Warn only]

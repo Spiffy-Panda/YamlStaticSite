@@ -1,10 +1,10 @@
-# Page - schema: page. Presents docs/register-skill.yaml, the live worksheet on shipping the register skill.
+# Page - schema: page. Presents docs/register-skill.yaml, the live worksheet on handles and the register skill.
 id: register-skill
 route: /register-skill/
-title: Register skill
-summary: How the contradiction register becomes a skill shipped with yss - eleven calls on the skill's boundary, what code ships with it, where per-collection config lives and what happens to the musing that has it today.
+title: Handles and the register skill
+summary: Making persistent item handles a first-class yss feature, and shipping the contradiction register that consumes them - six calls on the handle layer, eleven on the skill.
 visibility: public          # worksheets stay on the public site (P.2, 2026-09-02)
-nav: {label: Register skill, order: 41, group: decide}
+nav: {label: Handles and register, order: 41, group: decide}
 docs: [register-skill, plan]
 sections:
   - id: worksheet
@@ -23,6 +23,7 @@ sections:
     type: markdown
     heading: Other worksheets
     markdown: |
+      - [[handles-next]] - what applying this one left open.
       - [[later]] - the other live worksheet; decisions left over from the issue sweeps.
       - [[audit-calls]] - applied 2026-09-04; kept as the record.
       - [[next]] - applied 2026-09-03; kept as the record.

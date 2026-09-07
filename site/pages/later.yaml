@@ -38,6 +38,9 @@ sections:
     type: markdown
     heading: Previous worksheets
     markdown: |
+      - [[handles-next]] - the other live worksheet; what the handle layer left open.
+      - [[register-skill]] - applied 2026-09-07; kept as the record.
+      - [[audit-calls]] - applied 2026-09-04; kept as the record.
       - [[next]] - applied 2026-09-03; kept as the record.
       - [[open]] - applied 2026-09-02; kept as the record.
       - [[pending]] - applied 2026-09-02; kept as the record.

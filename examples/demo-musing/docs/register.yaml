@@ -1,0 +1,119 @@
+# Contradiction register - schema: doc.register. A VIEW over handles that live in other files.
+# It answers nothing and resolves nothing: a verdict is Panda's and it lands where the handle lives.
+# Never archived - the settled rows are what make the live ones legible.
+kind: register
+id: register
+title: Demo musing register
+summary: Every DMP handle in one place, with the contradictions quoted on both sides. The worked example the yss-register skill points at.
+visibility: private
+status: active
+updated: 2026-09-07
+owners: [agent]
+covers: [DMP]
+intro: |
+  This is the register, not the rules. It is here to answer *where does this musing disagree with
+  itself, and what did each handle ever say* - which is a question for an agent auditing history.
+
+  **A working agent loads [[live-rules]], not this page.** The list is generated from
+  these rows and carries only what still binds; this page keeps every handle, retired ones included,
+  with their original wording standing beside the rules that survived. Reading it to learn the rules
+  is how an agent ends up obeying something that was struck.
+
+  Nothing here is a verdict. Mark rows, press **Build the instruction**, and hand the text to an
+  agent - who records each verdict *where the handle lives* first, and updates these rows second.
+agent_notes: |
+  Every claimed contradiction quotes both sides verbatim, from the item the handle names. A
+  contradiction that cannot be quoted is one an agent invented, and inventing them is worse than
+  missing them - so a candidate that fails the test goes in `dismissed` with its reasoning rather
+  than being deleted. A pair may only name bound handles: a mention has no boundary and there is
+  nothing honest to quote.
+
+  This file never carries a verdict alone. Add a row when a handle is minted; change a row's
+  `state` only after the verdict is recorded in the file the handle lives in, and re-run
+  `python -m yss live-rules demo-musing` in the same commit.
+
+  Honest caveat, and the same one the instrument's second instance had: this collection has **no
+  retired handles yet**, so the generated list currently withholds nothing. The instrument's whole
+  value - keeping spent rules out of a working agent's context - does not bite until the first
+  retirement. It is generated anyway so the page exists and the gate runs before anyone needs it.
+
+entries:
+  - id: e-dmp1
+    subject: DMP.1
+    state: live
+    lives_in: docs/plan.yaml
+    note: The milestone the rest of this series hangs off. Still active; nothing has ruled on it.
+
+  - id: e-dmp2
+    subject: DMP.2
+    state: met
+    lives_in: docs/plan.yaml
+    note: >-
+      A stated deliverable that was delivered - the mount exists in collection.yaml and the build
+      copies it. Settled, not re-openable: `met` says it was done, not that it may not change.
+
+  - id: e-dmp3
+    subject: DMP.3
+    state: met
+    lives_in: docs/plan.yaml
+    pairs: [public-before-the-verdict]
+    note: >-
+      Delivered private-only. That parenthesis is a scope decision taken while DMP.4 was still
+      open, which is what the pair below is about; it is recorded, not criticised.
+
+  - id: e-dmp4
+    subject: DMP.4
+    state: live
+    lives_in: docs/plan.yaml
+    pairs: [public-before-the-verdict]
+    note: >-
+      Still binds: nobody has decided whether the playable may be public. No reason has been given
+      either way, and none is inferred here.
+
+  - id: e-dmp5
+    subject: DMP.5
+    state: recorded
+    lives_in: docs/plan.yaml
+    note: >-
+      A fact about how the build behaves, written down so it is not rediscovered - not a rule an
+      agent has to obey. It reaches the generated list under Settled for that reason.
+
+pairs:
+  - id: public-before-the-verdict
+    kind: soft
+    state: open 2026-09-07 - an agent's reading, reversible by Panda
+    a:
+      subject: DMP.3
+      quote: Embed the playable on the collection page (private only)
+    b:
+      subject: DMP.4
+      quote: Decide whether the playable can be public
+    resolves: >-
+      Answering DMP.4 closes it either way. If the playable may be public, DMP.3's parenthesis is
+      superseded and a successor handle carries the corrected scope - DMP.3 itself stands unchanged,
+      because the series is append-only. If it may not, DMP.4 is `answered` and the pair closes with
+      both quotes still standing.
+
+dismissed:
+  - id: d-mount-targets
+    pair: >-
+      DMP.3's "private only" against the mount's targets in collection.yaml, which lists both builds
+    why: >-
+      A real disagreement, and it still cannot go in. The collection.yaml side is a *mention*, not a
+      bound handle: no item declares it, so there is no boundary and nothing honest to quote. The
+      rule is not a technicality - a pair whose second half is a paraphrase is a pair an agent
+      invented. If that scope needs to be contradictable, it has to become a doc item that carries a
+      handle first.
+
+prompt:
+  task: Apply the register verdicts to the demo musing
+  background: |
+    Collection `examples/demo-musing` in the YamlStaticSite repository. Handles in the DMP series
+    live in `examples/demo-musing/docs/plan.yaml`. The register is a view: record every verdict in
+    the file the handle lives in first, then update the register row, then re-run the generator.
+  rules:
+    - Record each verdict where the handle lives, first; the register never carries a verdict alone.
+    - Never renumber, never reuse a retired number, never rewrite an item to match a later ruling.
+    - Retiring a rule removes it; it does not supply the opposite. Where no reason was given, say so.
+    - A pair keeps both quotes standing after it closes; no resolution field is ever added.
+    - Re-run `python -m yss live-rules demo-musing`, then validate and check, in the same commit.
