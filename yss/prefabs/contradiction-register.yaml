@@ -44,9 +44,11 @@ template: |
     <p class="creg-lede">Mark what you want changed and press <b>Build the instruction</b>. Rows you do not touch produce nothing.</p>
     <div class="creg-rows">
     {% for e in entries %}
-    <div class="creg-row creg-state-{{ e.state }}" id="h-{{ e.subject | slug }}"
+    {# Two anchors, the same way term-list and changelog-list carry both: the row's own id is what
+       references and evidence links resolve to, and the handle form is what a reader pastes. #}
+    <div class="creg-row creg-state-{{ e.state }}"{% if e.id %} id="{{ e.id }}"{% endif %}
          data-handle="{{ e.subject }}" data-state="{{ e.state }}" data-lives-in="{{ e.lives_in or '' }}">
-      <div class="creg-row-head">
+      <div class="creg-row-head" id="h-{{ e.subject | slug }}">
         <code class="creg-handle">{{ e.subject }}</code>
         <span class="creg-badge creg-badge-{{ e.state }}">{{ e.state }}</span>
         {% if e.lives_in %}<span class="creg-lives">{{ e.lives_in }}</span>{% endif %}

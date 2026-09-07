@@ -4,21 +4,25 @@ kind: worksheet
 id: handles-next
 mnemonic: HND
 title: After handles
-summary: What building the handle layer and the register left for Panda - how far the gap check reaches, whether a citation tooltip is too crowded by default, items that carry identity but no id, the bootstrap wrinkle a register hits, and whether the worked example should be visible.
+summary: What building the handle layer and the register left for Panda - whether a series must belong to one doc, how far the gap check reaches, whether a tooltip is too crowded, items with no id, a register's bootstrap wrinkle, and whether the worked example should be visible.
 status: active
 updated: 2026-09-07
 owners: [agent]
 related: [register-skill, plan, decisions, codemap]
 intro: |
   [[register-skill]] has been applied: handles are first-class, every doc mints a series, and the
-  contradiction register ships as a kind, a prefab and a subcommand. These five came out of building
-  it. None of them blocks anything that is already moving, and none is a bug - each is a place where
+  contradiction register ships as a kind, a prefab and a subcommand. These six came out of building
+  it. Only N.6 blocks work that is queued, and none is a bug - each is a place where
   the implementation had to pick a behaviour and the pick is reversible.
 
   Recommended defaults are pre-selected. Open **pros and cons** under an option before changing one,
   press **Build the instruction**, and hand the text to an agent in a fresh session.
 warn: |
-  🐼❗ H.4 is the one with a real leak surface. The demo register is `visibility: private`, which is
+  🐼❗ N.6 blocks the adoption of the first repository outright - its docs cannot declare mnemonics
+  under the rule as shipped, and the two cheap workarounds both require renaming minted handles.
+  Answer it before that migration starts.
+
+  N.5 is the one with a real leak surface. The demo register is `visibility: private`, which is
   the shipped default and the safe one - but it means the worked example the `yss-register` skill
   points at never renders on the public site, so nobody evaluating yss can see the instrument that
   the skill spends two thousand words on.
@@ -194,6 +198,51 @@ questions:
         prompt: "Keep the demo register private and add a public page showing a screenshot of the rendered register instead."
         pros: [Nothing private is published, The instrument is visible]
         cons: [A screenshot goes stale silently, No evidence claim can prove it current, The controls cannot be tried]
+
+  - id: n-series-ownership
+    handle: HND.6
+    call: N.6
+    lead: Must a handle series belong to exactly one doc?
+    help: |
+      Two rules were written into the handle layer without real data to test them: a doc declares
+      **one** mnemonic, and every handle in it must use that mnemonic. Both break on the first
+      repository to adopt it. Seven of its docs carry two or three prefixes each - one carries `FB`,
+      `FBK` and `VFB` - and two prefixes span two docs apiece.
+
+      Neither of the cheap fixes is available. Folding a second prefix into a sub-series tag
+      (`AGRP.1` becoming `AGR.P1`) renames minted handles, which is the one thing append-only
+      forbids. Splitting the docs is a large content migration for a constraint that was never
+      asked for.
+
+      What is actually load-bearing is that a **handle** is unique across the site, which is
+      enforced separately. A doc's mnemonic is only doing two jobs: giving `[[.7]]` a scope, and
+      telling the sweep which prefixes are real.
+    applies_to: "the mnemonic field's shape, the per-doc ownership check in build_index, and adr-046"
+    compare: |
+      The check being traded away is real: it catches a handle written into the wrong doc, which is
+      how a series quietly grows a second home. What replaces it is weaker but not nothing - a
+      prefix no doc anywhere declares is still an error, so a typo'd prefix is still caught. The
+      question is whether cross-doc drift is worth a constraint that one real repo cannot satisfy.
+    options:
+      - value: site-owned
+        text: A series belongs to the site - a doc may declare several mnemonics, and several docs may share one
+        recommended: true
+        why: Handle uniqueness is the invariant that matters and is enforced anyway; per-doc ownership was an assumption, and it is the only thing blocking a repo whose handles are otherwise valid.
+        prompt: "Let a doc's `mnemonic:` take one value or a list, allow several docs to declare the same mnemonic, keep site-wide handle uniqueness as the real invariant, and scope the in-scope form to a doc's first declared mnemonic. Supersede adr-046 where it says a handle must use its own doc's mnemonic."
+        pros: [The adopting repo validates without renaming a single handle, Handle uniqueness still catches every collision, An undeclared prefix is still an error so typos are still caught]
+        cons: [A handle written into the wrong doc is no longer caught, A series can grow a second home unnoticed, Two of the three shipped skills need their wording corrected]
+      - value: split-docs
+        text: Keep one doc one mnemonic - split the docs that carry several
+        why: Preserves the check at the price of a large content migration in someone else's repository, decided here rather than there.
+        prompt: "Keep the one-doc-one-mnemonic rule and split any doc carrying several prefixes into one doc per series."
+        pros: [The wrong-doc check survives, One mnemonic always names one file]
+        cons: [Seven docs to split in the adopting repo, Pages and references pointing at them all move, A rule that yss invented forces a musing to reorganise]
+      - value: primary-plus
+        text: One primary mnemonic per doc, with additional ones declared explicitly as guests
+        why: Keeps a clear owner for scope while allowing the real layout, at the cost of a distinction nobody asked for.
+        prompt: "Allow a doc one primary mnemonic plus explicitly declared additional series, with the primary used for the in-scope form."
+        pros: [Scope stays unambiguous, The layout is expressible, Guests are visible in the file]
+        cons: [A concept to explain that exists only for this, Still fails where one prefix spans two docs, More schema for little gain]
 
 prompt:
   task: Apply the after-handles decisions to yss

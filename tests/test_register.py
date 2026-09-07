@@ -243,6 +243,26 @@ class FailureTests(RegisterCase):
         self.assertRefuses("inventing them is worse than missing them")
 
 
+class AnchorTests(TempSiteCase):
+    """A register row anchors on its own id, so evidence links and references resolve (gh-11)."""
+
+    def test_rows_anchor_on_their_item_id(self):
+        loaded = load_all(self.cfg)
+        from yss.render import Renderer
+        renderer = Renderer(self.cfg, "private", loaded.docs, loaded.pages, loaded.prefabs)
+        html = renderer.prefab("contradiction-register", {
+            "entries": [{"id": "e-one", "subject": "XYZ.1", "state": "live", "says": "a rule"}],
+        })
+        self.assertIn('id="e-one"', html, "an evidence link resolves to the row's own id")
+        self.assertIn('id="h-xyz-1"', html, "and the handle form stays for a reader to paste")
+
+    def test_the_demo_register_leaves_no_dead_reference(self):
+        from yss.build import build
+        report = build(self.cfg, "private", out_dir=self.root / "out", run_dynamic=False)
+        dead = [w for w in report.warnings if w.startswith("dead reference") and "register" in w]
+        self.assertEqual(dead, [])
+
+
 class DemoCollectionTests(TempSiteCase):
     """The shipped worked example: the demo collection's register generates and stays current."""
 

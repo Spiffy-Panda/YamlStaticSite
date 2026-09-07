@@ -122,8 +122,8 @@ properties:
       required: [pair, why]
       properties:
         id: {$ref: "#/$defs/slug"}
-        pair: {type: string, x-limit: line, description: The candidate, as it was proposed.}
-        why: {type: string, x-limit: markdown, description: The reasoning, so it is not re-proposed.}
+        pair: {type: string, x-limit: line, description: "The candidate, as it was proposed."}
+        why: {type: string, x-limit: markdown, description: "The reasoning, so it is not re-proposed."}
       unevaluatedProperties: false
   prompt:
     type: object
