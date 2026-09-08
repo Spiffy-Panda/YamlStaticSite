@@ -274,11 +274,24 @@ class DemoCollectionTests(TempSiteCase):
         self.assertFalse(is_stale(path, text),
                          "the committed live-rules list matches its register; re-run `yss live-rules`")
 
-    def test_register_and_its_page_are_private(self):
+    def test_the_worked_example_is_public_and_says_why(self):
+        """adr-057: this one register is public so the instrument can be seen. Every other one is
+        private, so the exception has to be written where somebody copying the file will read it."""
         loaded = load_all(self.cfg)
-        self.assertEqual(loaded.docs["demo-musing/register"]["visibility"], "private")
+        register = loaded.docs["demo-musing/register"]
+        self.assertEqual(register["visibility"], "public")
+        self.assertIn("public", register.get("agent_notes", "").lower())
+        self.assertIn("private", register.get("agent_notes", "").lower(),
+                      "it must say that a real register stays private")
         page = next(p for p in loaded.pages if p["id"] == "demo-musing/register")
-        self.assertEqual(page["visibility"], "private")
+        self.assertEqual(page["visibility"], "public")
+
+    def test_the_shipped_default_is_still_private(self):
+        """The exception must not have moved the default: a register that says nothing is private."""
+        from yss.liverules import project
+        out = project({"title": "T", "updated": "2026-09-07"}, {}, [],
+                      find_spec(self.cfg, "demo-musing"))
+        self.assertEqual(out["visibility"], "private")
 
 
 if __name__ == "__main__":
